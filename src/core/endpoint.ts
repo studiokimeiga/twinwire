@@ -1,5 +1,5 @@
 import { TokenBucket } from './budget.js';
-import { ReliableEvents, type ReliableOptions } from './reliable.js';
+import { EventRejected, ReliableEvents, type ReliableOptions } from './reliable.js';
 import {
   decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MTU_STATE_BYTES, newer, stringify,
   isUint, utf8, fromUtf8, utf8Length, type Frame, type Json,
@@ -36,9 +36,14 @@ export class Endpoint {
   readonly events: ReliableEvents;
   readonly stats = { bytesSent: 0, bytesReceived: 0, statesSent: 0, statesReceived: 0,
     stale: 0, expired: 0, coalesced: 0, congested: 0, invalid: 0, fastTransitions: 0, datagramRttMs: 0,
-    eventsViaDatagram: 0, datagramEventFrames: 0, stateAcksSent: 0, stateAcksReceived: 0, impairedDrops: 0 };
+    eventsViaDatagram: 0, datagramEventFrames: 0, stateAcksSent: 0, stateAcksReceived: 0, impairedDrops: 0,
+    eventsRejected: 0, callbackErrors: 0 };
   onState: (state: StateMessage) => void = () => {};
+  /** A throw means "not accepted": the event is offered again (in order) shortly after, not dropped. */
   onEvent: (data: Json, seq: number) => void = () => {};
+  /** An application callback threw (onEvent, onState, onStateAck). The connection carries on. */
+  onCallbackError: (error: unknown) => void = () => {};
+  private eventRetryAt = 0;
   onFastDown: () => void = () => {};
   onFastChange: (fast: boolean) => void = () => {};
   onEventAck: (seq: number) => void = () => {};
@@ -154,7 +159,8 @@ export class Endpoint {
     if (m.e !== this.epoch || !this.active) return false;
     if (m.t === 'event') {
       if (typeof m.s !== 'number' || !('d' in m)) throw new Error('Invalid event');
-      this.events.receive(m.s, m.d as Json, this.onEvent);
+      try { this.events.receive(m.s, m.d as Json, this.onEvent); }
+      catch (e) { if (!(e instanceof EventRejected)) throw e; this.rejected(e); }
       this.ackDue = !this.sendControl({ t: 'ack', e: this.epoch, s: this.events.received }); return true;
     }
     if (m.t === 'ack') {
@@ -190,7 +196,15 @@ export class Endpoint {
     if (prior === undefined && this.received.size >= this.maxStreams) { this.stats.invalid++; return; }
     this.received.set(f.stream, f.seq); this.stats.statesReceived++;
     if (f.kind === FrameKind.stateAcked) this.acksOut.set(f.stream, f.seq);
-    this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via });
+    try { this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via }); }
+    catch (e) { this.callbackError(e); }
+  }
+  private callbackError(e: unknown): void {
+    this.stats.callbackErrors++;
+    try { this.onCallbackError(e); } catch { /* a diagnostics callback must not break delivery */ }
+  }
+  private rejected(e: EventRejected): void {
+    this.stats.eventsRejected++; this.eventRetryAt = this.now() + 100; this.callbackError(e.error);
   }
   private receiveDatagramEvents(f: Frame): void {
     if (f.seq <= this.events.sentThrough && this.events.ack(f.seq)) this.onEventAck(f.seq);
@@ -198,13 +212,17 @@ export class Endpoint {
     let list: unknown;
     try { list = JSON.parse(fromUtf8(f.payload)); } catch { this.stats.invalid++; return; }
     if (!Array.isArray(list) || list.length > 64) { this.stats.invalid++; return; }
-    let delivered = 0;
-    for (const item of list) {
-      if (!Array.isArray(item) || item.length !== 2 || !Number.isSafeInteger(item[0])) { this.stats.invalid++; return; }
-      try { delivered += this.events.receive(item[0] as number, item[1] as Json, this.onEvent); }
-      catch { this.stats.invalid++; return; }
+    const before = this.events.received;
+    try {
+      for (const item of list) {
+        if (!Array.isArray(item) || item.length !== 2 || !Number.isSafeInteger(item[0])) { this.stats.invalid++; return; }
+        try { this.events.receive(item[0] as number, item[1] as Json, this.onEvent); }
+        catch (e) { if (e instanceof EventRejected) { this.rejected(e); return; } this.stats.invalid++; return; }
+      }
+    } finally {
+      const delivered = this.events.received - before;
+      if (delivered > 0) { this.stats.eventsViaDatagram += delivered; this.ackDue = true; }
     }
-    if (delivered) { this.stats.eventsViaDatagram += delivered; this.ackDue = true; }
   }
   private receiveStateAcks(f: Frame): void {
     const p = f.payload;
@@ -215,7 +233,8 @@ export class Endpoint {
       if (sent === undefined || newer(seq, sent)) continue;
       const prior = this.acksIn.get(stream);
       if (prior !== undefined && !newer(seq, prior)) continue;
-      this.acksIn.set(stream, seq); this.stats.stateAcksReceived++; this.onStateAck(stream, seq);
+      this.acksIn.set(stream, seq); this.stats.stateAcksReceived++;
+      try { this.onStateAck(stream, seq); } catch (e) { this.callbackError(e); }
     }
   }
   private sendFast(b: Uint8Array): boolean {
@@ -234,6 +253,12 @@ export class Endpoint {
   }
   pump(): void {
     const now = this.now(), d = this.datagram;
+    if (this.events.waiting && now >= this.eventRetryAt) {
+      // an event the application rejected (or early copies that caught up): offer it again, in order
+      const before = this.events.received;
+      try { this.events.drain(this.onEvent); } catch (e) { if (e instanceof EventRejected) this.rejected(e); else throw e; }
+      if (this.events.received > before) this.ackDue = true;
+    }
     if (d) {
       if ((!d.open && now - this.attachedAt > this.probeTimeout) ||
           (this.fast && now - this.proofAt > this.probeTimeout) ||

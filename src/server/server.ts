@@ -18,6 +18,9 @@ export interface GameServerOptions {
   /** Exact page origins, or a predicate (for example, any origin for a game without cookies or accounts). */
   origins: string[] | ((origin: string) => boolean);
   allowMissingOrigin?: boolean; maxSessions?: number; maxConnections?: number; maxPerIp?: number;
+  /** Sessions one address may hold, connected or waiting to resume (default maxPerIp). At the limit, a new session
+   * from that address replaces its longest-disconnected one, so a player who reloads a lot recycles their own. */
+  maxSessionsPerIp?: number;
   resumeGraceMs?: number; heartbeatTimeoutMs?: number; handshakeTimeoutMs?: number;
   endpoint?: EndpointOptions; rtc?: RtcFactory;
   /** STUN/TURN servers handed to each client in its welcome (a function can mint per-session TURN credentials). */
@@ -175,8 +178,15 @@ export class GameServer {
       }
       this.stats.sessionResumes++;
     } else {
+      const mine = [...this.tokens.values()].filter(r => r.session.ip === c.ip);
+      if (mine.length >= (this.options.maxSessionsPerIp ?? this.options.maxPerIp ?? 32)) {
+        const idle = mine.filter(r => !r.session.connected).sort((a, b) => a.session.disconnectedAt - b.session.disconnectedAt)[0];
+        if (!idle) { c.ws.close(1013, 'too many sessions from this address'); return; }
+        this.expire(idle);
+      }
       if (this.sessions.size >= (this.options.maxSessions ?? 256)) { c.ws.close(1013, 'room capacity'); return; }
       const session = new GameSession(randomUUID(), m.room, subject, this.options.endpoint);
+      session.endpoint.onCallbackError = e => this.report(e);
       record = { session, token: randomBytes(32).toString('base64url') };
       this.sessions.set(session.id, session); this.tokens.set(record.token, record);
     }

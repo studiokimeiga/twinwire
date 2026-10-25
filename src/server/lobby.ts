@@ -134,6 +134,10 @@ export class Lobby {
     const m = this.bySession.get(s.id);
     if (m && resumed) {
       m.connected = true; m.disconnectedAt = 0;
+      // with everyone gone the host fell back to a disconnected member: the first one back takes it
+      if (!m.room.host?.connected) this.pickHost(m.room);
+      // back unready (a drop clears ready): a countdown that started without them waits for them, as for a join
+      if (!m.ready) this.cancelCountdown(m.room);
       this.safe(() => this.onReconnect(m.room, m)); this.changed(m.room);
     }
   }

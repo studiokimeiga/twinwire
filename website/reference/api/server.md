@@ -30,7 +30,8 @@ await server.listen();   // resolves with the port
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits |
 | `heartbeatTimeoutMs` | 15 000 | A connection silent this long is closed |
 | `handshakeTimeoutMs` | 5 000 | A connection that hasn't said hello by then is closed |
-| `maxSessions`, `maxConnections`, `maxPerIp` | 256, 512, 32 | |
+| `maxSessions`, `maxConnections`, `maxPerIp` | 256, 512, 32 | Sessions (connected or waiting to resume), sockets, and sockets per address |
+| `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table |
 | `rateLimit` | `{ messages: 300, bytes: 256 KiB }` | Per connection, per second, both transports together |
 | `allowImpairment` | false | Honour a client's `impair` request. Development only |
 | `endpoint` | | [Endpoint options](#endpoint-options) for every session |
@@ -151,5 +152,5 @@ on `maxStateBytes`.
 | `stateAckIntervalMs` | 50 | How often state acknowledgements go back |
 | `probeIntervalMs`, `probeTimeoutMs` | 250, 1500 | Datagram proof: how often to probe, and how long without a reply before giving the path up |
 | `maxStreams` | 1024 | |
-| `events` | `{ maxEvents: 512, maxBytes: 1 MiB, maxEventBytes: 64 KiB }` | The event outbox |
+| `events` | `{ maxEvents: 512, maxBytes: 1 MiB, maxEventBytes: 64 KiB, maxEarly: 256, maxEarlyBytes: 256 KiB }` | The event outbox, and events waiting for an earlier one |
 | `impair` | | Simulated trouble on this endpoint's sends, for testing |

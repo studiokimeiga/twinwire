@@ -1,6 +1,6 @@
 {
   "name": "twinwire",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Multiplayer networking for browser games: one resumable session on two wires (WebSocket + WebRTC datagrams), reliable events at UDP latency, delta snapshots, a lobby with codes, quick play and ready-up, and netcode helpers. Works in every browser, iPhone Safari included.",
   "keywords": [
     "multiplayer",
@@ -79,7 +79,8 @@
     "prepublishOnly": "npm run check && npm run test:native",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "example": "node examples/party/server.mjs",
-    "test:example": "node tools/party-e2e.mjs"
+    "test:example": "node tools/party-e2e.mjs",
+    "soak": "node --expose-gc tools/soak.mjs"
   },
   "dependencies": {
     "ws": "^8.18.3"

@@ -125,3 +125,16 @@ test('a full reliable outbox is reported per recipient without aborting a room b
 test('client rejects invalid room names before attempting a connection', () => {
   assert.throws(() => client('ws://localhost/connect', { room: 'a/b' }), /room/);
 });
+
+test('one address cannot fill the session table: its oldest dropped session makes way', async () => {
+  const s = await setup({ maxSessions: 8, maxPerIp: 4 }); const clients = [];
+  try {
+    for (let i = 0; i < 10; i++) {
+      const c = client(s.url); clients.push(c); c.connect(); await until(() => c.status === 'online');
+      const id = c.id; c.pause(); await until(() => !s.server.sessions.get(id)?.connected);
+    }
+    assert.ok(s.server.sessions.size <= 4, 'sessions: ' + s.server.sessions.size);
+    for (const c of clients.slice(-4)) assert.ok(s.server.sessions.has(c.id), 'the newest sessions stay');
+    const last = client(s.url); clients.push(last); last.connect(); await until(() => last.status === 'online');
+  } finally { for (const c of clients) c.close(); await s.server.close(); }
+});

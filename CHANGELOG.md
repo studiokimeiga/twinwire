@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.1 (2026-10-25)
+
+Fixes from an independent review and a soak test under hostile clients. No API changes; two new options.
+
+- **Server**: sessions are capped per address (`maxSessionsPerIp`, default `maxPerIp`). Before, one address that kept
+  connecting and leaving could fill the whole session table for the resume grace (90 s); now its new session replaces
+  its own longest-disconnected one.
+- **Events**: events waiting for an earlier one are capped by size too (`events.maxEarlyBytes`, 256 KiB), not only by
+  count, so a peer can't park megabytes in that buffer.
+- **Lobby**: when everyone had dropped, the host could stay a disconnected member after another came back; the first
+  one back now takes it. A member who comes back unready during a ready countdown now cancels it, as a join does,
+  instead of being started unready.
+- **Handlers that throw**: an exception from `onEvent` on the WebSocket path closed the connection as a protocol error,
+  and the client then gave the session up, although API.md promised the event would come again (it did on the datagram
+  path). Now, on every path, the event is kept and offered again in order about 100 ms later; an exception from
+  `onState` or `onStateAck` is reported and the connection carries on. Both go to `onError` (client) and the server's
+  `onError`, counted in `endpoint.stats.eventsRejected` and `callbackErrors`.
+- **Delta snapshots**: `diffEntities`/`applyEntityDelta` lost entities whose ids are names every object already has
+  (`constructor`, `toString`), and a `__proto__` id from the wire wrote onto `Object.prototype`. Only own properties
+  count now, and every id and field name is an ordinary key.
+- Tests from an independent review: `test/lobby-lifecycle.test.mjs` and `test/delivery-edges.test.mjs` (111 in all).
+- `tools/soak.mjs` (`npm run soak`): a long run under churn and hostile clients that checks for lost events, leaks and stalls.
+- Docs: a website (https://studiokimeiga.github.io/twinwire/), and every client, server and lobby option in API.md.
+
 ## 1.0.0 (2026-10-25)
 
 The first public release.

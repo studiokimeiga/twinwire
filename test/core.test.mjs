@@ -102,3 +102,14 @@ test('seeded frame fuzz never escapes the decoder', () => {
   let x = 934; const next = () => (x = (Math.imul(x, 1664525) + 1013904223) >>> 0);
   for (let i = 0; i < 3000; i++) { const a = new Uint8Array(next() % 1150); for (let k = 0; k < a.length; k++) a[k] = next() & 255; assert.doesNotThrow(() => decodeFrame(a)); }
 });
+
+test('early events are bounded by size as well as count, and small ones still wait for the gap', () => {
+  const r = new ReliableEvents(), big = 'x'.repeat(60000);
+  assert.throws(() => { for (let s = 2; s < 40; s++) r.receive(s, big, () => {}); }, /early/i);
+  const ok = new ReliableEvents(), got = [];
+  for (let s = 2; s <= 200; s++) ok.receive(s, { n: s }, d => got.push(d.n));
+  assert.equal(got.length, 0);
+  ok.receive(1, { n: 1 }, d => got.push(d.n));
+  assert.deepEqual(got, Array.from({ length: 200 }, (_, i) => i + 1));
+  for (let s = 202; s < 260; s++) ok.receive(s, big.slice(0, 2000), () => {});   // freed bytes are reusable
+});

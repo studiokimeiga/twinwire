@@ -63,8 +63,9 @@ const client = new GameClient({
 | `intercept(fn)`, `on('session' \| 'lost', fn)` | Extra listeners for helpers such as `LobbyClient`. Each returns a function that removes it |
 | `endpoint.stats` | Bytes, states sent and received, stale, expired and coalesced states, `eventsViaDatagram`, `datagramRttMs`, and more |
 
-Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means the event wasn't accepted and
-it will come again.
+Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means the event wasn't accepted, and
+the same event is offered again, in order, about 100 ms later. A throw from `onState` or `onStateAck` drops that one
+message. Either way the connection carries on and the error goes to `onError`.
 
 ## LobbyClient
 

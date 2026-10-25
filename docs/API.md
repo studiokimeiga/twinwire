@@ -60,8 +60,9 @@ const client = new GameClient({
 | `pumpHz` | 60 | How often queued states and events are scheduled onto the wires. |
 | `websocket` | `u => new WebSocket(u)` | Socket factory (tests, Node clients, proxies). |
 
-Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means "not accepted" and the event
-comes again.
+Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means "not accepted", and the same
+event is offered again, in order, about 100 ms later (whichever wire brought it). A throw from `onState` or `onStateAck`
+drops that one message. Either way the connection carries on and the error goes to `onError`.
 
 ## LobbyClient
 
@@ -102,7 +103,8 @@ await server.listen();
 | `iceServers` | `[]` | Array or `(session) => array \| Promise`. Sent in each welcome. |
 | `trustProxy` | false | Read the client address from the last `X-Forwarded-For` hop when the peer is a local proxy. |
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits. |
-| `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | |
+| `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. |
+| `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table. |
 | `rateLimit` | 300 msg/s, 256 KiB/s | Per connection, both transports together. |
 | `allowImpairment` | false | Honour a client's `impair`. Development only. |
 | `endpoint` | | Endpoint options for every session (below). |
@@ -161,7 +163,7 @@ a join, a leave or a drop cancels it, but name and meta changes don't. `LobbyCli
 goes once the bucket is full). `maxBufferedBytes` (64 KiB): socket backpressure. `maxStateBytes` (64 KiB, at most
 256 KiB). `datagramStateBytes` (8 KiB): bigger states use the WebSocket. `datagramEvents` (true). `stateAckIntervalMs`
 (50). `probeIntervalMs`/`probeTimeoutMs` (250/1500). `maxStreams` (1024). `events: {maxEvents, maxBytes,
-maxEventBytes}`. `impair`. Both ends should agree on `maxStateBytes`.
+maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 256 KiB waiting for a gap). `impair`. Both ends should agree on `maxStateBytes`.
 
 ## Netcode
 

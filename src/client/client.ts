@@ -80,6 +80,7 @@ export class GameClient {
     e.onState = s => this.onState(s);
     e.onEvent = (d, s) => { for (const f of this.interceptors) if (f(d, s)) return; this.onEvent(d, s); };
     e.onStateAck = (stream, seq) => this.onStateAck(stream, seq);
+    e.onCallbackError = error => this.report(error);
     e.onFastDown = () => this.stopRtc(true);
     e.onFastChange = () => this.noteTransport();
     return e;
