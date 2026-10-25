@@ -23,7 +23,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - name: the tag matches package.json
-        run: test "v$(node -p 'require(\"./package.json\").version')" = "$GITHUB_REF_NAME"
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm run check
       - run: npm run test:native
       - name: publish (unless this version is already on npm, or no npm token is set yet)
