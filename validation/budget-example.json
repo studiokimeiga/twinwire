@@ -1,0 +1,19 @@
+{
+  "assumptions": {
+    "bytesPerSecondPerPlayer": 40000,
+    "averagePlayers": 50,
+    "activeHours": 720,
+    "baseMonthlyUSD": 5,
+    "includedGB": 1000,
+    "overageUSDPerGB": 0.01,
+    "budgetUSD": 5,
+    "overheadFraction": 0
+  },
+  "estimate": {
+    "payloadGB": 5184,
+    "plannedGB": 5184,
+    "bill": 46.84,
+    "withinBudget": false
+  },
+  "note": "Enter your actual provider allowance and prices. Defaults are illustrative, not a current Vultr quote. Overhead is an estimate. No automatic billing cap or paid resources are created."
+}

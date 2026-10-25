@@ -1,0 +1,6 @@
+# Replace this hostname and match ALLOWED_ORIGINS in the server environment.
+game.example.com {
+    # Serves the example HTML/module files and upgrades /connect to WebSocket.
+    reverse_proxy 127.0.0.1:8787
+}
+# WebRTC UDP is exposed separately on the VPS; Caddy is not an arbitrary UDP proxy.

@@ -1,0 +1,18 @@
+{
+  "kind": "localhost-single-process-websocket",
+  "node": "v22.16.0",
+  "clients": 50,
+  "hz": 20,
+  "neighbors": 8,
+  "seconds": 5.102376083999999,
+  "incomingStates": 4950,
+  "deliveredStates": 39600,
+  "serverEncodedBytesSent": 1527517,
+  "serverEncodedBytesPerSecond": 299373.6594191829,
+  "perClientEncodedBytesPerSecond": 5987.473188383658,
+  "cpuMsIncludingClients": 1336.162,
+  "rssMB": 101.30078125,
+  "eventLoopP99Ms": 17.383423,
+  "errors": [],
+  "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+}

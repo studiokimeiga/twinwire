@@ -1,0 +1,50 @@
+name: networking-gates
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: networking-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:native
+      - run: npm run bench -- --clients 50 --seconds 5
+  browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:browser
+      - run: IMPAIR=1 npm run test:browser
+      - run: RTC=0 npm run test:browser
+      - run: npm run test:example
+      - run: RTC=1 npm run test:example
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: browser-results
+          path: validation/browsers*.json

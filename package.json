@@ -1,0 +1,102 @@
+{
+  "name": "twinwire",
+  "version": "1.0.0",
+  "description": "Multiplayer networking for browser games: one resumable session on two wires (WebSocket + WebRTC datagrams), reliable events at UDP latency, delta snapshots, a lobby with codes, quick play and ready-up, and netcode helpers. Works in every browser, iPhone Safari included.",
+  "keywords": [
+    "multiplayer",
+    "netcode",
+    "game",
+    "gamedev",
+    "webrtc",
+    "websocket",
+    "datachannel",
+    "udp",
+    "lobby",
+    "matchmaking",
+    "snapshot-interpolation",
+    "client-side-prediction",
+    "turn",
+    "stun",
+    "browser",
+    "safari"
+  ],
+  "homepage": "https://github.com/studiokimeiga/twinwire#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/studiokimeiga/twinwire.git"
+  },
+  "bugs": {
+    "url": "https://github.com/studiokimeiga/twinwire/issues"
+  },
+  "author": "Studio Kimeiga",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./netcode": {
+      "types": "./dist/netcode/index.d.ts",
+      "import": "./dist/netcode/index.js"
+    },
+    "./browser": {
+      "import": "./dist/browser/twinwire.mjs",
+      "default": "./dist/browser/twinwire.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.json && node tools/bundle.mjs",
+    "check": "npm run build && npm test",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "test:browser": "node tools/browser-e2e.mjs",
+    "test:native": "node tools/native-rtc-test.mjs",
+    "bench": "node tools/bench.mjs",
+    "budget": "node tools/budget.mjs",
+    "demo": "node examples/arena/server.mjs",
+    "prepack": "npm run build",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run check && npm run test:native",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "example": "node examples/party/server.mjs",
+    "test:example": "node tools/party-e2e.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "peerDependencies": {
+    "node-datachannel": ">=0.33.4 <0.34.0"
+  },
+  "peerDependenciesMeta": {
+    "node-datachannel": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.28.2",
+    "node-datachannel": "^0.33.4",
+    "playwright": "^1.63.0",
+    "typescript": "~5.8.3"
+  }
+}

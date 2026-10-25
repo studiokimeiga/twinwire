@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.tgz
+*.log
+coverage/
+playwright-report/
+test-results/
+
+__pycache__/
+*.pyc

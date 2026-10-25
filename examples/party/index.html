@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Twinwire party</title>
+<style>
+  :root { --bg: #0d1220; --panel: #161d33; --line: #2c3961; --ink: #e6ecff; --dim: #8e9ccc; --accent: #ffd23f; --good: #7ae08a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 22px; margin: 4px 0 2px; } h2 { font-size: 15px; color: var(--dim); font-weight: 500; margin: 0 0 16px; }
+  section { display: none; } section.on { display: block; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 12px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input, button { font: inherit; color: inherit; border-radius: 8px; border: 1px solid var(--line); background: #0f1528; padding: 10px 12px; }
+  input { flex: 1; min-width: 0; } input.code { text-transform: uppercase; letter-spacing: 3px; max-width: 120px; }
+  button { cursor: pointer; background: #22305a; } button.main { background: var(--accent); color: #1a1406; border-color: var(--accent); font-weight: 600; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .code-big { font: 700 34px ui-monospace, monospace; letter-spacing: 6px; color: var(--accent); }
+  ul { list-style: none; padding: 0; margin: 8px 0; } li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; } .tag { margin-left: auto; color: var(--dim); font-size: 13px; } .tag.ready { color: var(--good); }
+  #count { font: 700 48px system-ui; text-align: center; color: var(--accent); min-height: 58px; }
+  canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #10182e; border-radius: 12px; border: 1px solid var(--line); touch-action: none; }
+  #log { height: 110px; overflow: auto; font-size: 14px; margin: 10px 0; } #log div { padding: 2px 0; }
+  #status { color: var(--dim); font: 13px ui-monospace, monospace; }
+  .err { color: #ff9aa8; min-height: 20px; }
+</style>
+<main>
+  <h1>Twinwire party</h1><h2>a complete little multiplayer game: lobby, ready-up, prediction, interpolation, chat</h2>
+  <section id="menu" class="on">
+    <div class="card">
+      <div class="row"><input id="name" maxlength="16" placeholder="Your name" aria-label="Your name"></div>
+      <div class="row" style="margin-top:12px"><button class="main" id="quick">Quick play</button><button id="create">Create a room</button></div>
+      <div class="row" style="margin-top:12px"><input id="code" class="code" maxlength="6" placeholder="CODE" aria-label="Room code"><button id="join">Join by code</button></div>
+      <p class="err" id="err" role="alert"></p>
+    </div>
+  </section>
+  <section id="room">
+    <div class="card">
+      <div class="row"><div><div class="tag" style="margin:0">Room code</div><div class="code-big" id="roomcode"></div></div>
+        <button id="invite" style="margin-left:auto">Copy invite link</button></div>
+      <ul id="members"></ul>
+      <div id="count" aria-live="polite"></div>
+      <div class="row"><button class="main" id="ready">I'm ready</button><button id="leave">Leave</button></div>
+    </div>
+  </section>
+  <section id="game">
+    <canvas id="arena" width="640" height="360" aria-label="The arena: move with WASD, the arrow keys, or drag"></canvas>
+    <div id="status"></div>
+    <div id="log" role="log"></div>
+    <form class="row" id="chat"><input id="say" maxlength="120" placeholder="Say something" aria-label="Chat"><button>Send</button><button type="button" id="leave2">Leave</button></form>
+  </section>
+</main>
+<script type="importmap">{ "imports": { "twinwire/client": "/twinwire.mjs", "twinwire/netcode": "/twinwire.mjs" } }</script>
+<script type="module">
+import { GameClient, LobbyClient } from 'twinwire/client';
+import { Predictor, Timeline, AdaptivePlayback, FixedStepper, encodeInputs, lerp } from 'twinwire/netcode';
+import { move, inputCodec, decodeSnapshot, COLORS, W, H, RADIUS, TICK_HZ, SNAP_HZ } from '/shared.js';
+const $ = id => document.getElementById(id);
+const show = id => { for (const s of document.querySelectorAll('section')) s.classList.toggle('on', s.id === id); };
+const log = (text, color) => { const d = document.createElement('div'); d.textContent = text; if (color) d.style.color = color; $('log').append(d); while ($('log').children.length > 80) $('log').firstChild.remove(); $('log').scrollTop = 1e9; };
+$('name').value = localStorage.getItem('party-name') || '';
+const params = new URLSearchParams(location.search);
+if (params.get('join')) $('code').value = params.get('join').toUpperCase();
+
+// ---- the connection: one session, WebSocket plus WebRTC datagrams when the network allows
+const client = new GameClient({ url: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/connect`, room: 'party', rtc: params.has('ws') ? false : {} });
+const lobby = new LobbyClient(client);
+client.bindPageLifecycle();
+const go = async how => {
+  const name = $('name').value.trim() || 'PLAYER'; localStorage.setItem('party-name', name); $('err').textContent = '';
+  try { client.connect(); await client.whenOnline(); await how(name); }
+  catch (e) { $('err').textContent = e.message; }
+};
+$('quick').onclick = () => go(name => lobby.quickPlay({ mode: 'party', name }));
+$('create').onclick = () => go(name => lobby.create({ mode: 'party', name }));
+$('join').onclick = () => go(name => lobby.join($('code').value, { name }));
+$('ready').onclick = () => lobby.setReady(!lobby.me?.ready).catch(e => log(e.message));
+$('leave').onclick = $('leave2').onclick = async () => { await lobby.leave().catch(() => {}); show('menu'); };
+$('invite').onclick = () => { const url = `${location.origin}/?join=${lobby.room.code}`; navigator.clipboard?.writeText(url); $('invite').textContent = 'Copied!'; setTimeout(() => $('invite').textContent = 'Copy invite link', 1500); };
+$('chat').onsubmit = e => { e.preventDefault(); const t = $('say').value.trim(); if (t) client.sendEvent({ t: 'chat', text: t }); $('say').value = ''; };
+
+// ---- the room: who's here, ready-up, the countdown; the game when it starts
+lobby.onRoom = room => {
+  if (!room) { show('menu'); return; }
+  $('roomcode').textContent = room.code;
+  $('members').replaceChildren(...room.members.map(m => {
+    const li = document.createElement('li'), dot = document.createElement('span'), name = document.createElement('span'), tag = document.createElement('span');
+    dot.className = 'dot'; dot.style.background = COLORS[m.seat % COLORS.length]; name.textContent = m.name + (m.seat === room.you ? ' (you)' : '') + (m.host ? ' ★' : '');
+    tag.className = 'tag' + (m.ready ? ' ready' : ''); tag.textContent = !m.connected ? 'reconnecting…' : m.ready ? 'ready' : 'not ready';
+    li.append(dot, name, tag); return li;
+  }));
+  $('ready').textContent = lobby.me?.ready ? 'Not ready' : "I'm ready";
+  if (room.phase === 'playing') show('game'); else show('room');
+};
+lobby.onLeft = reason => { show('menu'); $('err').textContent = 'You left the room: ' + reason; };
+client.onEvent = e => { if (e && e.t === 'chat') log(e.from ? `${e.from}: ${e.text}` : e.text, e.from ? COLORS[e.seat % COLORS.length] : '#8e9ccc'); };
+
+// ---- the game: you predict yourself with the server's own move(); everyone else plays back ~a snapshot behind
+let me = null;                                    // Predictor of { x, y }
+const others = new Map(), playback = new AdaptivePlayback(1000 / SNAP_HZ, 1000 / SNAP_HZ, 300);
+client.onSession = () => { me = null; others.clear(); playback.reset(); };
+client.onState = s => {
+  if (s.stream !== 0 || !lobby.room) return;
+  const snap = decodeSnapshot(s.data); if (!snap) return;
+  if (client.clock.synced) playback.observe(client.clock.serverTime(performance.now()), s.time);
+  const seen = new Set();
+  for (const p of snap.players) {
+    seen.add(p.seat);
+    if (p.seat === lobby.room.you) {
+      // the server's word on where you are, after the inputs of yours it has applied; replay the rest on top
+      if (!me || snap.ack > me.lastInput) { me = me || new Predictor({ x: p.x, y: p.y }, move, 1 / TICK_HZ); me.resync({ x: p.x, y: p.y }, snap.tick, snap.ack); }
+      else me.reconcile({ ack: snap.ack, tick: snap.tick, state: { x: p.x, y: p.y } });
+      continue;
+    }
+    let o = others.get(p.seat); if (!o) others.set(p.seat, o = new Timeline(32));
+    o.insert({ time: s.time, seq: snap.tick, value: { x: p.x, y: p.y } });
+  }
+  for (const seat of others.keys()) if (!seen.has(seat)) others.delete(seat);
+};
+// input: keys, or drag anywhere on the arena like a thumbstick
+const keys = new Set(); let drag = null;
+addEventListener('keydown', e => { if (document.activeElement?.tagName !== 'INPUT') keys.add(e.key.toLowerCase()); });
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase())); addEventListener('blur', () => keys.clear());
+const cv = $('arena'), g = cv.getContext('2d');
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); drag = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; });
+cv.addEventListener('pointermove', e => { if (drag) { drag.x = e.clientX; drag.y = e.clientY; } });
+for (const ev of ['pointerup', 'pointercancel']) cv.addEventListener(ev, () => drag = null);
+function input() {
+  if (drag) { const dx = drag.x - drag.x0, dy = drag.y - drag.y0, l = Math.hypot(dx, dy); return l < 6 ? { dx: 0, dy: 0 } : { dx: dx / Math.max(l, 40), dy: dy / Math.max(l, 40) }; }
+  const k = c => keys.has(c);
+  return { dx: (k('d') || k('arrowright') ? 1 : 0) - (k('a') || k('arrowleft') ? 1 : 0), dy: (k('s') || k('arrowdown') ? 1 : 0) - (k('w') || k('arrowup') ? 1 : 0) };
+}
+const stepper = new FixedStepper(TICK_HZ);
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.max(0, Math.min(250, now - last)); last = now;
+  const playing = lobby.room?.phase === 'playing' && me && client.status === 'online';
+  stepper.advance(dt, () => {
+    if (!playing) return;
+    const v = input(), q = { dx: Math.round(v.dx * 100) / 100, dy: Math.round(v.dy * 100) / 100 };
+    me.push(q);
+    // the last 6 inputs every time: one lost packet never loses a step
+    client.sendState(1, encodeInputs(me.recent(6).map(i => ({ seq: i.seq, data: inputCodec.encode(i.value) }))), { ttlMs: 50 });
+  });
+  if (lobby.room?.countdownEndsAt != null) { const ms = lobby.countdownMs(); $('count').textContent = ms == null ? '' : Math.ceil(ms / 1000); } else $('count').textContent = '';
+  if (!$('game').classList.contains('on')) return;
+  // draw: the arena, everyone else at the playback time, you where you predict yourself
+  g.fillStyle = '#10182e'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#1c2848'; for (let x = 0; x <= W; x += 40) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let y = 0; y <= H; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  const room = lobby.room, t = client.clock.synced ? playback.advance(client.clock.serverTime(now), dt) : 0;
+  const draw = (seat, p, self) => {
+    const m = room?.members.find(q => q.seat === seat);
+    g.fillStyle = COLORS[seat % COLORS.length]; g.beginPath(); g.arc(p.x, p.y, RADIUS, 0, Math.PI * 2); g.fill();
+    if (self) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.stroke(); g.lineWidth = 1; }
+    g.fillStyle = '#e6ecff'; g.font = '12px system-ui'; g.textAlign = 'center'; g.fillText(self ? 'you' : m?.name ?? '?', p.x, p.y - RADIUS - 6);
+  };
+  for (const [seat, tl] of others) { const s = tl.sample(t, (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) })); if (s) draw(seat, s.value, false); }
+  if (me) draw(room?.you ?? 0, me.state, true);
+  $('status').textContent = `${client.transport === 'rtc' ? 'WebRTC datagrams' : client.transport === 'ws' ? 'WebSocket' : 'offline'} · ${Math.round(client.clock.rttMs)} ms · playback ${Math.round(playback.delayMs)} ms · ${others.size + (me ? 1 : 0)} players`;
+}
+requestAnimationFrame(frame);
+window.__party = { client, lobby, get me() { return me; }, others };
+</script>
+</html>

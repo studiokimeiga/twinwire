@@ -1,0 +1,93 @@
+{
+  "at": "2026-10-25T05:08:16.268Z",
+  "node": "v22.21.1",
+  "results": [
+    {
+      "engine": "chromium",
+      "rtcRequested": true,
+      "impaired": null,
+      "version": "153.0.8010.12",
+      "lobby": {
+        "code": "HTBY",
+        "readyCountdown": true,
+        "phase": "playing"
+      },
+      "transport": "rtc",
+      "smallStates": {
+        "sent": 60,
+        "received": 60,
+        "viaRtc": 60
+      },
+      "largeState": {
+        "bytes": 50000,
+        "via": "ws"
+      },
+      "events": true,
+      "resume": {
+        "sameSession": true,
+        "sameSeat": true
+      },
+      "rtcAfterResume": true,
+      "pageErrors": [],
+      "pass": true
+    },
+    {
+      "engine": "firefox",
+      "rtcRequested": true,
+      "impaired": null,
+      "version": "155.0",
+      "lobby": {
+        "code": "HUUW",
+        "readyCountdown": true,
+        "phase": "playing"
+      },
+      "transport": "rtc",
+      "smallStates": {
+        "sent": 60,
+        "received": 60,
+        "viaRtc": 60
+      },
+      "largeState": {
+        "bytes": 50000,
+        "via": "ws"
+      },
+      "events": true,
+      "resume": {
+        "sameSession": true,
+        "sameSeat": true
+      },
+      "rtcAfterResume": true,
+      "pageErrors": [],
+      "pass": true
+    },
+    {
+      "engine": "webkit",
+      "rtcRequested": true,
+      "impaired": null,
+      "version": "26.6",
+      "lobby": {
+        "code": "KXBA",
+        "readyCountdown": true,
+        "phase": "playing"
+      },
+      "transport": "rtc",
+      "smallStates": {
+        "sent": 60,
+        "received": 60,
+        "viaRtc": 60
+      },
+      "largeState": {
+        "bytes": 50000,
+        "via": "ws"
+      },
+      "events": true,
+      "resume": {
+        "sameSession": true,
+        "sameSeat": true
+      },
+      "rtcAfterResume": true,
+      "pageErrors": [],
+      "pass": true
+    }
+  ]
+}

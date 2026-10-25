@@ -1,0 +1,24 @@
+[Unit]
+Description=Twinwire demo room
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=twinwire
+Group=twinwire
+WorkingDirectory=/opt/twinwire
+EnvironmentFile=/etc/twinwire.env
+ExecStart=/usr/bin/node /opt/twinwire/examples/arena/server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+UMask=0077
+# Persist game data in a separate explicitly writable directory, if your game needs it.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,90 @@
+{
+  "at": "2026-10-25T05:08:48.139Z",
+  "node": "v22.21.1",
+  "results": [
+    {
+      "engine": "chromium",
+      "rtcRequested": false,
+      "impaired": null,
+      "version": "153.0.8010.12",
+      "lobby": {
+        "code": "EAUV",
+        "readyCountdown": true,
+        "phase": "playing"
+      },
+      "transport": "ws",
+      "smallStates": {
+        "sent": 60,
+        "received": 60,
+        "viaRtc": 0
+      },
+      "largeState": {
+        "bytes": 50000,
+        "via": "ws"
+      },
+      "events": true,
+      "resume": {
+        "sameSession": true,
+        "sameSeat": true
+      },
+      "pageErrors": [],
+      "pass": true
+    },
+    {
+      "engine": "firefox",
+      "rtcRequested": false,
+      "impaired": null,
+      "version": "155.0",
+      "lobby": {
+        "code": "RLZN",
+        "readyCountdown": true,
+        "phase": "playing"
+      },
+      "transport": "ws",
+      "smallStates": {
+        "sent": 60,
+        "received": 60,
+        "viaRtc": 0
+      },
+      "largeState": {
+        "bytes": 50000,
+        "via": "ws"
+      },
+      "events": true,
+      "resume": {
+        "sameSession": true,
+        "sameSeat": true
+      },
+      "pageErrors": [],
+      "pass": true
+    },
+    {
+      "engine": "webkit",
+      "rtcRequested": false,
+      "impaired": null,
+      "version": "26.6",
+      "lobby": {
+        "code": "WUZX",
+        "readyCountdown": true,
+        "phase": "playing"
+      },
+      "transport": "ws",
+      "smallStates": {
+        "sent": 60,
+        "received": 60,
+        "viaRtc": 0
+      },
+      "largeState": {
+        "bytes": 50000,
+        "via": "ws"
+      },
+      "events": true,
+      "resume": {
+        "sameSession": true,
+        "sameSeat": true
+      },
+      "pageErrors": [],
+      "pass": true
+    }
+  ]
+}

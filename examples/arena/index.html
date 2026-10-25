@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Twinwire | Transport lab</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0c1420;color:#e3edf7;font:15px system-ui,sans-serif}main{max-width:1000px;margin:24px auto;padding:0 18px}h1{font-size:25px;margin:0 0 5px}p{color:#a5b8c9}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}small{color:#91a5bb}#status{padding:8px 14px;border:1px solid #385167;border-radius:20px}canvas{display:block;width:100%;height:430px;background:#111e2b;border:1px solid #2b4054;border-radius:12px;touch-action:none}#metrics{display:flex;flex-wrap:wrap;gap:16px;padding:15px 0;font:13px ui-monospace,monospace;color:#a7d7cc}button,input{font:inherit;border-radius:7px;border:1px solid #385167;background:#172839;color:inherit;padding:11px}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid #a7d7cc}form{display:flex;gap:8px}input{flex:1;min-width:0}#log{height:120px;overflow:auto;margin:14px 0;font-size:14px}#controls{display:flex;gap:8px;margin:15px 0}.muted{font-size:13px;color:#a5b8c9}.message{padding:3px 0}@media(max-width:600px){main{margin:15px auto}canvas{height:350px}header{align-items:start}h1{font-size:21px}#metrics{gap:8px}#controls{flex-wrap:wrap}}
+</style>
+<main><header><div><h1>Twinwire</h1><small>Multiplayer transport lab</small></div><span id="status" role="status">Connecting</span></header>
+<canvas id="world" aria-label="Shared room. Use arrow keys or touch the canvas to move." tabindex="0"></canvas>
+<div id="metrics"></div><div class="muted">Open another tab to see a second player. Use WASD, arrow keys, or touch the arena. This is a networking example, not a finished game.</div>
+<div id="controls"><button id="pause">Pause connection</button><button id="resume">Resume session</button><button id="restart">New session</button></div>
+<form id="chat"><input id="text" placeholder="Send a room message" aria-label="Room message" maxlength="200"><button>Send</button></form><div id="log" role="log" aria-label="Room messages"></div></main>
+<script type="module">
+import { GameClient } from '/dist/client/index.js';
+import { defineSchema, Timeline, AdaptivePlayback, lerp } from '/dist/netcode/index.js';
+const c = new GameClient({url:`${location.protocol==='https:'?'wss':'ws'}://${location.host}/connect`,room:'arena',rtc:new URLSearchParams(location.search).has('ws')?false:{iceServers:[]}});
+const move=defineSchema({x:{type:'f32'},y:{type:'f32'}}), snap=defineSchema({id:{type:'u16'},x:{type:'f32'},y:{type:'f32'}});
+const playback=new AdaptivePlayback(50,50,350), others=new Map(); let me={id:0,x:0,y:0}, last=performance.now(), sendAt=0, previousBytes=0, bytesPerSecond=0, statsAt=last;
+const keys=new Set(), canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d'); let pointer=null;
+const log=text=>{const d=document.createElement('div');d.className='message';d.textContent=text;document.querySelector('#log').append(d);while(document.querySelector('#log').children.length>100)document.querySelector('#log').firstChild.remove();d.scrollIntoView({block:'nearest'});};
+c.onStatus=s=>document.querySelector('#status').textContent=s;
+c.onEvent=m=>{if(m.t==='identity'){me={id:m.id,x:m.x,y:m.y};others.clear();playback.reset();log(m.resumed?'Session resumed.':'Session joined.');}if(m.t==='correction'){me.x=m.x;me.y=m.y;}if(m.t==='chat')log(`Player ${m.id}: ${m.text}`);if(m.t==='leave')others.delete(m.id);};
+c.onSessionLost=()=>log('Session expired. Use New session; old actions will not be replayed.');
+c.onState=s=>{const p=snap.decode(s.data);if(!p||p.id===me.id)return;let r=others.get(p.id);if(!r)others.set(p.id,r={timeline:new Timeline(),seen:performance.now()});r.seen=performance.now();r.timeline.insert({time:s.time,seq:s.seq,value:p});if(c.clock.synced)playback.observe(c.clock.serverTime(performance.now()),s.time);};
+c.onError=e=>log('Connection: '+e.message);
+c.connect();c.bindPageLifecycle();
+window.addEventListener('keydown',e=>{if(document.activeElement?.tagName==='INPUT')return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)){e.preventDefault();keys.add(e.key);}});
+window.addEventListener('keyup',e=>keys.delete(e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;});
+document.addEventListener('visibilitychange',()=>{keys.clear();pointer=null;});
+const point=e=>{const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left-r.width/2)/18,y:(e.clientY-r.top-r.height/2)/18};};
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointer=point(e);});canvas.addEventListener('pointermove',e=>{if(pointer)pointer=point(e);});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>pointer=null);
+document.querySelector('#pause').onclick=()=>{keys.clear();c.pause();};document.querySelector('#resume').onclick=()=>c.resume();document.querySelector('#restart').onclick=()=>c.newSession();
+document.querySelector('#chat').onsubmit=e=>{e.preventDefault();const input=document.querySelector('#text');if(input.value.trim())c.sendEvent({t:'chat',text:input.value.trim()});input.value='';};
+function draw(now){const dt=Math.min(.05,(now-last)/1000);last=now;const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio,2);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,rect.height);
+let x=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),y=(keys.has('s')||keys.has('ArrowDown')?1:0)-(keys.has('w')||keys.has('ArrowUp')?1:0);
+if(pointer){x=pointer.x-me.x;y=pointer.y-me.y;if(Math.hypot(x,y)<.3)x=y=0;}const len=Math.hypot(x,y);if(len&&c.status==='online'){me.x=Math.max(-20,Math.min(20,me.x+x/len*3*dt));me.y=Math.max(-14,Math.min(14,me.y+y/len*3*dt));}
+if(now-sendAt>=50&&c.status==='online'){c.sendState(0,move.encode(me));c.flush();sendAt=now;}
+ctx.strokeStyle='#1d3041';ctx.lineWidth=1;for(let i=-25;i<26;i++){ctx.beginPath();ctx.moveTo(rect.width/2+i*36,0);ctx.lineTo(rect.width/2+i*36,rect.height);ctx.stroke();ctx.beginPath();ctx.moveTo(0,rect.height/2+i*36);ctx.lineTo(rect.width,rect.height/2+i*36);ctx.stroke();}
+const player=(p,self)=>{const x=rect.width/2+p.x*18,y=rect.height/2+p.y*18;ctx.fillStyle=self?'#8ee6bf':'#9dbdff';ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#dce9f6';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText(self?'You':`Player ${p.id}`,x,y-16);};
+const time=c.clock.synced?playback.advance(c.clock.serverTime(now),dt*1000):0;for(const [id,r] of others){if(now-r.seen>2500){others.delete(id);continue;}const p=r.timeline.sample(time,(a,b,t)=>({...a,x:lerp(a.x,b.x,t),y:lerp(a.y,b.y,t)}));if(p)player(p.value,false);}player(me,true);
+if(now-statsAt>500){bytesPerSecond=(c.endpoint.stats.bytesSent-previousBytes)/((now-statsAt)/1000);previousBytes=c.endpoint.stats.bytesSent;statsAt=now;document.querySelector('#metrics').textContent=`${c.endpoint.fastActive?'WebRTC datagrams':'WebSocket'} | WS RTT ${c.clock.rttMs.toFixed(0)} ms | upload ${(bytesPerSecond/1024).toFixed(1)} KiB/s | visible peers ${others.size} | event queue ${c.endpoint.events.size}`;}
+requestAnimationFrame(draw);}requestAnimationFrame(draw);
+window.__lab={client:c,me:()=>me,others,log};
+</script></html>
