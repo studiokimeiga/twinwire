@@ -97,5 +97,12 @@ fingerprint verification on. `allowImpairment` is for development.
 
 ## Not here (yet)
 
-WebTransport (Safari shipped it in 26.4; a transport adapter can replace the data channel later), multi-region
-routing, durable session storage across server restarts, rollback netcode, voice.
+Multi-region routing, durable session storage across server restarts, rollback netcode, voice.
+
+**WebTransport** is in every major browser since Safari 26.4 (March 2026), but not yet in Node: there is no built-in
+QUIC/HTTP/3 server, and the addon that provides one (`@fails-components/webtransport`, libquiche) calls itself a stopgap
+until Node has native support; its prebuilt binary needs glibc 2.38+, so it fails to load on Ubuntu 22.04 and on
+Debian 12 (the `node:22` Docker images). Players wouldn't feel it either: a session plays over the WebSocket at once and
+moves to datagrams in the background, so faster setup isn't visible, and where UDP is blocked TURN over TLS 443 and the
+WebSocket already carry the game. It will be another datagram path (preferred where available, the data channel and
+the WebSocket as fallbacks) once Node ships native WebTransport.
