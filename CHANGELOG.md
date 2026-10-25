@@ -8,7 +8,8 @@ together (a 1.x peer can't talk to a 2.x one).
 - **Frame header: 22 bytes to 12** (14 at most): one byte for version and kind, a 16-bit connection epoch, the stream as
   a varint, the 32-bit sequence number, and the time as quarter milliseconds from the connection's time base (sent in
   the welcome). A 64 Hz shooter's 35-byte inputs were more than a third header. The server reconnects a connection
-  after four days so its frame times stay in range; the session resumes.
+  after four days so its frame times stay in range; the session resumes. `Endpoint.sendState` refuses a time its frame
+  can't carry (more than `MAX_TIME_SPAN_MS` from the time base) when called, instead of throwing from a later flush.
 - Removed what was only there for compatibility: `MAX_DATAGRAM_BYTES` (use `MTU_STATE_BYTES`) and the
   `new ReliableEvents(maxEvents, maxBytes)` form (pass an options object).
 

@@ -227,3 +227,52 @@ test('late states: dropped by default; delivered once with late: true when asked
   assert.ok(sack, 'a state ack went out');
   assert.equal(new DataView(sack.payload.buffer, sack.payload.byteOffset).getUint32(2, true), 10, 'the ack names the newest, not the late one');
 });
+
+test('a state whose time its frame cannot carry is refused when sent, not when flushed', () => {
+  const p = pair(), got = []; p.b.onState = s => got.push([...s.data]);
+  assert.throws(() => p.a.sendState(1, Uint8Array.of(1), 7 * 86400000), RangeError, 'a week from the time base');
+  p.a.sendState(1, Uint8Array.of(2), 1000); p.advance();
+  assert.deepEqual(got, [[2]]);
+});
+
+test('a connection four days old is reconnected; the session resumes on a new epoch and time base', async () => {
+  const got = [], events = [];
+  const server = await createGameServer({ origins: [], allowMissingOrigin: true, onSession: s => {
+    s.onState = st => got.push([...st.data]); s.onEvent = d => events.push(d);
+  } });
+  const port = await server.listen();
+  const c = new GameClient({ url: `ws://127.0.0.1:${port}/connect`, room: 'test', rtc: false, reconnectBaseMs: 20 });
+  const sessions = []; c.onSession = info => sessions.push(info);
+  try {
+    c.connect(); await until(() => c.status === 'online' && c.clock.synced);
+    const id = c.id, epoch = c.epoch, base = c.endpoint.timeBase;
+    for (const conn of server.connections) conn.started -= 4 * 86400000 + 1;   // (the server's private connection set)
+    c.sendEvent('across the reconnect');
+    await until(() => sessions.length === 2 && c.status === 'online');
+    assert.deepEqual(sessions[1], { id, resumed: true }); assert.notEqual(c.epoch, epoch);
+    assert.ok(c.endpoint.timeBase > base, 'a new time base');
+    await until(() => events.length === 1); assert.deepEqual(events, ['across the reconnect']);
+    await until(() => c.clock.synced); c.sendState(1, Uint8Array.of(3)); c.flush();
+    await until(() => got.length === 1); assert.deepEqual(got, [[3]]);
+  } finally { c.close(); await server.close(); }
+});
+
+test('a client stamps states with the server clock only: none before it syncs, however far the page clock is', () => {
+  // frame times travel relative to the server's time base, so a page clock a week away must never reach a frame
+  const sent = [], ws = { readyState: 0, bufferedAmount: 0, binaryType: '', send: d => sent.push(d), close() {} };
+  const c = new GameClient({ url: 'ws://127.0.0.1:1/connect', room: 'test', rtc: false, websocket: () => ws });
+  try {
+    c.connect(); ws.readyState = 1; ws.onopen();
+    const base = performance.now() + 7 * 86400000;   // a server process up a week longer than this page
+    ws.onmessage({ data: JSON.stringify({ t: 'welcome', v: 4, e: 9, b: base, id: 'p1', token: 'x'.repeat(24), resumed: false, rtc: false, ice: [] }) });
+    assert.equal(c.status, 'online'); assert.equal(c.clock.synced, false);
+    assert.equal(c.sendState(1, Uint8Array.of(7)), 0); c.flush();
+    const ping = sent.map(d => typeof d === 'string' ? JSON.parse(d) : null).find(m => m?.t === 'ping');
+    ws.onmessage({ data: JSON.stringify({ t: 'pong', e: 9, n: ping.n, s: base + 1 }) });
+    assert.equal(c.clock.synced, true);
+    assert.ok(c.sendState(1, Uint8Array.of(8)) > 0); c.flush();
+    const frames = sent.filter(d => typeof d !== 'string').map(d => decodeFrame(new Uint8Array(d), 1 << 20, base));
+    assert.equal(frames.length, 1); assert.deepEqual([...frames[0].payload], [8]);
+    assert.ok(Math.abs(frames[0].time - base) < 1000, 'stamped near the server time, not the page clock');
+  } finally { c.close(); }
+});

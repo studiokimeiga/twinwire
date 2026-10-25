@@ -1,7 +1,7 @@
 import { TokenBucket } from './budget.js';
 import { EventRejected, ReliableEvents, type ReliableOptions } from './reliable.js';
 import {
-  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MTU_STATE_BYTES, newer, stringify,
+  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MAX_TIME_SPAN_MS, MTU_STATE_BYTES, newer, stringify,
   isUint, utf8, fromUtf8, utf8Length, type Frame, type Json, type JsonInput,
 } from './protocol.js';
 export interface ReliableLink {
@@ -156,7 +156,8 @@ export class Endpoint {
    * An accepted enqueue is not a delivery guarantee; use `ack: true` and onStateAck to learn what arrived. */
   sendState(stream: number, data: Uint8Array, time: number, o: StateOptions = {}): number {
     if (!this.active) return 0;
-    if (!isUint(stream, 65535) || !Number.isFinite(time) || data.length > this.maxStateBytes ||
+    // (the time must fit its frame: within MAX_TIME_SPAN_MS of the connection's time base, or flush would throw later)
+    if (!isUint(stream, 65535) || !(Math.abs(time - this.timeBase) <= MAX_TIME_SPAN_MS) || data.length > this.maxStateBytes ||
         !(o.ttlMs === undefined || Number.isFinite(o.ttlMs) && o.ttlMs > 0) ||
         !(o.priority === undefined || Number.isFinite(o.priority) && o.priority >= 0)) throw new RangeError('Invalid state');
     if (!this.sequence.has(stream) && this.sequence.size >= this.maxStreams) throw new Error('State stream limit');

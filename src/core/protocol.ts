@@ -14,7 +14,8 @@ export const DEFAULT_STATE_BYTES = 64 * 1024;
 export const MAX_CONTROL_BYTES = 128 * 1024;
 /** A frame's time is (time - base) in quarter milliseconds as a signed 32-bit number: about six days either way from
  * the connection's time base (the server reconnects older connections before that). */
-const TIME_UNITS = 4, MAX_TIME_SPAN = 0x7fffffff / TIME_UNITS;
+const TIME_UNITS = 4;
+export const MAX_TIME_SPAN_MS = 0x7fffffff / TIME_UNITS;
 /**
  * state: latest-wins application bytes. stateAcked: the same, and the receiver reports the newest seq it saw (kind sack).
  * probe/reply: datagram liveness. events: reliable events mirrored on the datagram path (seq field = receiver ack).
@@ -36,7 +37,7 @@ const streamed = (k: number) => k === FrameKind.state || k === FrameKind.stateAc
 export function encodeFrame(f: Frame, base = 0): Uint8Array {
   const rel = f.time - base;
   if (!KINDS.has(f.kind) || !isUint(f.epoch, 0xffff) || !f.epoch || !isUint(f.stream, 0xffff) ||
-      !isUint(f.seq) || !(Math.abs(rel) <= MAX_TIME_SPAN) || f.payload.length > MAX_STATE_BYTES ||
+      !isUint(f.seq) || !(Math.abs(rel) <= MAX_TIME_SPAN_MS) || f.payload.length > MAX_STATE_BYTES ||
       (empty(f.kind) && f.payload.length !== 0) || (!streamed(f.kind) && f.stream !== 0)) throw new RangeError('Invalid frame');
   const sb = f.stream < 0x80 ? 1 : f.stream < 0x4000 ? 2 : 3, at = 3 + sb;
   const b = new Uint8Array(at + 8 + f.payload.length), v = new DataView(b.buffer);
