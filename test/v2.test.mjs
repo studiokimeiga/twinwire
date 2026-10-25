@@ -84,6 +84,23 @@ test('impairment drops datagrams and delays WebSocket sends in order', async () 
   assert.throws(() => f.setImpairment({ loss: 2 }));
 });
 
+test('impairment can stall the WebSocket like a retransmitted TCP segment, keeping order', async () => {
+  const sent = [], e = new Endpoint({ impair: { loss: 1, stallMs: 80 } });
+  e.attach(1, { open: true, bufferedAmount: 0, send: d => (sent.push(d), true), close() {} });
+  const t0 = performance.now();
+  for (let i = 0; i < 3; i++) e.sendEvent(i);
+  await sleep(40); assert.equal(sent.length, 0, 'everything waits behind the lost segment');
+  await until(() => sent.length === 3, 2000);
+  assert.ok(performance.now() - t0 >= 75);
+  assert.deepEqual(sent.map(d => JSON.parse(d).s), [1, 2, 3]); assert.ok(e.stats.impairedStalls >= 1);
+  // without stallMs, loss still drops only datagrams: the WebSocket loses and stalls nothing
+  const kept = [], f = new Endpoint({ impair: { loss: 1 } });
+  f.attach(1, { open: true, bufferedAmount: 0, send: d => (kept.push(d), true), close() {} });
+  for (let i = 0; i < 3; i++) f.sendEvent(i);
+  await until(() => kept.length === 3, 500); assert.equal(f.stats.impairedStalls, 0);
+  assert.throws(() => f.setImpairment({ stallMs: -1 })); assert.throws(() => f.setImpairment({ stallMs: 20000 }));
+});
+
 test('ICE server lists are validated; TURN REST credentials match coturn', () => {
   assert.ok(validIceServers([{ urls: 'stun:stun.l.google.com:19302' }, { urls: ['turn:t.example.com:3478?transport=udp', 'turns:t.example.com:443'], username: 'u', credential: 'c' }]));
   assert.ok(!validIceServers([{ urls: 'http://evil' }])); assert.ok(!validIceServers({ urls: 'stun:x' }));

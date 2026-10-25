@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Impairment**: `stallMs` stalls the WebSocket the way a retransmitted TCP segment does: with probability `loss`, a
+  send and everything queued behind it waits `stallMs` longer, in order (`stats.impairedStalls`). Without it, `loss`
+  still drops datagrams only. This makes a lossy cellular network comparable across the two wires in load tests.
+
 ## 1.0.1 (2026-10-25)
 
 Fixes from an independent review and a soak test under hostile clients. No API changes; two new options.

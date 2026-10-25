@@ -13,8 +13,11 @@ export interface DatagramLink {
   send(data: Uint8Array): boolean; close(): void;
 }
 export interface StateMessage { stream: number; seq: number; time: number; data: Uint8Array; via: 'ws' | 'rtc' }
-/** Simulated network trouble on this endpoint's outgoing traffic (tests and tuning). lagMs is one way. */
-export interface Impairment { lagMs?: number; jitterMs?: number; loss?: number; duplicate?: number }
+/** Simulated network trouble on this endpoint's outgoing traffic (tests and tuning). lagMs is one way.
+ * `loss` drops datagrams. On the WebSocket nothing is lost, but with `stallMs` a lost segment is retransmitted: with
+ * probability `loss` a send (and everything queued behind it, in order) waits `stallMs` longer, as TCP's head-of-line
+ * blocking does. Without `stallMs` the WebSocket is only delayed. */
+export interface Impairment { lagMs?: number; jitterMs?: number; loss?: number; duplicate?: number; stallMs?: number }
 export interface StateOptions { ttlMs?: number; priority?: number; ack?: boolean }
 interface QueuedState { frame: Frame; deadline: number; first: number; priority: number }
 export interface EndpointOptions {
@@ -37,7 +40,7 @@ export class Endpoint {
   readonly stats = { bytesSent: 0, bytesReceived: 0, statesSent: 0, statesReceived: 0,
     stale: 0, expired: 0, coalesced: 0, congested: 0, invalid: 0, fastTransitions: 0, datagramRttMs: 0,
     eventsViaDatagram: 0, datagramEventFrames: 0, stateAcksSent: 0, stateAcksReceived: 0, impairedDrops: 0,
-    eventsRejected: 0, callbackErrors: 0 };
+    impairedStalls: 0, eventsRejected: 0, callbackErrors: 0 };
   onState: (state: StateMessage) => void = () => {};
   /** A throw means "not accepted": the event is offered again (in order) shortly after, not dropped. */
   onEvent: (data: Json, seq: number) => void = () => {};
@@ -104,10 +107,10 @@ export class Endpoint {
   stateAck(stream: number): number | undefined { return this.acksIn.get(stream); }
   setImpairment(i: Impairment | null): void {
     if (!i) { this.impairment = undefined; return; }
-    const { lagMs = 0, jitterMs = 0, loss = 0, duplicate = 0 } = i;
-    if (![lagMs, jitterMs].every(v => Number.isFinite(v) && v >= 0 && v <= 10000) ||
+    const { lagMs = 0, jitterMs = 0, loss = 0, duplicate = 0, stallMs = 0 } = i;
+    if (![lagMs, jitterMs, stallMs].every(v => Number.isFinite(v) && v >= 0 && v <= 10000) ||
         ![loss, duplicate].every(v => Number.isFinite(v) && v >= 0 && v <= 1)) throw new RangeError('Invalid impairment');
-    this.impairment = lagMs || jitterMs || loss || duplicate ? { lagMs, jitterMs, loss, duplicate } : undefined;
+    this.impairment = lagMs || jitterMs || loss || duplicate ? { lagMs, jitterMs, loss, duplicate, stallMs } : undefined;
   }
   get impaired(): Impairment | undefined { return this.impairment && { ...this.impairment }; }
   attach(epoch: number, reliable: ReliableLink): void {
@@ -347,7 +350,9 @@ export class Endpoint {
         const i = self.impairment;
         if (!i && !queue.length) return link.send(data);
         if (!link.open) return false;
-        const t = performance.now(), at = Math.max(tail, t + (i?.lagMs ?? 0) + Math.random() * (i?.jitterMs ?? 0)); tail = at;
+        const stall = i?.stallMs && Math.random() < (i.loss ?? 0) ? i.stallMs : 0;
+        if (stall) self.stats.impairedStalls++;
+        const t = performance.now(), at = Math.max(tail, t + (i?.lagMs ?? 0) + Math.random() * (i?.jitterMs ?? 0) + stall); tail = at;
         queue.push({ at, data: typeof data === 'string' ? data : data.slice() });
         if (!timer) timer = setTimeout(drain, at - t);
         return true;
