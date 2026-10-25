@@ -8,10 +8,15 @@ export type ClientStatus = 'idle' | 'connecting' | 'online' | 'paused' | 'closed
 export type Transport = 'rtc' | 'ws' | 'none';
 export interface ClientCheckpoint { url: string; room: string; token: string; id: string; events: ReliableCheckpoint }
 export interface LifecycleOptions {
-  /** Pause after the page has been hidden this long (default 20 s). Page unload/bfcache pauses at once. */
+  /** Pause after the page has been hidden this long (default 20 s). A page kept in the back/forward cache pauses at once. */
   hiddenPauseMs?: number;
   /** After the page comes back, a socket that stays silent this long is replaced (default 1500 ms). */
   wakeCheckMs?: number;
+  /** When the page really unloads (closed, reloaded, navigated away): 'pause' keeps the session (and lobby seat) for
+   * a checkpointed reload to resume; 'leave' ends it at once, so nobody waits out the resume grace for a player who
+   * won't come back. 'auto' (default): 'pause' if this client started from a checkpoint or checkpoint() was called,
+   * else 'leave'. Games that checkpoint in their own pagehide handler should say 'pause'. */
+  unload?: 'auto' | 'pause' | 'leave';
 }
 export interface ClientOptions {
   url: string; room: string; auth?: Json;
@@ -42,6 +47,7 @@ export class GameClient {
   onError: (error: Error) => void = () => {};
   private token: string | null = null;
   private socket?: WebSocket;
+  private checkpointed = false;
   private generation = 0;
   private epoch = 0;
   private peer?: BrowserRtcPeer;
@@ -74,7 +80,7 @@ export class GameClient {
     if (cp) {
       if (cp.url !== options.url || cp.room !== options.room || !/^[\w-]{20,128}$/.test(cp.token) || typeof cp.id !== 'string')
         throw new Error('Checkpoint belongs to a different endpoint or is invalid');
-      this.endpoint.events.restore(cp.events); this.token = cp.token; this.id = cp.id;
+      this.endpoint.events.restore(cp.events); this.token = cp.token; this.id = cp.id; this.checkpointed = true;
     }
   }
   private makeEndpoint(): Endpoint {
@@ -279,6 +285,7 @@ export class GameClient {
     this.pause(); this.lifecycle?.(); this.lifecycle = undefined; this.setStatus('closed');
   }
   checkpoint(): ClientCheckpoint | null {
+    this.checkpointed = true;
     return this.token && this.id ? { url: this.options.url, room: this.options.room, token: this.token, id: this.id, events: this.endpoint.events.checkpoint() } : null;
   }
   /** Opt-in page lifecycle integration: pause when the page goes away or stays hidden, reconnect fast when it is back,
@@ -298,7 +305,13 @@ export class GameClient {
       if (document.visibilityState === 'visible') back();
       else { clearTimeout(hideTimer); hideTimer = setTimeout(pauseNow, hiddenPause); }
     };
-    const pagehide = () => pauseNow(), pageshow = () => back(), online = () => this.reconnectNow();
+    const unload = o.unload ?? 'auto';
+    const pagehide = (e: Event) => {
+      // kept in the back/forward cache, or a reload that will resume: pause; a page that is gone: leave
+      const keep = (e as PageTransitionEvent).persisted || unload === 'pause' || (unload === 'auto' && this.checkpointed);
+      if (keep) pauseNow(); else { clearTimeout(hideTimer); this.close(); }
+    };
+    const pageshow = () => back(), online = () => this.reconnectNow();
     window.addEventListener('pagehide', pagehide); window.addEventListener('pageshow', pageshow);
     window.addEventListener('online', online); document.addEventListener('visibilitychange', visible);
     const off = () => {

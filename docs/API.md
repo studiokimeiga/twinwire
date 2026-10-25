@@ -44,7 +44,7 @@ const client = new GameClient({
 | `newSession()` | Drop the old session and its unsent actions; get a new identity. |
 | `close()` | Leave for good (the server ends the session at once). |
 | `checkpoint()` / `options.checkpoint` | Carry a session across page loads. Holds a bearer token: never put it in a URL. |
-| `bindPageLifecycle({hiddenPauseMs, wakeCheckMs})` | Pause on `pagehide` or after 20 s hidden; when the page is back, resume, or replace a socket that stays silent for 1.5 s; reconnect at once on `online`. |
+| `bindPageLifecycle({hiddenPauseMs, wakeCheckMs, unload})` | Pause after 20 s hidden, or when the page goes into the back/forward cache; when the page is back, resume, or replace a socket that stays silent for 1.5 s; reconnect at once on `online`. When the page really unloads: `unload: 'leave'` ends the session at once (no frozen player for the resume grace), `'pause'` keeps it for a checkpointed reload, `'auto'` (default) pauses only if the client checkpoints. Say `'pause'` if you call `checkpoint()` in your own `pagehide` handler. |
 | `intercept(fn)`, `on('session' \| 'lost', fn)` | Extra listeners for helpers such as `LobbyClient`. |
 | `endpoint.stats` | Traffic, stale/expired/coalesced states, `eventsViaDatagram`, `datagramRttMs`, and more. |
 | `options.impair` | `{lagMs, jitterMs, loss, duplicate, stallMs}` on this client's sends, and asked of the server (which honours it only with `allowImpairment`). `lagMs` is one way. `loss` drops datagrams; with `stallMs`, it also stalls the WebSocket (a lost TCP segment holds up everything behind it while it is resent). |

@@ -31,6 +31,10 @@ move pieces onto Twinwire's helpers only where they're better than what you have
   for 2 to 8 players; a 64-player social room should keep names and looks in its own events and use the lobby only
   for seats.
 
+- Reloads: a game without checkpoints (every reload is a new player) wants the old session gone at once, which
+  `bindPageLifecycle()` does by default; one that saves `checkpoint()` on `pagehide` to keep the seat across a reload
+  should pass `{ unload: 'pause' }`.
+
 ## Sizes
 
 A state can be up to 64 KiB (`maxStateBytes`, up to 256 KiB), but a per-tick packet that fits 1078 bytes fits one

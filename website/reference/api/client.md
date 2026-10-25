@@ -60,7 +60,7 @@ const client = new GameClient({
 | `close()` | Leave for good: the server ends the session at once |
 | `flush()` | Send what is queued now instead of at the next pump |
 | `checkpoint()` | `{ url, room, token, id, events }`, or null. Holds a bearer token: never put it in a URL |
-| `bindPageLifecycle({ hiddenPauseMs, wakeCheckMs })` | Pause on `pagehide` or after 20 s hidden; on return, resume, or replace a socket silent for 1.5 s; reconnect at once on `online`. Returns a function that unbinds |
+| `bindPageLifecycle({ hiddenPauseMs, wakeCheckMs, unload })` | Pause after 20 s hidden or in the back/forward cache; on return, resume, or replace a socket silent for 1.5 s; reconnect at once on `online`. On a real unload, `unload: 'leave'` ends the session at once, `'pause'` keeps it for a checkpointed reload, `'auto'` (default) pauses only if the client checkpoints. Returns a function that unbinds |
 | `intercept(fn)`, `on('session' \| 'lost', fn)` | Extra listeners for helpers such as `LobbyClient`. Each returns a function that removes it |
 | `endpoint.stats` | Bytes, states sent and received, stale, expired and coalesced states, `eventsViaDatagram`, `datagramRttMs`, and more |
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 (2026-10-25)
+
+- **Page unload**: `bindPageLifecycle()` paused the session when a page closed or reloaded, so in a game without
+  checkpoints the old player stood frozen for the whole resume grace while the reloaded page joined as someone new.
+  Now a real unload (not the back/forward cache) leaves at once, unless the client checkpoints (`unload: 'auto'`, the
+  default); `unload: 'pause'` or `'leave'` says so explicitly. Found by kimu.nyc's playtest.
+
 ## 1.1.0 (2026-10-25)
 
 Accuracy improvements measured by porting a 50-player shared world (kimu.nyc) onto Twinwire, plus everything in 1.0.1.

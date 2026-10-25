@@ -148,3 +148,27 @@ test('after connecting the client sends a burst of pings, so the clock settles i
     s.server.sessions.get(c.id).sendEvent({ hello: 1 }); s.server.sessions.get(c.id).flush();
   } finally { c.close(); await s.server.close(); }
 });
+
+test('a page that unloads leaves (no ghost for the resume grace) unless it checkpoints or is kept in the bfcache', async () => {
+  const s = await setup({ resumeGraceMs: 60000 });
+  const hadWindow = 'window' in globalThis, hadDocument = 'document' in globalThis;
+  globalThis.window = new EventTarget(); globalThis.document = Object.assign(new EventTarget(), { visibilityState: 'visible' });
+  const pagehide = persisted => { const e = new Event('pagehide'); Object.defineProperty(e, 'persisted', { value: persisted }); window.dispatchEvent(e); };
+  const clients = [];
+  const join = async () => { const c = client(s.url); clients.push(c); c.connect(); await until(() => c.status === 'online'); c.bindPageLifecycle(); return c; };
+  try {
+    const gone = await join(), id1 = gone.id;
+    pagehide(false); await until(() => !s.server.sessions.has(id1)); assert.equal(gone.status, 'closed', 'closed: the server ended it at once');
+    const saved = await join(), id2 = saved.id; saved.checkpoint();
+    pagehide(false); await until(() => s.server.sessions.get(id2)?.connected === false);
+    assert.equal(saved.status, 'paused', 'a checkpointing page keeps its session for the reload');
+    const cached = await join(), id3 = cached.id;
+    pagehide(true); await until(() => s.server.sessions.get(id3)?.connected === false);
+    assert.equal(cached.status, 'paused', 'a page in the back/forward cache can come back');
+    const told = await join(), id4 = told.id; told.bindPageLifecycle({ unload: 'pause' });
+    pagehide(false); await until(() => s.server.sessions.get(id4)?.connected === false); assert.equal(told.status, 'paused');
+  } finally {
+    for (const c of clients) c.close(); await s.server.close();
+    if (!hadWindow) delete globalThis.window; if (!hadDocument) delete globalThis.document;
+  }
+});
