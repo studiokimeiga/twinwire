@@ -1,4 +1,4 @@
-# Validation status: 1.2.0 (2026-10-25)
+# Validation status: 2.0.0 (2026-10-25)
 
 Run on Linux (WSL2, x86-64), Node 22.21.1, node-datachannel 0.33.4, Playwright 1.63.0.
 

@@ -18,7 +18,7 @@ interface NativeModule { PeerConnection: new (name: string, options: Record<stri
 export type RtcFactory = (cb: RtcCallbacks) => RtcPeer;
 export interface NativeRtcOptions {
   port?: number; publicIp?: string; bindAddress?: string; iceServers?: string[];
-  /** Largest datagram accepted or sent, header included (default 64 KiB + 22). Match the endpoints' maxStateBytes. */
+  /** Largest datagram accepted or sent, header included (default 64 KiB + 14, the longest frame header). Match the endpoints' maxStateBytes. */
   maxMessageSize?: number;
 }
 /** Load before opening the server. Missing native dependencies fail explicitly, not silently. */
@@ -34,8 +34,8 @@ export function nativeRtcFactory(native: NativeModule, options: NativeRtcOptions
   const port = options.port ?? 8788;
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('Invalid UDP port');
   if (options.publicIp && (!/^(\d{1,3}\.){3}\d{1,3}$/.test(options.publicIp) || options.publicIp.split('.').some(n => Number(n) > 255))) throw new Error('publicIp must be an IPv4 address');
-  const maxMessage = options.maxMessageSize ?? 64 * 1024 + 22;
-  if (!Number.isInteger(maxMessage) || maxMessage < 1100 || maxMessage > 256 * 1024 + 22) throw new RangeError('Invalid maxMessageSize');
+  const maxMessage = options.maxMessageSize ?? 64 * 1024 + 14;
+  if (!Number.isInteger(maxMessage) || maxMessage < 1100 || maxMessage > 256 * 1024 + 14) throw new RangeError('Invalid maxMessageSize');
   let counter = 0;
   return cb => {
     let alive = true, remote = false, dc: NativeChannel | undefined;

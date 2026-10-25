@@ -1,8 +1,16 @@
 # Changelog
 
-## 1.2.0 (2026-10-25)
+## 2.0.0 (2026-10-25)
 
-For shooters that send a snapshot every tick.
+For shooters that send a snapshot every tick, and a smaller wire. Protocol version 4: server and clients upgrade
+together (a 1.x peer can't talk to a 2.x one).
+
+- **Frame header: 22 bytes to 12** (14 at most): one byte for version and kind, a 16-bit connection epoch, the stream as
+  a varint, the 32-bit sequence number, and the time as quarter milliseconds from the connection's time base (sent in
+  the welcome). A 64 Hz shooter's 35-byte inputs were more than a third header. The server reconnects a connection
+  after four days so its frame times stay in range; the session resumes.
+- Removed what was only there for compatibility: `MAX_DATAGRAM_BYTES` (use `MTU_STATE_BYTES`) and the
+  `new ReliableEvents(maxEvents, maxBytes)` form (pass an options object).
 
 - **`GameServer({ pumpHz })`**: how often queued states and events go out (default 60, 10 to 250). At 64 or 128 Hz
   the default pump coalesced states between pumps, now and then dropping a tick from a stream interpolated two ticks

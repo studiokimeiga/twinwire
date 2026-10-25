@@ -80,7 +80,7 @@ export class GameServer {
   readonly stats = { connectionsAccepted: 0, protocolErrors: 0, rateLimited: 0, sessionResumes: 0, expiredSessions: 0 };
   private tokens = new Map<string, SessionRecord>();
   private connections = new Set<Connection>();
-  private epoch = randomBytes(4).readUInt32LE(0) || 1;
+  private epoch = randomBytes(2).readUInt16LE(0) || 1;   // (16-bit: it travels in every frame header)
   private timer?: ReturnType<typeof setInterval>;
   private shuttingDown = false;
   private wsServer: WsServer;
@@ -206,16 +206,16 @@ export class GameServer {
     const old = record.connection;
     if (old && old !== c) { this.stopRtc(old, false); old.record = undefined; old.ws.close(4002, 'session resumed elsewhere'); }
     record.connection = c; c.record = record; c.authenticating = false;
-    c.epoch = this.epoch = (this.epoch + 1) >>> 0 || 1; s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth;
+    c.epoch = this.epoch = (this.epoch + 1) & 0xffff || 1; s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth;
     try { s.endpoint.setImpairment(this.options.allowImpairment && isRecord(m.impair) ? m.impair as Impairment : null); }
     catch (e) { this.report(e); s.endpoint.setImpairment(null); }
-    const socket = c.ws;
+    const socket = c.ws, base = performance.now();   // the connection's time base: frame times travel relative to it
     s.endpoint.attach(c.epoch, {
       get open() { return socket.readyState === 1; }, get bufferedAmount() { return socket.bufferedAmount; },
       send(data) { if (socket.readyState !== 1) return false; socket.send(data); return true; }, close() { socket.close(); },
-    });
+    }, base);
     s.endpoint.onFastDown = () => this.stopRtc(c, true);
-    s.endpoint.sendControl({ t: 'welcome', v: VERSION, e: c.epoch, id: s.id, token: record.token, resumed, rtc: !!this.options.rtc, ice: ice as unknown as Json });
+    s.endpoint.sendControl({ t: 'welcome', v: VERSION, e: c.epoch, b: base, id: s.id, token: record.token, resumed, rtc: !!this.options.rtc, ice: ice as unknown as Json });
     this.emit('session', s, resumed); s.endpoint.flush();
   }
   private message(c: Connection, m: Record<string, unknown>): void {
@@ -289,6 +289,8 @@ export class GameServer {
     for (const c of this.connections) {
       if (!c.record && now - c.started > (this.options.handshakeTimeoutMs ?? 5000) ||
           c.record && now - c.lastSeen > (this.options.heartbeatTimeoutMs ?? 15000)) { c.ws.terminate(); continue; }
+      // frame times reach about six days from the connection's base: well before that, reconnect (it resumes, with a new base)
+      if (c.record && now - c.started > 4 * 86400000) { c.ws.close(4000, 'reconnect'); continue; }
       if (c.rtc && now - c.rtcStarted > 10000 && !c.record?.session.endpoint.fastActive) this.stopRtc(c, true);
     }
     const sessions = [...this.sessions.values()];

@@ -88,7 +88,7 @@ traffic uses events with a `$lobby` key; `onEvent` never sees them.
 ```ts
 const server = await createGameServer({
   host: '127.0.0.1', port: 8787, origins: ['https://game.example.com'],
-  rtc: await createNativeRtcFactory({ port: 8788, maxMessageSize: 64 * 1024 + 22 }),
+  rtc: await createNativeRtcFactory({ port: 8788, maxMessageSize: 64 * 1024 + 14 }),
   iceServers: session => [turnCredentials({ secret: process.env.TURN_SECRET, urls: 'turn:turn.example.com:3478', user: session.id })],
   trustProxy: true, resumeGraceMs: 90_000,
   authenticate: ({ auth, room, resuming, ip }) => validBuild(auth) ? 'anon' : null,
