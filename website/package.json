@@ -1,0 +1,15 @@
+{
+  "name": "twinwire-website",
+  "private": true,
+  "type": "module",
+  "description": "The Twinwire documentation site (https://studiokimeiga.github.io/twinwire/). Not part of the npm package.",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview --port 4173",
+    "check": "node tools/check-site.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

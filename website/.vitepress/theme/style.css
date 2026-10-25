@@ -1,0 +1,146 @@
+/* Twinwire: two wires, one colour each. Cobalt is the WebSocket (what must arrive), amber is the datagram path (what
+   must arrive fast). Every diagram and simulation on the site uses them the same way. */
+:root {
+  --tw-paper: #f3f4f7;
+  --tw-paper-2: #eaecf2;
+  --tw-panel: #ffffff;
+  --tw-ink: #17192e;
+  --tw-ink-2: #474c6b;
+  --tw-ink-3: #6f7493;
+  --tw-rule: #d6d9e4;
+  --tw-grid: #e7e9f0;
+  --tw-ws: #2d4bdb;
+  --tw-ws-strong: #2039b8;
+  --tw-ws-soft: rgba(45, 75, 219, 0.11);
+  --tw-dg: #a35f00;
+  --tw-dg-fill: #f29f05;
+  --tw-dg-soft: rgba(242, 159, 5, 0.16);
+  --tw-loss: #c93545;
+  --tw-ok: #18805a;
+  --tw-server: #17192e;
+
+  --tw-font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --tw-font-body: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --tw-font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+.dark {
+  --tw-paper: #121428;
+  --tw-paper-2: #171a33;
+  --tw-panel: #1a1d38;
+  --tw-ink: #e9ebf7;
+  --tw-ink-2: #b4b9d8;
+  --tw-ink-3: #8a90b4;
+  --tw-rule: #2f3358;
+  --tw-grid: #23274a;
+  --tw-ws: #8a9bff;
+  --tw-ws-strong: #a9b6ff;
+  --tw-ws-soft: rgba(138, 155, 255, 0.14);
+  --tw-dg: #ffb54a;
+  --tw-dg-fill: #ffb54a;
+  --tw-dg-soft: rgba(255, 181, 74, 0.15);
+  --tw-loss: #ff6b78;
+  --tw-ok: #4fd39a;
+  --tw-server: #e9ebf7;
+}
+
+/* VitePress, in these terms */
+:root, .dark {
+  --vp-c-bg: var(--tw-paper);
+  --vp-c-bg-alt: var(--tw-paper-2);
+  --vp-c-bg-elv: var(--tw-panel);
+  --vp-c-bg-soft: var(--tw-paper-2);
+  --vp-c-text-1: var(--tw-ink);
+  --vp-c-text-2: var(--tw-ink-2);
+  --vp-c-text-3: var(--tw-ink-3);
+  --vp-c-divider: var(--tw-rule);
+  --vp-c-gutter: var(--tw-rule);
+  --vp-c-border: var(--tw-rule);
+  --vp-c-brand-1: var(--tw-ws);
+  --vp-c-brand-2: var(--tw-ws-strong);
+  --vp-c-brand-3: var(--tw-ws);
+  --vp-c-brand-soft: var(--tw-ws-soft);
+  --vp-font-family-base: var(--tw-font-body);
+  --vp-font-family-mono: var(--tw-font-mono);
+  --vp-code-font-size: 0.9em;
+  --vp-code-color: var(--tw-ws-strong);
+  --vp-code-bg: var(--tw-ws-soft);
+  --vp-code-block-bg: var(--tw-panel);
+  --vp-code-tab-bg: var(--tw-panel);
+  --vp-code-copy-code-bg: var(--tw-paper-2);
+  --vp-nav-bg-color: var(--tw-paper);
+  --vp-sidebar-bg-color: var(--tw-paper-2);
+  --vp-local-nav-bg-color: var(--tw-paper);
+  --vp-home-hero-name-color: var(--tw-ink);
+  --vp-button-brand-bg: var(--tw-ws);
+  --vp-button-brand-hover-bg: var(--tw-ws-strong);
+  --vp-button-brand-active-bg: var(--tw-ws-strong);
+  --vp-custom-block-tip-bg: var(--tw-ws-soft);
+  --vp-custom-block-tip-border: transparent;
+  --vp-custom-block-info-bg: var(--tw-paper-2);
+  --vp-custom-block-warning-bg: var(--tw-dg-soft);
+}
+.dark { --vp-code-color: var(--tw-ws-strong); --vp-button-brand-text: #121428; --vp-button-brand-hover-text: #121428; }
+
+body { font-feature-settings: 'tnum' 0; }
+
+/* the wordmark and headings: a condensed signage face, like the tags on a pair of cables */
+.VPNavBarTitle .title { font-family: var(--tw-font-display); font-weight: 800; font-size: 24px; letter-spacing: 0.01em; }
+.vp-doc h1, .vp-doc h2, .vp-doc h3 { font-family: var(--tw-font-display); letter-spacing: 0.005em; }
+.vp-doc h1 { font-size: 48px; line-height: 1.02; font-weight: 800; }
+.vp-doc h2 { font-size: 32px; line-height: 1.1; font-weight: 700; margin-top: 56px; padding-top: 28px; }
+.vp-doc h3 { font-size: 23px; line-height: 1.2; font-weight: 700; }
+.vp-doc p.lede { font-size: 19px; line-height: 1.6; color: var(--tw-ink-2); }
+.vp-doc table { font-size: 15px; }
+.vp-doc :not(pre) > code { font-weight: 600; }
+.VPSidebarItem.level-0 > .item .text { font-family: var(--tw-font-display); font-size: 17px; font-weight: 700; letter-spacing: 0.01em; }
+@media (max-width: 640px) {
+  .vp-doc h1 { font-size: 38px; }
+  .vp-doc h2 { font-size: 27px; }
+}
+
+/* a word in the colour of its wire, used where the text names one */
+.ws { color: var(--tw-ws); font-weight: 700; }
+.dg { color: var(--tw-dg); font-weight: 700; }
+
+/* ---------------- explainers ---------------- */
+.tw-demo {
+  margin: 28px 0 32px; border: 1px solid var(--tw-rule); border-radius: 10px; background: var(--tw-panel);
+  overflow: hidden;
+}
+.tw-demo canvas { display: block; width: 100%; touch-action: none; }
+.tw-demo .stage { position: relative; background: var(--tw-panel); }
+.tw-demo .controls {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 22px;
+  padding: 16px 18px; border-top: 1px solid var(--tw-rule); background: var(--tw-paper-2);
+}
+.tw-demo .readouts {
+  display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 12px 18px; border-top: 1px solid var(--tw-rule);
+  font-size: 14px; color: var(--tw-ink-2); font-variant-numeric: tabular-nums;
+}
+.tw-demo .readouts b { color: var(--tw-ink); font-weight: 700; }
+.tw-demo .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 16px; background: var(--tw-paper-2); }
+.tw-demo .caption { padding: 12px 18px 14px; font-size: 14px; color: var(--tw-ink-3); border-top: 1px solid var(--tw-rule); line-height: 1.55; }
+.tw-demo .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 18px 0; font-size: 13px; color: var(--tw-ink-2); }
+.tw-demo .legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.tw-demo .legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+.tw-demo .legend i.ring { width: 9px; height: 9px; border-radius: 50%; background: transparent !important; border: 2px solid currentColor; }
+
+.tw-control { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--tw-ink-2); min-width: 0; }
+.tw-control .row { display: flex; justify-content: space-between; gap: 8px; }
+.tw-control .value { color: var(--tw-ink); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tw-control input[type='range'] { width: 100%; accent-color: var(--tw-ws); margin: 0; height: 22px; }
+.tw-toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--tw-ink); cursor: pointer; user-select: none; min-height: 32px; }
+.tw-toggle input { appearance: none; width: 36px; height: 20px; border-radius: 10px; background: var(--tw-rule); position: relative; cursor: pointer; flex: none; margin: 0; transition: background .15s; }
+.tw-toggle input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--tw-panel); transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.tw-toggle input:checked { background: var(--tw-ws); }
+.tw-toggle input:checked::after { transform: translateX(16px); }
+.tw-toggle input:focus-visible, .tw-btn:focus-visible, .tw-control input:focus-visible { outline: 2px solid var(--tw-ws); outline-offset: 2px; }
+.tw-btn {
+  font: inherit; font-size: 14px; font-weight: 600; padding: 7px 13px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--tw-rule); background: var(--tw-panel); color: var(--tw-ink); line-height: 1.2;
+}
+.tw-btn:hover { border-color: var(--tw-ws); color: var(--tw-ws); }
+.tw-btn.primary { background: var(--tw-ws); border-color: var(--tw-ws); color: var(--tw-panel); }
+.tw-btn.primary:hover { background: var(--tw-ws-strong); color: var(--tw-panel); }
+.tw-btn[disabled] { opacity: .45; cursor: default; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .tw-toggle input, .tw-toggle input::after { transition: none; } }
