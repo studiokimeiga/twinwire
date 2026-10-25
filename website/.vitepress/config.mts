@@ -30,7 +30,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '/guide/' },
       { text: 'How it works', link: '/how/sessions', activeMatch: '/how/' },
       { text: 'Reference', link: '/reference/api/', activeMatch: '/reference/' },
-      { text: '1.0.0', items: [
+      { text: '2.0.0', items: [
         { text: 'Changelog', link: '/reference/changelog' },
         { text: 'npm', link: 'https://www.npmjs.com/package/twinwire' },
       ] },

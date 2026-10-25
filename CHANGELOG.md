@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.0.0 (2026-10-25)
+
+For shooters that send a snapshot every tick, and a smaller wire. Protocol version 4: server and clients upgrade
+together (a 1.x peer can't talk to a 2.x one).
+
+- **Frame header: 22 bytes to 12** (14 at most): one byte for version and kind, a 16-bit connection epoch, the stream as
+  a varint, the 32-bit sequence number, and the time as quarter milliseconds from the connection's time base (sent in
+  the welcome). A 64 Hz shooter's 35-byte inputs were more than a third header. The server reconnects a connection
+  after four days so its frame times stay in range; the session resumes. `Endpoint.sendState` refuses a time its frame
+  can't carry (more than `MAX_TIME_SPAN_MS` from the time base) when called, instead of throwing from a later flush.
+- Removed what was only there for compatibility: `MAX_DATAGRAM_BYTES` (use `MTU_STATE_BYTES`) and the
+  `new ReliableEvents(maxEvents, maxBytes)` form (pass an options object).
+
+- **`GameServer({ pumpHz })`**: how often queued states and events go out (default 60, 10 to 250). At 64 or 128 Hz
+  the default pump coalesced states between pumps, now and then dropping a tick from a stream interpolated two ticks
+  behind; set the tick rate here, or `session.flush()` after each snapshot.
+- **`PROFILES.fps64` / `fps128`**: a snapshot every tick, the bandwidth for it (96 / 192 KiB/s) and two ticks of render
+  delay.
+- **`AdaptivePlayback.track(timeline, sample, arrival)`** inserts a sample and counts its lateness, but not a timeline's
+  first sample or a duplicate. Observing everything a join hands you (an idle player's state from a second ago) set
+  the delay to hundreds of ms for every entity for about 9 s (kimu.nyc: 280 ms after a join, 40 ms with this).
+- ADOPTING: a shooter section (send rate, bandwidth, inputs, datagram size, late states, lag compensation). API: a
+  sample's `seq` is the sender's sequence number, never derived from a time that crossed the wire.
+
 ## 1.1.2 (2026-10-25)
 
 - **Clock across reconnects**: a closed socket reset the client's clock, so through every outage `serverTime()`

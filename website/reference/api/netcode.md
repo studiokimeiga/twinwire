@@ -14,8 +14,8 @@ most 5% of the elapsed time. `serverTime(localTime)` never goes backwards. `sync
 step, at most `maxCatchUp` times per call, and returns how many ran. Time it couldn't catch up is dropped and counted
 (`droppedMs`, `overruns`) instead of spiralling. `tick`, `dtMs`, and `alpha` (how far into the next step, for drawing).
 
-**`PROFILES`**: starting rates for `social`, `action`, `strategy` and `turnBased` games (`simulationHz`, `sendHz`,
-`bytesPerSecond`, `interpolationMinMs`).
+**`PROFILES`**: starting rates for `social`, `action`, `strategy` and `turnBased` games, and `fps64` / `fps128` for
+shooters that send a snapshot every tick (`simulationHz`, `sendHz`, `bytesPerSecond`, `interpolationMinMs`).
 
 ## Interpolation
 
@@ -25,7 +25,10 @@ with `mode` `interpolate`, `extrapolate` or `hold`, or null before the first sam
 discontinuity takes effect at its own time and is never blended across.
 
 **`AdaptivePlayback(intervalMs, minMs = intervalMs, maxMs = 400, { halfLifeMs = 2000, percentile = 0.95 })`** chooses
-the render time. `observe(arrival, sampleTime)` on each arrival (both on the server clock); `advance(serverNow, dtMs)`
+the render time. `observe(arrival, sampleTime)` on each arrival (both on the server clock), or, when entities carry
+their own sample times, `track(timeline, sample, arrival)` per entity: it inserts the sample and counts its lateness,
+except a timeline's first sample (a join hands you states that were already old) and duplicates. A sample's `seq` is
+the sender's sequence number, never one derived from a time that went over the wire. `advance(serverNow, dtMs)`
 each frame returns the render time. The delay aims at the 95th percentile of recent lateness plus one interval, rising
 fast and falling slowly. Lateness is a time-decayed histogram (2 ms buckets, each observation's weight halving every
 `halfLifeMs`), so how much it remembers is a span of time, not a number of packets. `delayMs`, `latenessMs` (the
@@ -73,7 +76,7 @@ ack }`; `get(id)`; `clear()`. **`encodeReplica`** and **`decodeReplica`** for th
 **`defineSchema(fields)`** makes a fixed binary layout: each field is `{ type, scale? }` with `type` one of `u8`, `i8`,
 `u16`, `i16`, `u32`, `f32`, `f64`. Integer fields are scaled and rounded (`{ type: 'i16', scale: 10 }` keeps one
 decimal). The result has `byteLength`, `encode(value)` (throws when a value is out of range) and `decode(bytes)` (null
-for the wrong length). A layout must fit one datagram (1078 bytes).
+for the wrong length). A layout must fit one datagram (1086 bytes).
 
 ```ts
 const player = defineSchema({ x: { type: 'i16', scale: 10 }, y: { type: 'i16', scale: 10 }, hp: { type: 'u8' } });

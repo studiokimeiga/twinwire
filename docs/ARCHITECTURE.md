@@ -34,10 +34,9 @@ The application owns authority. The library can't decide whether a position, hit
 
 A second tab resuming the same token takes the session over; the first reports session loss rather than fighting.
 
-## Wire protocol (version 3)
+## Wire protocol (version 4)
 
-Binary frames, little-endian, 22-byte header: magic `TW`, version, kind, epoch (u32), stream (u16), seq (u32),
-time (f64).
+Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (4) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
 
 | Kind | Path | Meaning |
 |---|---|---|
@@ -56,7 +55,7 @@ Control messages are JSON text on the WebSocket: `hello`, `welcome`, `event`, `a
 
 `sendState` keeps only the newest unsent payload per stream, expires it after `ttlMs`, and sends by priority and age
 within the byte budget. Receivers drop anything not newer than what they have on that stream, whichever path it
-came by. A payload up to 1078 bytes fits one datagram; larger ones (up to `maxStateBytes`) are fragmented by SCTP on
+came by. A payload up to 1086 bytes fits one datagram; larger ones (up to `maxStateBytes`) are fragmented by SCTP on
 the datagram path, and anything over `datagramStateBytes` (8 KiB) goes on the WebSocket instead, where a large
 snapshot can't be lost piecewise.
 

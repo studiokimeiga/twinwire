@@ -9,7 +9,7 @@ import { createGameServer, createNativeRtcFactory, turnCredentials } from 'twinw
 
 const server = await createGameServer({
   host: '127.0.0.1', port: 8787, origins: ['https://game.example.com'],
-  rtc: await createNativeRtcFactory({ port: 8788, maxMessageSize: 64 * 1024 + 22 }),
+  rtc: await createNativeRtcFactory({ port: 8788, maxMessageSize: 64 * 1024 + 14 }),
   iceServers: session => [turnCredentials({ secret: process.env.TURN_SECRET, urls: 'turn:turn.example.com:3478', user: session.id })],
   trustProxy: true, resumeGraceMs: 90_000,
   authenticate: ({ auth, room, resuming, ip }) => validBuild(auth) ? 'anon' : null,
@@ -28,6 +28,7 @@ await server.listen();   // resolves with the port
 | `authenticate` | | `({ room, auth, resuming, ip }) => subject \| null`. Return a stable account subject, or null to refuse. Checked again on resume, and a resumed session must have the same subject |
 | `trustProxy` | false | Take the client address from the last `X-Forwarded-For` hop when the peer is a local proxy |
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits |
+| `pumpHz` | 60 | How often queued states and events go out; a game ticking faster sets its tick rate (10 to 250), or flushes each session after its snapshot |
 | `heartbeatTimeoutMs` | 15 000 | A connection silent this long is closed |
 | `handshakeTimeoutMs` | 5 000 | A connection that hasn't said hello by then is closed |
 | `maxSessions`, `maxConnections`, `maxPerIp` | 256, 512, 32 | Sessions (connected or waiting to resume), sockets, and sockets per address |
@@ -125,8 +126,8 @@ const rtc = await createNativeRtcFactory({ port: 8788, publicIp: '203.0.113.7' }
 
 `createNativeRtcFactory({ port, publicIp, bindAddress, iceServers, maxMessageSize })` loads `node-datachannel` and
 fails loudly if it is missing. Every connection shares the one UDP `port` (ICE mux). `publicIp` rewrites IPv4 host
-candidates for a server behind 1:1 NAT; `maxMessageSize` (64 KiB + 22) should match the endpoints' `maxStateBytes`
-plus the 22-byte header. `nativeRtcFactory(module, options)` does the same with a module you've loaded yourself.
+candidates for a server behind 1:1 NAT; `maxMessageSize` (64 KiB + 14) should match the endpoints' `maxStateBytes`
+plus the longest (14-byte) header. `nativeRtcFactory(module, options)` does the same with a module you've loaded yourself.
 
 ## TURN
 

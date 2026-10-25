@@ -178,7 +178,7 @@ export class GameClient {
       this.lost({ pendingEvents: this.endpoint.events.size, reason: typeof m.reason === 'string' ? m.reason : 'expired' }); return;
     }
     if (m.t === 'welcome') {
-      if (this.status !== 'connecting' || !isUint(m.e) || !m.e || typeof m.id !== 'string' ||
+      if (this.status !== 'connecting' || !isUint(m.e, 0xffff) || !m.e || typeof m.b !== 'number' || !Number.isFinite(m.b) || typeof m.id !== 'string' ||
           typeof m.token !== 'string' || !/^[\w-]{20,128}$/.test(m.token) || typeof m.resumed !== 'boolean' || m.v !== VERSION)
         throw new Error('Invalid welcome');
       this.token = m.token; this.id = m.id; this.epoch = m.e; this.reconnects = 0; this.serverRtc = m.rtc === true;
@@ -187,7 +187,7 @@ export class GameClient {
         get open() { return ws.readyState === 1; }, get bufferedAmount() { return ws.bufferedAmount; },
         send(data) { if (ws.readyState !== 1) return false; ws.send(typeof data === 'string' ? data : data.slice().buffer); return true; },
         close() { ws.close(); },
-      });
+      }, m.b);
       // a new session may be a new server (restarted, so a new clock): start the estimate over; a resumed one keeps it.
       // Either way a burst of pings, for whatever the network is now.
       if (!m.resumed) this.clock.reset();

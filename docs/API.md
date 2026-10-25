@@ -88,7 +88,7 @@ traffic uses events with a `$lobby` key; `onEvent` never sees them.
 ```ts
 const server = await createGameServer({
   host: '127.0.0.1', port: 8787, origins: ['https://game.example.com'],
-  rtc: await createNativeRtcFactory({ port: 8788, maxMessageSize: 64 * 1024 + 22 }),
+  rtc: await createNativeRtcFactory({ port: 8788, maxMessageSize: 64 * 1024 + 14 }),
   iceServers: session => [turnCredentials({ secret: process.env.TURN_SECRET, urls: 'turn:turn.example.com:3478', user: session.id })],
   trustProxy: true, resumeGraceMs: 90_000,
   authenticate: ({ auth, room, resuming, ip }) => validBuild(auth) ? 'anon' : null,
@@ -104,6 +104,7 @@ await server.listen();
 | `iceServers` | `[]` | Array or `(session) => array \| Promise`. Sent in each welcome. |
 | `trustProxy` | false | Read the client address from the last `X-Forwarded-For` hop when the peer is a local proxy. |
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits. |
+| `pumpHz` | 60 | How often queued states and events go out. A game ticking faster sets its tick rate (10 to 250), or calls `session.flush()` after each snapshot. |
 | `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. |
 | `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table. |
 | `rateLimit` | 300 msg/s, 256 KiB/s | Per connection, both transports together. |
@@ -171,11 +172,15 @@ maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 2
 
 **Clock and timing.** `NetworkClock` (the client has one). `FixedStepper(hz, maxCatchUp)` runs a fixed simulation
 step and reports dropped time instead of spiralling. `PROFILES` has starting rates for social, action, strategy and
-turn-based games.
+turn-based games, and `fps64` / `fps128` for shooters that send a snapshot every tick (see ADOPTING.md).
 
 **Snapshot interpolation.** One `Timeline` per entity, `AdaptivePlayback(intervalMs, minMs?, maxMs?, {halfLifeMs,
 percentile}?)` to choose a render time that covers the jitter you actually see: `observe(clock.serverTime(now),
-state.time)` on arrival, `advance(serverNow, dt)` per frame, then `timeline.sample(renderTime, lerp, extrapolate?,
+state.time)` on arrival when each snapshot is stamped as it's sent (everything in it current); when entities carry
+their own sample times (sent as they change, idle ones re-sent), `playback.track(timeline, sample,
+clock.serverTime(now))` per entity instead, which inserts and counts lateness but not a timeline's first sample (what a
+join or resync hands you was already old) or a duplicate. A sample's `seq` is the sender's sequence number (a tick, a
+state seq), never derived from a time that crossed the wire. `advance(serverNow, dt)` per frame, then `timeline.sample(renderTime, lerp, extrapolate?,
 maxMs)`. Lateness is a time-decayed histogram (half-life 2 s), so its memory doesn't depend on how many snapshots
 arrive; `latenessMs` is the covered percentile. Mark teleports as `discontinuity`. With `endpoint: { lateStates:
 'deliver' }`, a snapshot overtaken by a newer one still arrives (`late: true`) and can fill its place in the timeline.

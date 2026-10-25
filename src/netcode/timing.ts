@@ -26,4 +26,8 @@ export const PROFILES = Object.freeze({
   action: { simulationHz: 60, sendHz: 30, bytesPerSecond: 24 * 1024, interpolationMinMs: 35 },
   strategy: { simulationHz: 10, sendHz: 10, bytesPerSecond: 12 * 1024, interpolationMinMs: 100 },
   turnBased: { simulationHz: 0, sendHz: 0, bytesPerSecond: 8 * 1024, interpolationMinMs: 0 },
+  // a shooter: a snapshot every tick (say 50 players' ~500-byte frames at 64 Hz is ~35 KB/s) and two ticks of render
+  // delay; run the server with pumpHz at the tick rate, or flush() each session after its snapshot
+  fps64: { simulationHz: 64, sendHz: 64, bytesPerSecond: 96 * 1024, interpolationMinMs: 32 },
+  fps128: { simulationHz: 128, sendHz: 128, bytesPerSecond: 192 * 1024, interpolationMinMs: 16 },
 });

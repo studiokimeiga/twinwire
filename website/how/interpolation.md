@@ -64,6 +64,12 @@ function frame(now, dt) {
 }
 ```
 
+Here every snapshot is stamped when the server sends it, so it is observed once. If your entities carry their own
+sample times instead (sent when they change, idle ones re-sent now and then), feed each one through
+`playback.track(timeline, sample, arrival)`: it skips a timeline's first sample, because what a join hands you was
+already old and says nothing about the network, and duplicates. Give samples the sender's sequence number as `seq`,
+never one worked out from a time that crossed the wire.
+
 ## The sample
 
 `timeline.sample(at, interpolate, extrapolate?, maxExtrapolationMs = 100)` finds the snapshots on either side of `at`

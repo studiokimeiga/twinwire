@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NetworkClock, FixedStepper, Timeline, AdaptivePlayback, Predictor, InputInbox, SpatialGrid, defineSchema,
+import { PROFILES, NetworkClock, FixedStepper, Timeline, AdaptivePlayback, Predictor, InputInbox, SpatialGrid, defineSchema,
   ReplicaSender, ReplicaReceiver, encodeReplica, decodeReplica, lerp, lerpAngle, rewindTime } from '../dist/netcode/index.js';
 test('clock uses correlated exchanges and keeps server time monotonic', () => {
   const c = new NetworkClock(); c.observe(0, 20, 1010); assert.equal(c.serverTime(20), 1020); assert.equal(c.rttMs, 20);
@@ -124,4 +124,24 @@ test('playback starts over when the clock jumps far back (a new server), but a g
   assert.ok(last > 51000);
   for (t = 2000; t < 2200; t += 16) { p.observe(t, t - 20); last = p.advance(t, 16); }
   assert.ok(last > 1900 && last < 2200, 'follows the new clock (' + Math.round(last) + '), not frozen at the old one');
+});
+
+test('the shooter profiles send every tick, with the bandwidth and render delay for it', () => {
+  for (const [k, hz] of [['fps64', 64], ['fps128', 128]]) {
+    const P = PROFILES[k];
+    assert.equal(P.simulationHz, hz); assert.equal(P.sendHz, hz);
+    assert.ok(P.bytesPerSecond >= hz * 1100, k + ': room for a full-MTU snapshot every tick');
+    assert.ok(P.interpolationMinMs >= 2000 / hz - 0.5 && P.interpolationMinMs <= 3000 / hz, k + ': about two ticks of delay');
+  }
+});
+
+test('track(): the states already waiting when you join are not network lateness; fresh ones are', () => {
+  const p = new AdaptivePlayback(16, 16, 400);
+  const idle = new Timeline(), moving = new Timeline();
+  // joining at server time 10000: an idle player last changed 900 ms ago, a moving one 20 ms ago
+  p.track(idle, { time: 9100, seq: 7, value: 1 }, 10000); p.track(moving, { time: 9980, seq: 40, value: 1 }, 10000);
+  for (let t = 10016, s = 41; t < 11000; t += 16, s++) { p.track(moving, { time: t - 20, seq: s, value: s }, t); p.advance(t, 16); }
+  assert.ok(p.latenessMs <= 30, 'only fresh states set the delay (' + p.latenessMs + ' ms)');
+  assert.equal(idle.size, 1, 'the first sample is still kept for drawing');
+  assert.equal(p.track(moving, { time: 10950, seq: 41, value: 0 }, 11000), false, 'a duplicate (same seq) is neither kept nor counted');
 });

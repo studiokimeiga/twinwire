@@ -1,7 +1,7 @@
 import { TokenBucket } from './budget.js';
 import { EventRejected, ReliableEvents, type ReliableOptions } from './reliable.js';
 import {
-  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MTU_STATE_BYTES, newer, stringify,
+  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MAX_TIME_SPAN_MS, MTU_STATE_BYTES, newer, stringify,
   isUint, utf8, fromUtf8, utf8Length, type Frame, type Json, type JsonInput,
 } from './protocol.js';
 export interface ReliableLink {
@@ -59,6 +59,8 @@ export class Endpoint {
   private reliable?: ReliableLink;
   private datagram?: DatagramLink;
   private epoch = 0;
+  /** The connection's time base (from the welcome): frame times travel relative to it. */
+  private timeBase = 0;
   private sequence = new Map<number, number>();
   private received = new Map<number, number>();
   /** Per stream: bit i set = the state i+1 before the newest was seen (late delivery only). */
@@ -120,9 +122,9 @@ export class Endpoint {
     this.impairment = lagMs || jitterMs || loss || duplicate ? { lagMs, jitterMs, loss, duplicate, stallMs } : undefined;
   }
   get impaired(): Impairment | undefined { return this.impairment && { ...this.impairment }; }
-  attach(epoch: number, reliable: ReliableLink): void {
-    if (!isUint(epoch) || !epoch) throw new Error('Invalid epoch');
-    this.detach(); this.epoch = epoch; this.reliable = this.impairReliable(reliable);
+  attach(epoch: number, reliable: ReliableLink, timeBase = 0): void {
+    if (!isUint(epoch, 0xffff) || !epoch || !Number.isFinite(timeBase)) throw new Error('Invalid epoch');
+    this.detach(); this.epoch = epoch; this.timeBase = timeBase; this.reliable = this.impairReliable(reliable);
     this.ackDue = this.events.received > 0; this.lastEventSent = this.events.acknowledged; this.datagramAcked = 0;
     this.sequence.clear(); this.received.clear(); this.seen.clear(); this.acksOut.clear(); this.acksIn.clear();
     for (const e of this.events.entries()) { e.datagramAt = -Infinity; e.datagramTries = 0; }
@@ -154,7 +156,8 @@ export class Endpoint {
    * An accepted enqueue is not a delivery guarantee; use `ack: true` and onStateAck to learn what arrived. */
   sendState(stream: number, data: Uint8Array, time: number, o: StateOptions = {}): number {
     if (!this.active) return 0;
-    if (!isUint(stream, 65535) || !Number.isFinite(time) || data.length > this.maxStateBytes ||
+    // (the time must fit its frame: within MAX_TIME_SPAN_MS of the connection's time base, or flush would throw later)
+    if (!isUint(stream, 65535) || !(Math.abs(time - this.timeBase) <= MAX_TIME_SPAN_MS) || data.length > this.maxStateBytes ||
         !(o.ttlMs === undefined || Number.isFinite(o.ttlMs) && o.ttlMs > 0) ||
         !(o.priority === undefined || Number.isFinite(o.priority) && o.priority >= 0)) throw new RangeError('Invalid state');
     if (!this.sequence.has(stream) && this.sequence.size >= this.maxStreams) throw new Error('State stream limit');
@@ -182,17 +185,17 @@ export class Endpoint {
   receiveBinary(bytes: Uint8Array, via: 'ws' | 'rtc'): void {
     this.stats.bytesReceived += bytes.length;
     if (!this.active) return;
-    const f = decodeFrame(bytes, this.maxFrameBytes);
+    const f = decodeFrame(bytes, this.maxFrameBytes, this.timeBase);
     if (!f) { this.stats.invalid++; return; }
     if (f.epoch !== this.epoch || (via === 'rtc' && !this.datagram)) { this.stats.stale++; return; }
     switch (f.kind) {
       case FrameKind.probe:
-        if (via === 'rtc') this.sendFast(encodeFrame({ ...f, kind: FrameKind.reply }));
+        if (via === 'rtc') this.sendFast(encodeFrame({ ...f, kind: FrameKind.reply }, this.timeBase));
         return;
       case FrameKind.reply: {
         if (via !== 'rtc') return;
         const sent = this.probes.get(f.seq);
-        if (sent === undefined || sent !== f.time) return;
+        if (sent === undefined) return;   // (matched by seq; the time is ours, kept here)
         this.probes.delete(f.seq);
         const rtt = this.now() - sent;
         if (rtt < 0 || rtt > this.probeTimeout) return;
@@ -290,7 +293,7 @@ export class Endpoint {
         const seq = this.probeSeq = (this.probeSeq + 1) >>> 0;
         this.probes.set(seq, now);
         for (const [s, at] of this.probes) if (now - at > this.probeTimeout) this.probes.delete(s);
-        this.sendFast(encodeFrame({ kind: FrameKind.probe, epoch: this.epoch, stream: 0, seq, time: now, payload: new Uint8Array() }));
+        this.sendFast(encodeFrame({ kind: FrameKind.probe, epoch: this.epoch, stream: 0, seq, time: this.timeBase, payload: new Uint8Array() }, this.timeBase));
       }
     }
     this.flush();
@@ -316,7 +319,7 @@ export class Endpoint {
     let count = 0;
     for (const q of queue) {
       if (count++ >= maxPackets) break;
-      const b = encodeFrame(q.frame);
+      const b = encodeFrame(q.frame, this.timeBase);
       if (!this.budget.take(b.length, now)) break;
       if (!this.sendBinary(b, q.frame.payload.length <= this.datagramStateBytes)) { this.stats.congested++; break; }
       this.stats.statesSent++; this.queued.delete(q.frame.stream);
@@ -336,14 +339,14 @@ export class Endpoint {
     const ackChanged = this.events.received !== this.datagramAcked;
     if (!items.length && !ackChanged) return;
     const payload = utf8('[' + items.join(',') + ']');
-    if (this.sendFast(encodeFrame({ kind: FrameKind.events, epoch: this.epoch, stream: 0, seq: this.events.received >>> 0, time: now, payload }))) {
+    if (this.sendFast(encodeFrame({ kind: FrameKind.events, epoch: this.epoch, stream: 0, seq: this.events.received >>> 0, time: this.timeBase, payload }, this.timeBase))) {
       this.datagramAcked = this.events.received; this.stats.datagramEventFrames++;
     }
   }
   private flushStateAcks(now: number): void {
     const pairs = [...this.acksOut].slice(0, 150), p = new Uint8Array(pairs.length * 6), v = new DataView(p.buffer);
     pairs.forEach(([stream, seq], i) => { v.setUint16(i * 6, stream, true); v.setUint32(i * 6 + 2, seq, true); });
-    if (this.sendBinary(encodeFrame({ kind: FrameKind.sack, epoch: this.epoch, stream: 0, seq: 0, time: now, payload: p }), true)) {
+    if (this.sendBinary(encodeFrame({ kind: FrameKind.sack, epoch: this.epoch, stream: 0, seq: 0, time: this.timeBase, payload: p }, this.timeBase), true)) {
       for (const [stream, seq] of pairs) if (this.acksOut.get(stream) === seq) this.acksOut.delete(stream);
       this.lastAckSentAt = now; this.stats.stateAcksSent++;
     }

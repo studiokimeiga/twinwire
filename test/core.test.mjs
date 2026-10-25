@@ -12,14 +12,36 @@ test('binary frames round trip with views having nonzero byte offsets', () => {
 });
 test('binary decoder rejects malformed, wrong-version and over-limit packets', () => {
   assert.equal(decodeFrame(bytes(1)), null);
-  for (const at of [0, 2, 3]) { const b = encodeFrame(frame()); b[at] = 99; assert.equal(decodeFrame(b), null); }
+  const good = () => encodeFrame(frame());
+  const bad = f => { const b = good(); f(b); assert.equal(decodeFrame(b), null); };
+  bad(b => { b[0] = (5 << 4) | 1; });          // another protocol version
+  bad(b => { b[0] = (4 << 4) | 9; });          // an unknown kind
+  bad(b => { b[1] = b[2] = 0; });               // epoch 0
+  bad(b => { b[0] = (4 << 4) | 2; });           // a probe carrying a payload
+  // the stream varint: overlong (a needless continuation), more than 3 bytes, or over 65535
+  assert.equal(decodeFrame(Uint8Array.of(0x41, 5, 0, 0x88, 0x00, 4, 0, 0, 0, 0, 0, 0, 0)), null);
+  assert.equal(decodeFrame(Uint8Array.of(0x41, 5, 0, 0xff, 0xff, 0xff, 0x01, 4, 0, 0, 0, 0, 0, 0, 0)), null);
+  assert.equal(decodeFrame(Uint8Array.of(0x41, 5, 0, 0xff, 0xff, 0x7f, 4, 0, 0, 0, 0, 0, 0, 0)), null);
+  assert.equal(decodeFrame(Uint8Array.of(0x44, 5, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0)), null);   // events kind with a stream
   assert.equal(decodeFrame(new Uint8Array(1101)), null);
   assert.throws(() => encodeFrame(frame({ payload: new Uint8Array(MAX_STATE_BYTES + 1) })));
   assert.throws(() => encodeFrame(frame({ time: NaN })));
+  assert.throws(() => encodeFrame(frame({ time: 7 * 86400000 })), 'a time over six days from the base');
+  assert.throws(() => encodeFrame(frame({ epoch: 70000 })), 'the epoch is 16-bit');
   assert.throws(() => encodeFrame(frame({ kind: 2, stream: 0 })));
 });
+test('frame headers are 12 bytes for streams under 128, at most 14, and times survive to a quarter millisecond', () => {
+  for (const [stream, header] of [[0, 12], [127, 12], [128, 13], [16383, 13], [16384, 14], [65535, 14]]) {
+    const b = encodeFrame(frame({ stream })); assert.equal(b.length - 2, header, 'stream ' + stream);
+    assert.equal(decodeFrame(b).stream, stream);
+  }
+  const base = 123456.789, f = decodeFrame(encodeFrame(frame({ time: base + 4000.25 }), base), 1 << 20, base);
+  assert.equal(f.time - base, 4000.25);
+  assert.equal(decodeFrame(encodeFrame(frame({ time: base - 30.5 }), base), 1 << 20, base).time - base, -30.5);
+});
 test('all single-byte truncations of a header are refused', () => {
-  const b = encodeFrame(frame()); for (let n = 0; n < 22; n++) assert.equal(decodeFrame(b.subarray(0, n)), null);
+  const b = encodeFrame(frame()); for (let n = 0; n < 12; n++) assert.equal(decodeFrame(b.subarray(0, n)), null);
+  const wide = encodeFrame(frame({ stream: 20000 })); for (let n = 0; n < 14; n++) assert.equal(decodeFrame(wide.subarray(0, n)), null);
 });
 test('sequence comparison handles wraparound and equality', () => {
   assert.ok(newer(0, 0xffffffff)); assert.ok(newer(4, 2)); assert.ok(!newer(2, 4)); assert.ok(!newer(4, 4)); assert.ok(!newer(0xffffffff, 0));
@@ -37,7 +59,7 @@ test('application rejection does not acknowledge an event', () => {
   assert.equal(r.received, 0); r.receive(1, 'x', () => {}); assert.equal(r.received, 1);
 });
 test('outboxes are bounded and take ownership of payload values', () => {
-  const r = new ReliableEvents(1), data = { x: 1 }; r.push(data); data.x = 99;
+  const r = new ReliableEvents({ maxEvents: 1 }), data = { x: 1 }; r.push(data); data.x = 99;
   assert.equal([...r.entries()][0].data.x, 1); assert.throws(() => r.push('second'));
 });
 test('reliable checkpoint restores counters and pending actions', () => {

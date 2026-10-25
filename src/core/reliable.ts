@@ -24,8 +24,7 @@ export class ReliableEvents {
   readonly maxEventBytes: number;
   readonly maxEarly: number;
   readonly maxEarlyBytes: number;
-  constructor(o: ReliableOptions | number = {}, maxBytes?: number) {
-    const opts: ReliableOptions = typeof o === 'number' ? { maxEvents: o, maxBytes } : o;
+  constructor(opts: ReliableOptions = {}) {
     this.maxEvents = opts.maxEvents ?? 512; this.maxBytes = opts.maxBytes ?? 1024 * 1024;
     this.maxEventBytes = opts.maxEventBytes ?? 64 * 1024; this.maxEarly = opts.maxEarly ?? 256;
     this.maxEarlyBytes = opts.maxEarlyBytes ?? 256 * 1024;

@@ -40,7 +40,7 @@ move pieces onto Twinwire's helpers only where they're better than what you have
 
 ## Sizes
 
-A state can be up to 64 KiB (`maxStateBytes`, up to 256 KiB), but a per-tick packet that fits 1078 bytes fits one
+A state can be up to 64 KiB (`maxStateBytes`, up to 256 KiB), but a per-tick packet that fits 1086 bytes fits one
 datagram on any path. Bigger states are fragmented by SCTP on the datagram path, and anything over `datagramStateBytes`
 (8 KiB) takes the WebSocket instead, where it can't be lost piecewise: fine for a whole snapshot after a map change, not
 for every tick. Events are JSON up to 64 KiB each.
@@ -51,6 +51,20 @@ for every tick. Events are JSON up to 64 KiB each.
   Send inputs redundantly (`encodeInputs` with the last few), apply them with `InputInbox`, and reconcile on the client.
   A shot that matters is an event that names the input/tick it came from, so the server can check it against its own
   history.
+- **Shooters at 64 or 128 Hz:** a snapshot every tick, so start from `PROFILES.fps64` / `fps128`:
+  - Send each tick's snapshot as it's made: `GameServer({ pumpHz: 64 })` (or 128), or `session.flush()` right after
+    `session.sendState(...)`. The default 60 Hz pump coalesces states between pumps, which at 64 Hz now and then drops
+    a tick from a stream you interpolate two ticks behind.
+  - Give the endpoints the bandwidth: `endpoint: { bytesPerSecond: PROFILES.fps64.bytesPerSecond }` on the server and
+    the client (the 32 KiB/s default is less than a 500-byte snapshot every tick).
+  - Inputs: `client.sendState(stream, encodeInputs(predictor.recent(n)))` and `client.flush()` each tick, so a lost
+    datagram is covered by the next; at 128 Hz, raise `rateLimit.messages` above 300 if inputs, pings and acks get close.
+  - Keep a snapshot under 1086 bytes (one datagram on any path); a bigger world splits it across streams, so a loss
+    touches only part of it.
+  - Render others with `AdaptivePlayback(1000 / hz, PROFILES.fps64.interpolationMinMs)`, and receive with
+    `endpoint: { lateStates: 'deliver' }` so a reordered snapshot still fills its place.
+  - Lag compensation is yours: keep a short history of hitboxes per tick on the server and rewind to what the shooter
+    saw (`rewindTime` clamps the request); a shot is an event naming its tick.
 - **Social and co-op worlds:** interest-filter what each player gets (`SpatialGrid` for "who is near"), send compact
   records at a modest rate (10-20 Hz), and acknowledged records (`ReplicaSender`) for things that change rarely.
 - **Strategy:** commands are events, applied by the server; snapshots at the simulation's own rate.

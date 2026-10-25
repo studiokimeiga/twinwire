@@ -30,7 +30,7 @@ Pin the version in the URL, or serve your own copy from `node_modules/twinwire/d
 - Everything in [`twinwire/client`](/reference/api/client): `GameClient`, `LobbyClient`, `BrowserRtcPeer`.
 - Everything in [`twinwire/netcode`](/reference/api/netcode).
 - From the lobby's shared code: `LOBBY_KEY`, `normalizeCode`, `cleanName`.
-- From the protocol: `VERSION`, `MTU_STATE_BYTES` (1078), `DEFAULT_STATE_BYTES` (64 KiB).
+- From the protocol: `VERSION`, `MTU_STATE_BYTES` (1086), `DEFAULT_STATE_BYTES` (64 KiB).
 
 The server and the wire-level `Endpoint` aren't in it: the server runs in Node, and `Endpoint` is in the `twinwire`
 entry for anyone building their own client.

@@ -67,7 +67,7 @@ path it came by.
 
 | Size of a state | Where it goes while datagrams are up |
 |---|---|
-| Up to 1078 bytes | One datagram |
+| Up to 1086 bytes | One datagram |
 | Up to 8 KiB (`datagramStateBytes`) | Datagrams, fragmented by the data channel |
 | Larger, up to 64 KiB (`maxStateBytes`) | The WebSocket, so a big snapshot can't be lost piecewise |
 
@@ -93,8 +93,7 @@ with WebRTC and the WebSocket as fallbacks.
 
 ## The wire protocol
 
-Binary frames are little-endian with a 22-byte header: the magic `TW`, the protocol version (3), the kind, the epoch
-(u32), the stream (u16), the sequence number (u32) and a time (f64).
+Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (4) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
 
 | Kind | Path | Meaning |
 |---|---|---|

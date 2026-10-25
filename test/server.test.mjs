@@ -184,3 +184,18 @@ test('the clock estimate survives a dropped connection (same server, same clock)
     assert.ok(c.clock.sampleCount <= 2, 'a new session starts the estimate over');
   } finally { c.close(); await s.server.close(); }
 });
+
+test('a 128 Hz game: the default 60 Hz pump coalesces its states; pumpHz 128, or flush() per tick, carries each one', async () => {
+  for (const [label, pumpHz, flush, min, max] of [['default pump', undefined, false, 30, 80], ['pumpHz 128', 128, false, 100, 140], ['flush per tick', undefined, true, 100, 140]]) {
+    let session; const s = await setup({ ...(pumpHz ? { pumpHz } : {}), endpoint: { bytesPerSecond: 192 * 1024 }, onSession: x => { session = x; } });
+    const c = client(s.url, { endpoint: { bytesPerSecond: 192 * 1024 } }); let got = 0; c.onState = () => got++;
+    try {
+      c.connect(); await until(() => c.status === 'online' && session);
+      let n = 0;
+      await new Promise(r => { const iv = setInterval(() => { session.sendState(1, new Uint8Array(400)); if (flush) session.flush(); if (++n >= 128) { clearInterval(iv); r(); } }, 1000 / 128); });
+      await sleep(150);
+      assert.ok(got >= min && got <= max, label + ': ' + got + ' of 128 states arrived');
+    } finally { c.close(); await s.server.close(); }
+  }
+  await assert.rejects(async () => createGameServer({ origins: [], allowMissingOrigin: true, pumpHz: 1000 }), /pumpHz/);
+});

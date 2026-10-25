@@ -86,7 +86,7 @@ Almost every bug in multiplayer netcode comes from sending something the wrong w
 | For | Things that must arrive, in order: hits, doors, purchases, chat, map changes | Things where only the newest matters: positions, snapshots, inputs |
 | Delivery | Every one, once, in order, replayed after reconnects | Latest wins per stream; older ones are dropped, not queued |
 | Path | The WebSocket, raced by a copy on the datagrams | Datagrams while they work, else the WebSocket |
-| Format | JSON, up to 64 KiB | Bytes, up to 64 KiB (one datagram up to 1078 bytes) |
+| Format | JSON, up to 64 KiB | Bytes, up to 64 KiB (one datagram up to 1086 bytes) |
 
 Events and states travel separately, so nothing orders one against the other. When a snapshot depends on an event (a
 map change, a respawn), stamp both with the server tick or a generation number. [Adopting it](/reference/adopting)

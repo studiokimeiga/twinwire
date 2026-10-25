@@ -1,0 +1,2082 @@
+[
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 63.999483165610556,
+    "min": 63.989652798982206,
+    "max": 64.0050393268475,
+    "stdev": 0.008537443044220107
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 64.0009021179739,
+    "min": 63.995131461484036,
+    "max": 64.00778569682802,
+    "stdev": 0.006400106653559901
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.11922200520833333,
+    "min": 0.067138671875,
+    "max": 0.190673828125,
+    "stdev": 0.06400458967123177
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.10636393229166667,
+    "min": 0.07666015625,
+    "max": 0.137939453125,
+    "stdev": 0.03068249709194877
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.2105305989583333,
+    "min": 0.440673828125,
+    "max": 2.733154296875,
+    "stdev": 1.3186584886857242
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.4720865885416667,
+    "min": 0.441650390625,
+    "max": 0.49560546875,
+    "stdev": 0.027634662601110763
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.2884114583333333,
+    "min": 0.187744140625,
+    "max": 0.36181640625,
+    "stdev": 0.09018157250762665
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.20751953125,
+    "min": 0.17236328125,
+    "max": 0.263671875,
+    "stdev": 0.04914205721904331
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.5009765625,
+    "min": 0.659423828125,
+    "max": 2.459228515625,
+    "stdev": 0.9055596385823457
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.8482259114583334,
+    "min": 0.612060546875,
+    "max": 1.224853515625,
+    "stdev": 0.3296604862565939
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.012766672292852936,
+    "min": 0.007858742675105704,
+    "max": 0.017825914168003148,
+    "stdev": 0.004985308259439646
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.009987118047424044,
+    "min": 0.007835679197201465,
+    "max": 0.012162235682721251,
+    "stdev": 0.002163375434187346
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.825419089731179,
+    "min": 0.3541760993614932,
+    "max": 4.701212647664067,
+    "stdev": 2.4907335085675415
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.4257329949459769,
+    "min": 0.27110257090699524,
+    "max": 0.5472709434047889,
+    "stdev": 0.14102686427428682
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 23.219020239684163,
+    "min": 16.520991638242776,
+    "max": 29.002854232966648,
+    "stdev": 6.290948838973485
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 20.11715715774044,
+    "min": 16.432117088869514,
+    "max": 26.6284413588307,
+    "stdev": 5.655262953720898
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.7180989583333334,
+    "min": 0.512451171875,
+    "max": 0.85400390625,
+    "stdev": 0.18114252740769232
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.5938313802083334,
+    "min": 0.4912109375,
+    "max": 0.706787109375,
+    "stdev": 0.10815907303458985
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.8273111979166667,
+    "min": 0.98828125,
+    "max": 2.68212890625,
+    "stdev": 0.8470341850717332
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.489501953125,
+    "min": 1.294677734375,
+    "max": 1.841064453125,
+    "stdev": 0.30505700813700537
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 2.179780032033146,
+    "min": 2.167251694650882,
+    "max": 2.190711377488007,
+    "stdev": 0.011811095085417217
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 3.1061467167483943,
+    "min": 3.093687541212882,
+    "max": 3.1124382468313745,
+    "stdev": 0.010790140319705911
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 34.550076587119825,
+    "min": 31.170856130715162,
+    "max": 36.606661226240114,
+    "stdev": 2.9494098372397133
+  },
+  {
+    "cell": "lan / rtc: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 30.223435948570454,
+    "min": 30.011407353838763,
+    "max": 30.477078220050362,
+    "stdev": 0.23560796353040397
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 64.00442775228974,
+    "min": 63.99472944070193,
+    "max": 64.011511209137,
+    "stdev": 0.008691089513845321
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 64.00111241848651,
+    "min": 63.9999427966613,
+    "max": 64.00277289555835,
+    "stdev": 0.0014775212677403892
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": -0.013264973958333334,
+    "min": -0.036376953125,
+    "max": 0.003173828125,
+    "stdev": 0.02060253731122654
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.011800130208333334,
+    "min": -0.009521484375,
+    "max": 0.035888671875,
+    "stdev": 0.022831173574210245
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.34716796875,
+    "min": 0.264404296875,
+    "max": 0.43603515625,
+    "stdev": 0.08597806493338124
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.478271484375,
+    "min": 0.429443359375,
+    "max": 0.520751953125,
+    "stdev": 0.04598406656714647
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.117431640625,
+    "min": 0.11328125,
+    "max": 0.12060546875,
+    "stdev": 0.003758497148032386
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.127197265625,
+    "min": 0.11279296875,
+    "max": 0.13818359375,
+    "stdev": 0.013035829174035639
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.5377604166666666,
+    "min": 0.50439453125,
+    "max": 0.572021484375,
+    "stdev": 0.03382236258371408
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.60986328125,
+    "min": 0.505126953125,
+    "max": 0.749267578125,
+    "stdev": 0.12570824251729038
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.009169240490334605,
+    "min": 0.007332429279680924,
+    "max": 0.010160218186066107,
+    "stdev": 0.0015923797524438022
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.00963365882774671,
+    "min": 0.008885428503143396,
+    "max": 0.010137762928331549,
+    "stdev": 0.0006608960493662937
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.42702876516274896,
+    "min": 0.35058842805377866,
+    "max": 0.545069179068653,
+    "stdev": 0.10369964040902208
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.2819045354131287,
+    "min": 0.2362307134087216,
+    "max": 0.30723951313433195,
+    "stdev": 0.03963349403850576
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 7.584089168411707,
+    "min": 7.033298182814446,
+    "max": 8.04400769613633,
+    "stdev": 0.5114457769692706
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 8.457345061615657,
+    "min": 7.75836126346066,
+    "max": 9.709251733584056,
+    "stdev": 1.0866398597944606
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.5082194010416666,
+    "min": 0.49462890625,
+    "max": 0.52685546875,
+    "stdev": 0.016695244448184987
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.512939453125,
+    "min": 0.486572265625,
+    "max": 0.534912109375,
+    "stdev": 0.02446771448509287
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.169189453125,
+    "min": 0.908447265625,
+    "max": 1.439697265625,
+    "stdev": 0.26575960227004114
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.10546875,
+    "min": 0.861572265625,
+    "max": 1.47021484375,
+    "stdev": 0.3218150370029798
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 2.1602786085107417,
+    "min": 2.159164647376063,
+    "max": 2.162390789449714,
+    "stdev": 0.0018301175517184023
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 3.057139817086931,
+    "min": 3.0366201598721205,
+    "max": 3.080595107996494,
+    "stdev": 0.022133966533987165
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 29.27107500611713,
+    "min": 29.07955735157278,
+    "max": 29.56368934209623,
+    "stdev": 0.2574128013714317
+  },
+  {
+    "cell": "lan / ws: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 30.449711282253514,
+    "min": 30.2662020800202,
+    "max": 30.645345809309127,
+    "stdev": 0.18986247520590663
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 63.68661492926675,
+    "min": 63.65375689996468,
+    "max": 63.704762262705266,
+    "stdev": 0.028507721527112038
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 63.68373545124407,
+    "min": 63.64068864100227,
+    "max": 63.72448330889332,
+    "stdev": 0.04194461203789895
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.4951902797036479,
+    "min": 0.458156779661017,
+    "max": 0.5429025423728813,
+    "stdev": 0.04337035915035053
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.49350563100984024,
+    "min": 0.43178807947019865,
+    "max": 0.5508474576271187,
+    "stdev": 0.05965018112483202
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 22.136962890625,
+    "min": 22.11279296875,
+    "max": 22.177001953125,
+    "stdev": 0.03492235153521692
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 22.182779947916668,
+    "min": 22.17041015625,
+    "max": 22.203125,
+    "stdev": 0.01775581128622306
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 29.6171875,
+    "min": 29.59716796875,
+    "max": 29.641845703125,
+    "stdev": 0.022697201254641534
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 29.612467447916668,
+    "min": 29.56884765625,
+    "max": 29.678955078125,
+    "stdev": 0.05850738942788004
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 22.260091145833332,
+    "min": 22.16357421875,
+    "max": 22.377197265625,
+    "stdev": 0.10828960098423707
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 22.22314453125,
+    "min": 22.1494140625,
+    "max": 22.3154296875,
+    "stdev": 0.08454882765125811
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 29.923665364583332,
+    "min": 29.871337890625,
+    "max": 30.027099609375,
+    "stdev": 0.08957876297285347
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 29.963460286458332,
+    "min": 29.914306640625,
+    "max": 30.033935546875,
+    "stdev": 0.06259973832990823
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.03316798293686926,
+    "min": 0.027057539425173385,
+    "max": 0.04253952320175477,
+    "stdev": 0.008240086130607508
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.0240722379816009,
+    "min": 0.014608198403543817,
+    "max": 0.028905538680367972,
+    "stdev": 0.008196724447848094
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 25.8987850822074,
+    "min": 16.62679961977386,
+    "max": 33.79235744949062,
+    "stdev": 8.665397330590158
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 27.869415052829584,
+    "min": 23.487990363234925,
+    "max": 34.05452899950016,
+    "stdev": 5.509347138272353
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 19.717845319337194,
+    "min": 16.68962820473868,
+    "max": 24.96490209561095,
+    "stdev": 4.562069330403187
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 19.91088503231567,
+    "min": 17.12978657755233,
+    "max": 24.578014210370437,
+    "stdev": 4.066553532718855
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.5380045572916666,
+    "min": 0.460693359375,
+    "max": 0.617431640625,
+    "stdev": 0.07839056021373601
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.5636393229166666,
+    "min": 0.509521484375,
+    "max": 0.659423828125,
+    "stdev": 0.08318510382736277
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.0953776041666667,
+    "min": 0.8505859375,
+    "max": 1.53369140625,
+    "stdev": 0.3804554941530078
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.601318359375,
+    "min": 1.213623046875,
+    "max": 2.327392578125,
+    "stdev": 0.6292820157381116
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 3.577174417546358,
+    "min": 3.569006429514892,
+    "max": 3.5870244414294454,
+    "stdev": 0.009126013466615821
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 4.614913909327135,
+    "min": 4.535177263644465,
+    "max": 4.698605131118628,
+    "stdev": 0.08178567093897585
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 38.60698345680937,
+    "min": 38.471172256585476,
+    "max": 38.73241737062113,
+    "stdev": 0.13093135016807375
+  },
+  {
+    "cell": "5g / rtc: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 31.341546647327895,
+    "min": 30.40973390635594,
+    "max": 32.30226327424234,
+    "stdev": 0.946595704641142
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 63.997552713515006,
+    "min": 63.99382019942436,
+    "max": 64.00236740748416,
+    "stdev": 0.004375160153805137
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 64.00093349315217,
+    "min": 63.99670560005154,
+    "max": 64.00560096669501,
+    "stdev": 0.004463945581469211
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 22.752522786458332,
+    "min": 22.713623046875,
+    "max": 22.778076171875,
+    "stdev": 0.03423660625300034
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 23.075520833333332,
+    "min": 23.046142578125,
+    "max": 23.091552734375,
+    "stdev": 0.025477724580875136
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 80.21907552083333,
+    "min": 78.799072265625,
+    "max": 82.093994140625,
+    "stdev": 1.693912197337533
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 81.34627278645833,
+    "min": 79.255126953125,
+    "max": 83.44091796875,
+    "stdev": 2.0928977019204953
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 22.990071614583332,
+    "min": 22.916259765625,
+    "max": 23.06591796875,
+    "stdev": 0.0748498420120777
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 23.06396484375,
+    "min": 23.045166015625,
+    "max": 23.094482421875,
+    "stdev": 0.026665029674193777
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 78.48380533854167,
+    "min": 76.919921875,
+    "max": 80.285400390625,
+    "stdev": 1.6952850820079246
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 79.884765625,
+    "min": 79.075927734375,
+    "max": 80.966552734375,
+    "stdev": 0.974418636761647
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 4.394327529739942,
+    "min": 0.08432746361514484,
+    "max": 6.901045914047595,
+    "stdev": 3.749104056451287
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 5.5858242142939725,
+    "min": 5.002970625829928,
+    "max": 6.1514918435498664,
+    "stdev": 0.5744534487525085
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 95.50231933689994,
+    "min": 79.40421946902893,
+    "max": 104.45302472152996,
+    "stdev": 13.970490222920912
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 96.18161193619193,
+    "min": 73.26650584722779,
+    "max": 109.04578587210419,
+    "stdev": 19.89485228981529
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 7.23079688364731,
+    "min": 6.750228983657583,
+    "max": 7.547859009187523,
+    "stdev": 0.4232068266409165
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 8.190279343754526,
+    "min": 6.788580497055769,
+    "max": 10.119266441593131,
+    "stdev": 1.7268155344816878
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.474853515625,
+    "min": 0.44580078125,
+    "max": 0.48974609375,
+    "stdev": 0.025163070986049668
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.4954427083333333,
+    "min": 0.44189453125,
+    "max": 0.55322265625,
+    "stdev": 0.05578457463576553
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.0371907552083333,
+    "min": 0.81591796875,
+    "max": 1.30517578125,
+    "stdev": 0.24795125885592786
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.266357421875,
+    "min": 0.8037109375,
+    "max": 2.134033203125,
+    "stdev": 0.7519813036902586
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 3.760518609553892,
+    "min": 3.7580541248803234,
+    "max": 3.76401434015379,
+    "stdev": 0.0031110516946757094
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 4.639440754607801,
+    "min": 4.6246299730551605,
+    "max": 4.651691365040474,
+    "stdev": 0.013711148426311052
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 29.040049831482698,
+    "min": 28.793287864755502,
+    "max": 29.42357442911857,
+    "stdev": 0.33666496879531116
+  },
+  {
+    "cell": "5g / ws: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 30.1099838969098,
+    "min": 29.952073475396833,
+    "max": 30.34381654688452,
+    "stdev": 0.2066126740923717
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 62.70165728464295,
+    "min": 62.66264708666936,
+    "max": 62.758913826160665,
+    "stdev": 0.050660813975096565
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 62.760343209552694,
+    "min": 62.73526197450063,
+    "max": 62.80114338125666,
+    "stdev": 0.03564272248493702
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 2.022422316384181,
+    "min": 1.933262711864407,
+    "max": 2.0842161016949152,
+    "stdev": 0.07911003426283374
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.9419162725177217,
+    "min": 1.8776483050847461,
+    "max": 1.9756355932203387,
+    "stdev": 0.055680266000029996
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 54.707275390625,
+    "min": 54.58203125,
+    "max": 54.835693359375,
+    "stdev": 0.12686083446780924
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 54.782063802083336,
+    "min": 54.669921875,
+    "max": 54.957275390625,
+    "stdev": 0.15370864446368449
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 74.28434244791667,
+    "min": 74.2568359375,
+    "max": 74.33154296875,
+    "stdev": 0.04106306934784528
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 74.64306640625,
+    "min": 74.2490234375,
+    "max": 75.310791015625,
+    "stdev": 0.5813895662984938
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 53.480550130208336,
+    "min": 53.39892578125,
+    "max": 53.605224609375,
+    "stdev": 0.10968038523205922
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 53.895833333333336,
+    "min": 53.4775390625,
+    "max": 54.494384765625,
+    "stdev": 0.5318489251504657
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 74.365234375,
+    "min": 74.316650390625,
+    "max": 74.404541015625,
+    "stdev": 0.044673731890389506
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 75.86604817708333,
+    "min": 74.359130859375,
+    "max": 77.2822265625,
+    "stdev": 1.4636588700178854
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 5.327693350537132,
+    "min": 5.091561309005037,
+    "max": 5.4585174737106525,
+    "stdev": 0.20489393586835564
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 4.720771969249239,
+    "min": 4.178399036078292,
+    "max": 5.185594603106353,
+    "stdev": 0.5080563593273815
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 62.04539708906008,
+    "min": 60.607523530917305,
+    "max": 64.33886679911689,
+    "stdev": 2.007427265846051
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 60.9585044694677,
+    "min": 54.18268421309036,
+    "max": 68.29988998337552,
+    "stdev": 7.0755757882689165
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 20.627486865834992,
+    "min": 17.90776794253227,
+    "max": 23.133430137271915,
+    "stdev": 2.619381867040538
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 23.40612374736894,
+    "min": 17.26847352989526,
+    "max": 29.561873380791436,
+    "stdev": 6.146719911070195
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.5350748697916666,
+    "min": 0.478759765625,
+    "max": 0.588134765625,
+    "stdev": 0.05476011269363908
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.8712565104166666,
+    "min": 0.510009765625,
+    "max": 1.48388671875,
+    "stdev": 0.5333894583357096
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.1041666666666667,
+    "min": 0.93896484375,
+    "max": 1.31787109375,
+    "stdev": 0.19405376453569997
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 3.9405110677083335,
+    "min": 1.080810546875,
+    "max": 8.76953125,
+    "stdev": 4.205683233366551
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 5.566251825673301,
+    "min": 5.563711758403938,
+    "max": 5.567609944866338,
+    "stdev": 0.0022015256903466247
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 6.6389085288383525,
+    "min": 6.479319370294698,
+    "max": 6.7578232861292165,
+    "stdev": 0.14363813202539522
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 42.19615002721881,
+    "min": 39.2751966529065,
+    "max": 43.826195853217406,
+    "stdev": 2.535296857180164
+  },
+  {
+    "cell": "congested / rtc: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 31.109519682024654,
+    "min": 29.79002355710689,
+    "max": 32.491128553513846,
+    "stdev": 1.3516233000983087
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 64.00083817853597,
+    "min": 63.995233405880455,
+    "max": 64.00773928322735,
+    "stdev": 0.006352920557845097
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 64.00534157118169,
+    "min": 64.00355978485446,
+    "max": 64.00731413027883,
+    "stdev": 0.0018844291121377231
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "stdev": 0.0
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 61.525634765625,
+    "min": 60.989501953125,
+    "max": 62.09130859375,
+    "stdev": 0.5514970281283974
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 61.443196614583336,
+    "min": 61.089599609375,
+    "max": 61.99365234375,
+    "stdev": 0.48310749790456164
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 257.5204264322917,
+    "min": 256.677978515625,
+    "max": 258.430419921875,
+    "stdev": 0.878171124497014
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 257.6156412760417,
+    "min": 256.985107421875,
+    "max": 258.262451171875,
+    "stdev": 0.6388273992756314
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 61.311360677083336,
+    "min": 61.199951171875,
+    "max": 61.435546875,
+    "stdev": 0.11831638407322617
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 61.949055989583336,
+    "min": 61.51904296875,
+    "max": 62.493896484375,
+    "stdev": 0.49746744196313425
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 257.738525390625,
+    "min": 257.49658203125,
+    "max": 258.025390625,
+    "stdev": 0.26725103058005195
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 257.9161783854167,
+    "min": 257.4833984375,
+    "max": 258.353759765625,
+    "stdev": 0.4352005292826711
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 97.89260446659264,
+    "min": 96.76961639324156,
+    "max": 98.60060635880271,
+    "stdev": 0.9835096397086835
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 91.17819219786251,
+    "min": 84.53038007808519,
+    "max": 96.76347742782163,
+    "stdev": 6.185377129627769
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 427.00247459949856,
+    "min": 301.91451250075244,
+    "max": 606.014894547313,
+    "stdev": 159.06019601381416
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 363.38397062206633,
+    "min": 337.14007912275156,
+    "max": 390.4271837804748,
+    "stdev": 26.652543350247278
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 7.390605205482738,
+    "min": 6.349366305906894,
+    "max": 8.86374061505368,
+    "stdev": 1.3116480046619994
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 8.447744161357585,
+    "min": 6.705812230705398,
+    "max": 10.563610200773335,
+    "stdev": 1.9558939983387835
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.5209147135416666,
+    "min": 0.478759765625,
+    "max": 0.592529296875,
+    "stdev": 0.06234403860332897
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.59814453125,
+    "min": 0.4580078125,
+    "max": 0.79541015625,
+    "stdev": 0.17580634044023913
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.1964518229166667,
+    "min": 0.83349609375,
+    "max": 1.490966796875,
+    "stdev": 0.33403597724951084
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.0414225260416667,
+    "min": 0.78369140625,
+    "max": 1.26220703125,
+    "stdev": 0.24138784163491372
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 6.201697241034019,
+    "min": 6.190543638930706,
+    "max": 6.211169876303844,
+    "stdev": 0.01041535665086528
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 7.0386129920674225,
+    "min": 7.014309398270602,
+    "max": 7.078680096539344,
+    "stdev": 0.03496087671246791
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 29.206033362109828,
+    "min": 28.879149329697405,
+    "max": 29.42485287219704,
+    "stdev": 0.2884554468426523
+  },
+  {
+    "cell": "congested / ws: original 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 29.662050616358094,
+    "min": 29.441124838387264,
+    "max": 29.882194785291357,
+    "stdev": 0.2205360122519918
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 62.70651920574233,
+    "min": 62.65055458622337,
+    "max": 62.75274964727796,
+    "stdev": 0.05178825438017874
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 62.68902273378943,
+    "min": 62.67281209731733,
+    "max": 62.71399016880414,
+    "stdev": 0.021941274652580417
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 2.0171257062146895,
+    "min": 1.933262711864407,
+    "max": 2.113347457627119,
+    "stdev": 0.09067625417492733
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 2.04360721697283,
+    "min": 2.0074152542372885,
+    "max": 2.0704262642308713,
+    "stdev": 0.03253437418353281
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 54.739095052083336,
+    "min": 54.7265625,
+    "max": 54.74658203125,
+    "stdev": 0.010921939498572668
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 54.604166666666664,
+    "min": 54.42138671875,
+    "max": 54.787353515625,
+    "stdev": 0.18298373774759374
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 74.26155598958333,
+    "min": 74.224853515625,
+    "max": 74.2919921875,
+    "stdev": 0.034005146329011776
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 74.24462890625,
+    "min": 74.209228515625,
+    "max": 74.2705078125,
+    "stdev": 0.03172982910292967
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 53.496663411458336,
+    "min": 53.433837890625,
+    "max": 53.593505859375,
+    "stdev": 0.08509599612985534
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 53.497151692708336,
+    "min": 53.3876953125,
+    "max": 53.614990234375,
+    "stdev": 0.11387906238890345
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 74.44816080729167,
+    "min": 74.413330078125,
+    "max": 74.468505859375,
+    "stdev": 0.03030623433485129
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 74.43017578125,
+    "min": 74.33544921875,
+    "max": 74.483154296875,
+    "stdev": 0.08222756283258058
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 4.720437538639587,
+    "min": 3.7081058658587893,
+    "max": 5.505603161217513,
+    "stdev": 0.920028500905848
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 4.308221230266099,
+    "min": 3.34619742719085,
+    "max": 5.447759028867895,
+    "stdev": 1.0619669040825597
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 48.592222697065054,
+    "min": 35.10513550101127,
+    "max": 58.86328847032465,
+    "stdev": 12.201211147760166
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 64.64199305867243,
+    "min": 53.87228511435096,
+    "max": 72.07321693031149,
+    "stdev": 9.548695548082817
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 18.951965487313153,
+    "min": 17.191793512283276,
+    "max": 21.49349536116658,
+    "stdev": 2.2547837642913735
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 18.594435594276085,
+    "min": 16.916746365924805,
+    "max": 20.040839452323702,
+    "stdev": 1.5748362121213506
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 0.4867350260416667,
+    "min": 0.4794921875,
+    "max": 0.4951171875,
+    "stdev": 0.007874560227805192
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 0.517333984375,
+    "min": 0.44580078125,
+    "max": 0.569091796875,
+    "stdev": 0.06398021717093107
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 1.085693359375,
+    "min": 1.034423828125,
+    "max": 1.11865234375,
+    "stdev": 0.04500075339640323
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 1.2918294270833333,
+    "min": 1.167236328125,
+    "max": 1.4169921875,
+    "stdev": 0.12487890417788357
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 5.568721014236336,
+    "min": 5.568264285858811,
+    "max": 5.569159250266837,
+    "stdev": 0.00044776868814353936
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 6.522825871609677,
+    "min": 6.475161547128268,
+    "max": 6.597555207005809,
+    "stdev": 0.06553196247950545
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 3,
+    "mean": 37.57228572250967,
+    "min": 31.54599052517304,
+    "max": 45.50695840808927,
+    "stdev": 7.1734639146774155
+  },
+  {
+    "cell": "congested / rtc: confirmation 3 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 3,
+    "mean": 30.235098380163247,
+    "min": 29.674180458414373,
+    "max": 31.005319643047283,
+    "stdev": 0.6898106977091959
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 62.704088245192644,
+    "min": 62.65055458622337,
+    "max": 62.758913826160665,
+    "stdev": 0.04589671043527149
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Snapshot rate /s",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 62.72468297167106,
+    "min": 62.67281209731733,
+    "max": 62.80114338125666,
+    "stdev": 0.047188053135689245
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 2.019774011299435,
+    "min": 1.933262711864407,
+    "max": 2.113347457627119,
+    "stdev": 0.0761619882926606
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Missed snapshots %",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 1.992761744745276,
+    "min": 1.8776483050847461,
+    "max": 2.0704262642308713,
+    "stdev": 0.06903495828484929
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 54.723185221354164,
+    "min": 54.58203125,
+    "max": 54.835693359375,
+    "stdev": 0.08239497126832823
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Snapshot age p50 ms",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 54.693115234375,
+    "min": 54.42138671875,
+    "max": 54.957275390625,
+    "stdev": 0.17982762719341586
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 74.27294921875,
+    "min": 74.224853515625,
+    "max": 74.33154296875,
+    "stdev": 0.03595520910052398
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Snapshot age p99 ms",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 74.44384765625,
+    "min": 74.209228515625,
+    "max": 75.310791015625,
+    "stdev": 0.4280583796214434
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 53.488606770833336,
+    "min": 53.39892578125,
+    "max": 53.605224609375,
+    "stdev": 0.08824022628363205
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Input latency p50 ms",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 53.696492513020836,
+    "min": 53.3876953125,
+    "max": 54.494384765625,
+    "stdev": 0.40745159612541104
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 74.40669759114583,
+    "min": 74.316650390625,
+    "max": 74.468505859375,
+    "stdev": 0.056821844531981205
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Input latency p99 ms",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 75.14811197916667,
+    "min": 74.33544921875,
+    "max": 77.2822265625,
+    "stdev": 1.215788766638109
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 5.024065444588359,
+    "min": 3.7081058658587893,
+    "max": 5.505603161217513,
+    "stdev": 0.6826430057496224
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Render error p99 cm",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 4.514496599757669,
+    "min": 3.34619742719085,
+    "max": 5.447759028867895,
+    "stdev": 0.778085741752499
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 55.318809893062564,
+    "min": 35.10513550101127,
+    "max": 64.33886679911689,
+    "stdev": 10.74504990432268
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Render error max cm",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 62.80024876407006,
+    "min": 53.87228511435096,
+    "max": 72.07321693031149,
+    "stdev": 7.782478411036292
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 19.789726176574074,
+    "min": 17.191793512283276,
+    "max": 23.133430137271915,
+    "stdev": 2.3707163564210334
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Server CPU % of one core",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 21.00027967082251,
+    "min": 16.916746365924805,
+    "max": 29.561873380791436,
+    "stdev": 4.801105369479663
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 0.5109049479166666,
+    "min": 0.478759765625,
+    "max": 0.588134765625,
+    "stdev": 0.043878167743570125
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Server tick p50 ms",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 0.6942952473958334,
+    "min": 0.44580078125,
+    "max": 1.48388671875,
+    "stdev": 0.39117446147860263
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 1.0949300130208333,
+    "min": 0.93896484375,
+    "max": 1.31787109375,
+    "stdev": 0.1263928457602566
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Server tick p99 ms",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 2.6161702473958335,
+    "min": 1.080810546875,
+    "max": 8.76953125,
+    "stdev": 3.03084160095292
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 5.567486419954818,
+    "min": 5.563711758403938,
+    "max": 5.569159250266837,
+    "stdev": 0.001961619869720337
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Upload KiB/s",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 6.580867200224015,
+    "min": 6.475161547128268,
+    "max": 6.7578232861292165,
+    "stdev": 0.11837692099410731
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "geckos",
+    "n": 6,
+    "mean": 39.88421787486424,
+    "min": 31.54599052517304,
+    "max": 45.50695840808927,
+    "stdev": 5.437698245415212
+  },
+  {
+    "cell": "congested / rtc: all 6 repetitions per stack",
+    "metric": "Download KiB/s",
+    "stack": "twinwire",
+    "n": 6,
+    "mean": 30.672309031093953,
+    "min": 29.674180458414373,
+    "max": 32.491128553513846,
+    "stdev": 1.0726012873205846
+  }
+]
