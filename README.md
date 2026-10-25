@@ -107,6 +107,9 @@ together, with the game's own code running each room's world on a $5 server.
 
 ## Documentation
 
+**[studiokimeiga.github.io/twinwire](https://studiokimeiga.github.io/twinwire/)**: the guide, how each piece works (with
+live demos that run the library in your browser), and the reference.
+
 - [API](docs/API.md): every option and contract.
 - [Architecture](docs/ARCHITECTURE.md): the wire protocol and the guarantees.
 - [Adopting it in an existing game](docs/ADOPTING.md): a staged path, and what a real port looked like.
