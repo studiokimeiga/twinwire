@@ -9,7 +9,11 @@ For shooters that send a snapshot every tick.
   behind; set the tick rate here, or `session.flush()` after each snapshot.
 - **`PROFILES.fps64` / `fps128`**: a snapshot every tick, the bandwidth for it (96 / 192 KiB/s) and two ticks of render
   delay.
-- ADOPTING: a shooter section (send rate, bandwidth, inputs, datagram size, late states, lag compensation).
+- **`AdaptivePlayback.track(timeline, sample, arrival)`** inserts a sample and counts its lateness, but not a timeline's
+  first sample or a duplicate. Observing everything a join hands you (an idle player's state from a second ago) set
+  the delay to hundreds of ms for every entity for about 9 s (kimu.nyc: 280 ms after a join, 40 ms with this).
+- ADOPTING: a shooter section (send rate, bandwidth, inputs, datagram size, late states, lag compensation). API: a
+  sample's `seq` is the sender's sequence number, never derived from a time that crossed the wire.
 
 ## 1.1.2 (2026-10-25)
 

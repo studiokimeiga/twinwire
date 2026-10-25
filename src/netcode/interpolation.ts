@@ -64,6 +64,15 @@ export class AdaptivePlayback {
     this.buckets = new Float64Array(Math.ceil((maxMs + 1000) / AdaptivePlayback.BUCKET_MS) + 1);
     this.delayMs = minMs;
   }
+  /** Insert a snapshot into its entity's timeline and count how late it came, the usual way to feed both. A
+   * timeline's first sample isn't counted: what a join or resync hands you (an idle player's last state, say) was
+   * already old when it arrived and says nothing about the network. Neither is a duplicate. Returns whether it was kept. */
+  track<T>(timeline: Timeline<T>, sample: Timed<T>, arrivalOnServerClock: number): boolean {
+    const first = timeline.size === 0, kept = timeline.insert(sample);
+    if (kept && !first) this.observe(arrivalOnServerClock, sample.time);
+    return kept;
+  }
+  /** Count one snapshot's lateness (track() does this for you; call it directly only for states made after you joined). */
   observe(arrivalOnServerClock: number, sampleTime: number) {
     const late = arrivalOnServerClock - sampleTime;
     if (!Number.isFinite(late) || late < -1000 || late > 30000) return;

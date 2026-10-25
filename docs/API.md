@@ -176,7 +176,11 @@ turn-based games, and `fps64` / `fps128` for shooters that send a snapshot every
 
 **Snapshot interpolation.** One `Timeline` per entity, `AdaptivePlayback(intervalMs, minMs?, maxMs?, {halfLifeMs,
 percentile}?)` to choose a render time that covers the jitter you actually see: `observe(clock.serverTime(now),
-state.time)` on arrival, `advance(serverNow, dt)` per frame, then `timeline.sample(renderTime, lerp, extrapolate?,
+state.time)` on arrival when each snapshot is stamped as it's sent (everything in it current); when entities carry
+their own sample times (sent as they change, idle ones re-sent), `playback.track(timeline, sample,
+clock.serverTime(now))` per entity instead, which inserts and counts lateness but not a timeline's first sample (what a
+join or resync hands you was already old) or a duplicate. A sample's `seq` is the sender's sequence number (a tick, a
+state seq), never derived from a time that crossed the wire. `advance(serverNow, dt)` per frame, then `timeline.sample(renderTime, lerp, extrapolate?,
 maxMs)`. Lateness is a time-decayed histogram (half-life 2 s), so its memory doesn't depend on how many snapshots
 arrive; `latenessMs` is the covered percentile. Mark teleports as `discontinuity`. With `endpoint: { lateStates:
 'deliver' }`, a snapshot overtaken by a newer one still arrives (`late: true`) and can fill its place in the timeline.
