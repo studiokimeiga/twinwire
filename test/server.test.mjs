@@ -138,3 +138,13 @@ test('one address cannot fill the session table: its oldest dropped session make
     const last = client(s.url); clients.push(last); last.connect(); await until(() => last.status === 'online');
   } finally { for (const c of clients) c.close(); await s.server.close(); }
 });
+
+test('after connecting the client sends a burst of pings, so the clock settles in about two seconds', async () => {
+  const s = await setup(); const c = client(s.url);
+  try {
+    c.connect(); await until(() => c.status === 'online');
+    const t0 = performance.now(); await until(() => c.clock.sampleCount >= 8, 3500);
+    assert.ok(performance.now() - t0 < 3000, 'eight samples in ' + Math.round(performance.now() - t0) + ' ms');
+    s.server.sessions.get(c.id).sendEvent({ hello: 1 }); s.server.sessions.get(c.id).flush();
+  } finally { c.close(); await s.server.close(); }
+});

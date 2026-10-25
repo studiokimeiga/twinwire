@@ -24,10 +24,12 @@ duplicate), `sample(at, interpolate, extrapolate?, maxExtrapolationMs = 100)` re
 with `mode` `interpolate`, `extrapolate` or `hold`, or null before the first sample. `size`, `clear()`. A
 discontinuity takes effect at its own time and is never blended across.
 
-**`AdaptivePlayback(intervalMs, minMs = intervalMs, maxMs = 400)`** chooses the render time. `observe(arrival,
-sampleTime)` on each arrival (both on the server clock); `advance(serverNow, dtMs)` each frame returns the render time.
-The delay aims at the 95th percentile of recent lateness plus one interval, rising fast and falling slowly.
-`delayMs`, `reset()`.
+**`AdaptivePlayback(intervalMs, minMs = intervalMs, maxMs = 400, { halfLifeMs = 2000, percentile = 0.95 })`** chooses
+the render time. `observe(arrival, sampleTime)` on each arrival (both on the server clock); `advance(serverNow, dtMs)`
+each frame returns the render time. The delay aims at the 95th percentile of recent lateness plus one interval, rising
+fast and falling slowly. Lateness is a time-decayed histogram (2 ms buckets, each observation's weight halving every
+`halfLifeMs`), so how much it remembers is a span of time, not a number of packets. `delayMs`, `latenessMs` (the
+percentile), `reset()`.
 
 **`lerp(a, b, t)`**, **`lerpAngle(a, b, t)`** (the short way round), **`lerpVec3(a, b, t)`**.
 

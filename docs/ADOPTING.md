@@ -21,6 +21,16 @@ move pieces onto Twinwire's helpers only where they're better than what you have
 5. **Then the helpers, if they beat yours.** Deltas against acknowledged snapshots (`ack: true`, `SnapshotHistory`),
    interpolation (`Timeline`, `AdaptivePlayback`), prediction (`Predictor`, `InputInbox`, `encodeInputs`).
 
+## Defaults to check
+
+- `maxPerIp` (32 sockets and sessions per address): load tests with many bots from one machine, and players behind
+  one school or office address, need it raised.
+- `endpoint.bytesPerSecond` (32 KiB/s per peer): a busy shared world can need more downstream (one social game
+  measured 40 to 55 KB/s per player at 50 players). Set it on the server's `endpoint` option.
+- The lobby sends each member the whole room (every member) on every join, leave, ready or name change. That is cheap
+  for 2 to 8 players; a 64-player social room should keep names and looks in its own events and use the lobby only
+  for seats.
+
 ## Sizes
 
 A state can be up to 64 KiB (`maxStateBytes`, up to 256 KiB), but a per-tick packet that fits 1078 bytes fits one

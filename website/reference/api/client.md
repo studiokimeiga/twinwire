@@ -26,12 +26,13 @@ const client = new GameClient({
 | `rtc` | `{}` | `false` for WebSocket only, or an `RTCConfiguration`. With `iceServers`, those replace the server's |
 | `endpoint` | | [Endpoint options](/reference/api/server#endpoint-options) for this client |
 | `checkpoint` | | Resume a session saved by `checkpoint()` (see below) |
-| `impair` | | `{ lagMs, jitterMs, loss, duplicate }` on this client's sends, and asked of the server (honoured only with `allowImpairment`). `lagMs` is one way. For testing |
+| `impair` | | `{ lagMs, jitterMs, loss, duplicate, stallMs }` on this client's sends, and asked of the server (honoured only with `allowImpairment`). `lagMs` is one way; `loss` drops datagrams, and with `stallMs` also stalls the WebSocket like a resent TCP segment. For testing |
 | `reconnectBaseMs`, `reconnectMaxMs` | 200, 8000 | Reconnect backoff: doubles from the base, randomised, up to the max |
 | `heartbeatTimeoutMs` | 8000 | A connection silent this long is replaced |
 | `rtcRetryMs` | 3000 | First WebRTC retry after a failure; doubles up to 16× (and never more than 60 s) |
 | `rtcConnectTimeoutMs` | 8000 | Give up on a WebRTC attempt that hasn't proven itself by then |
 | `pumpHz` | 60 | How often the client sends queued messages |
+| `syncPings`, `syncPingMs`, `pingMs` | 8, 250, 1000 | Clock sync: a burst of pings after each connect, then one a second |
 | `websocket` | `url => new WebSocket(url)` | Supply your own WebSocket (tests, other runtimes) |
 
 ### Members
@@ -47,7 +48,7 @@ const client = new GameClient({
 | `sendEvent(json)` | Ordered, acknowledged; returns its seq. Throws when the outbox is full (512 events or 1 MiB) or the event is over 64 KiB |
 | `onEvent(data, seq)` | Each event exactly once, in order. Throwing means "not accepted": the event comes again |
 | `sendState(stream, bytes, { ttlMs, priority, ack }?)` | Latest wins per stream. Returns the seq, or 0 before the session is online and the clock synced |
-| `onState({ stream, seq, time, data, via })` | `time` is the sender's server-clock estimate: never trust it for authority |
+| `onState({ stream, seq, time, data, via, late })` | `time` is the sender's server-clock estimate: never trust it for authority. `late` only with `endpoint.lateStates: 'deliver'` |
 | `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer has seen |
 | `onError(error)` | Problems that don't end the session (a callback that threw, a WebRTC failure) |
 | `clock` | `synced`, `rttMs`, `uncertaintyMs`, `serverTime(performance.now())` |

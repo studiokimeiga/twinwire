@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server as HttpServer, type Ser
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Endpoint, type EndpointOptions, type Impairment, type StateMessage, type StateOptions } from '../core/endpoint.js';
 import { TokenBucket } from '../core/budget.js';
-import { readControl, record as isRecord, stringify, VERSION, MAX_CONTROL_BYTES, isUint, type Json } from '../core/protocol.js';
+import { readControl, record as isRecord, stringify, VERSION, MAX_CONTROL_BYTES, isUint, type Json, type JsonInput } from '../core/protocol.js';
 import { validIceServers, validSignal, type IceServer, type RtcPeer } from '../core/rtc.js';
 import type { RtcFactory } from './rtc.js';
 interface Ws {
@@ -53,7 +53,9 @@ export class GameSession {
   constructor(readonly id: string, readonly room: string, readonly subject: string | null, options: EndpointOptions = {}) {
     this.endpoint = new Endpoint(options);
   }
-  sendEvent(data: Json) { return this.endpoint.sendEvent(data); }
+  sendEvent(data: JsonInput) { return this.endpoint.sendEvent(data); }
+  /** Send what is queued now instead of at the next 60 Hz pump (latency-sensitive streams). */
+  flush() { this.endpoint.flush(); }
   sendState(stream: number, data: Uint8Array, options?: StateOptions) {
     return this.endpoint.sendState(stream, data, performance.now(), options);
   }
@@ -294,7 +296,7 @@ export class GameServer {
     for (const r of [...this.tokens.values()]) if (!r.session.connected && now - r.session.disconnectedAt > (this.options.resumeGraceMs ?? 90000)) this.expire(r);
   }
   /** Broadcast reliable events to every session that joined with this hello room. For snapshots, filter per session. */
-  broadcast(room: string, data: Json): { queued: number; rejected: string[] } {
+  broadcast(room: string, data: JsonInput): { queued: number; rejected: string[] } {
     const result = { queued: 0, rejected: [] as string[] };
     for (const s of this.sessions.values()) if (s.room === room) {
       try { s.sendEvent(data); result.queued++; }

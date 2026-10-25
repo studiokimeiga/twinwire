@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import type { StateMessage } from '../core/endpoint.js';
-import type { Json } from '../core/protocol.js';
+import type { Json, JsonInput } from '../core/protocol.js';
 import {
   CODE_ALPHABET, LOBBY_KEY, cleanMeta, cleanName, isLobbyMessage, metaMatches, normalizeCode,
   type CreateRequest, type JoinRequest, type MemberView, type QuickPlayRequest, type RoomView, type Visibility,
@@ -60,12 +60,12 @@ export class Room {
       meta: this.meta, you: viewer?.seat ?? -1, members, countdownEndsAt: this.countdownEndsAt };
   }
   /** Reliable event to every member (disconnected ones get it on resume). Returns members whose outbox was full. */
-  broadcast(data: Json, except?: Member): Member[] {
+  broadcast(data: JsonInput, except?: Member): Member[] {
     const rejected: Member[] = [];
     for (const m of this.members.values()) if (m !== except && !this.send(m, data)) rejected.push(m);
     return rejected;
   }
-  send(member: Member, data: Json): boolean {
+  send(member: Member, data: JsonInput): boolean {
     try { member.session.sendEvent(data); return true; } catch (e) { this.lobby.report(e); return false; }
   }
   setPhase(phase: string): void {

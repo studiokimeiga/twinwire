@@ -1,4 +1,4 @@
-import { stringify, utf8Length, type Json } from './protocol.js';
+import { stringify, utf8Length, type Json, type JsonInput } from './protocol.js';
 export interface PendingEvent { seq: number; data: Json; bytes: number; text: string; datagramAt: number; datagramTries: number }
 export interface ReliableCheckpoint { next: number; received: number; acknowledged: number; pending: { seq: number; data: Json }[] }
 export interface ReliableOptions { maxEvents?: number; maxBytes?: number; maxEventBytes?: number; maxEarly?: number; maxEarlyBytes?: number }
@@ -31,7 +31,7 @@ export class ReliableEvents {
     this.maxEarlyBytes = opts.maxEarlyBytes ?? 256 * 1024;
     if (![this.maxEvents, this.maxBytes, this.maxEventBytes, this.maxEarly, this.maxEarlyBytes].every(v => Number.isInteger(v) && v > 0)) throw new RangeError('Invalid event limits');
   }
-  push(data: Json): number {
+  push(data: JsonInput): number {
     const text = stringify(data, this.maxEventBytes), bytes = utf8Length(text) + 64;
     if (bytes > this.maxEventBytes + 64) throw new RangeError('Event payload too large');
     if (this.pending.size >= this.maxEvents || this.bytes + bytes > this.maxBytes) throw new Error('Reliable outbox full');

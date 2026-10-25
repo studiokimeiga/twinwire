@@ -208,3 +208,22 @@ test('snapshot deltas against the acknowledged baseline survive loss and rebuild
   }
   assert.ok(dropped > 10); assert.deepEqual(view, world);
 });
+
+test('late states: dropped by default; delivered once with late: true when asked, acks following the newest', () => {
+  const frame = (seq, kind = FrameKind.state) => encodeFrame({ kind, epoch: 1, stream: 3, seq, time: seq, payload: Uint8Array.of(seq) });
+  for (const mode of ['drop', 'deliver']) {
+    const e = new Endpoint({ lateStates: mode }), got = [];
+    e.attach(1, { open: true, bufferedAmount: 0, send: () => true, close() {} });
+    e.onState = s => got.push([s.seq, s.late]);
+    for (const seq of [1, 4, 2, 3, 2, 40, 5, 39]) e.receiveBinary(frame(seq), 'ws');
+    if (mode === 'drop') assert.deepEqual(got, [[1, false], [4, false], [40, false]]);
+    else assert.deepEqual(got, [[1, false], [4, false], [2, true], [3, true], [40, false], [39, true]],
+      'each unseen state once; 5 is over 32 behind 40');
+  }
+  let now = 0; const e = new Endpoint({ lateStates: 'deliver', now: () => now }), sent = [];
+  e.attach(1, { open: true, bufferedAmount: 0, send: d => (sent.push(d), true), close() {} });
+  e.receiveBinary(frame(10, FrameKind.stateAcked), 'ws'); e.receiveBinary(frame(8, FrameKind.stateAcked), 'ws');
+  now = 100; e.pump(); const sack = sent.map(d => typeof d === 'string' ? null : decodeFrame(d)).find(f => f?.kind === FrameKind.sack);
+  assert.ok(sack, 'a state ack went out');
+  assert.equal(new DataView(sack.payload.buffer, sack.payload.byteOffset).getUint32(2, true), 10, 'the ack names the newest, not the late one');
+});

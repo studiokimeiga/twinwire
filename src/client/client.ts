@@ -1,6 +1,6 @@
 import { Endpoint, type EndpointOptions, type Impairment, type StateMessage, type StateOptions } from '../core/endpoint.js';
 import { type ReliableCheckpoint } from '../core/reliable.js';
-import { isUint, readControl, stringify, utf8Length, VERSION, type Json } from '../core/protocol.js';
+import { isUint, readControl, stringify, utf8Length, VERSION, type Json, type JsonInput } from '../core/protocol.js';
 import { validIceServers, validSignal, type IceServer } from '../core/rtc.js';
 import { NetworkClock } from '../netcode/clock.js';
 import { BrowserRtcPeer } from './rtc.js';
@@ -20,6 +20,8 @@ export interface ClientOptions {
   endpoint?: EndpointOptions; websocket?: (url: string) => WebSocket;
   reconnectBaseMs?: number; reconnectMaxMs?: number; heartbeatTimeoutMs?: number;
   rtcRetryMs?: number; rtcConnectTimeoutMs?: number; pumpHz?: number; checkpoint?: ClientCheckpoint;
+  /** Clock sync: `syncPings` pings `syncPingMs` apart after each connect (8, 250), then one every `pingMs` (1000). */
+  syncPings?: number; syncPingMs?: number; pingMs?: number;
   /** Simulated trouble on this client's sends; also asked of the server (honoured only with allowImpairment). */
   impair?: Impairment;
 }
@@ -240,7 +242,9 @@ export class GameClient {
       if (now - this.lastMessage > (this.options.heartbeatTimeoutMs ?? 8000) || now > this.wakeDeadline) {
         this.wakeDeadline = Infinity; this.socket?.close(4000, 'heartbeat timeout'); return;
       }
-      if (now - this.lastPing >= (this.pendingPings.size < 4 && this.clock.uncertaintyMs === Infinity ? 200 : 1000)) this.ping(now);
+      // a burst of pings after each connect so the clock settles in about two seconds, then one a second
+      const o = this.options, burst = this.clock.sampleCount < (o.syncPings ?? 8) && this.pendingPings.size < 8;
+      if (now - this.lastPing >= (burst ? o.syncPingMs ?? 250 : o.pingMs ?? 1000)) this.ping(now);
       if (this.peer && now - this.rtcStartedAt > (this.options.rtcConnectTimeoutMs ?? 8000) && !this.endpoint.fastActive) this.stopRtc(true);
       if (!this.peer && now >= this.rtcRetryAt) this.startRtc();
       this.endpoint.pump();
@@ -252,7 +256,7 @@ export class GameClient {
     if (this.endpoint.sendControl({ t: 'ping', e: this.epoch, n })) { this.pendingPings.set(n, now); this.lastPing = now; }
     for (const [id, at] of this.pendingPings) if (now - at > 10000) this.pendingPings.delete(id);
   }
-  sendEvent(data: Json): number { return this.endpoint.sendEvent(data); }
+  sendEvent(data: JsonInput): number { return this.endpoint.sendEvent(data); }
   /** Queue the newest state for a stream. Returns its seq, or 0 before the session is online and the clock synced. */
   sendState(stream: number, data: Uint8Array, options?: StateOptions): number {
     if (!this.clock.synced) return 0;

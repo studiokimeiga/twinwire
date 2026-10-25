@@ -35,7 +35,7 @@ const client = new GameClient({
 | `sendEvent(json)` | Ordered, acknowledged, deduplicated; replayed after reconnects. Returns its seq; throws when the outbox is full (512 events / 1 MiB) or the event is over 64 KiB. |
 | `onEvent(data, seq)` | Each event exactly once, in order, whichever path brought it first. |
 | `sendState(stream, bytes, {ttlMs, priority, ack}?)` | Latest wins per stream (0 to 65535). Returns the seq, or 0 before the session is online and the clock synced. Up to `maxStateBytes` (64 KiB). |
-| `onState({stream,seq,time,data,via})` | Newer than anything seen on that stream this connection. `time` is the sender's server-clock estimate: never trust it for authority. |
+| `onState({stream,seq,time,data,via,late})` | Newer than anything seen on that stream this connection (or, with `endpoint.lateStates: 'deliver'`, an overtaken one not seen before, `late: true`). `time` is the sender's server-clock estimate: never trust it for authority. |
 | `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer has seen. |
 | `iceServers` | What the server suggested in its welcome. |
 | `clock` | `synced`, `rttMs`, `uncertaintyMs`, `serverTime(performance.now())`. |
@@ -58,6 +58,7 @@ const client = new GameClient({
 | `rtcRetryMs` | 3000 | Wait before retrying a data channel that failed; doubles per failure up to 16×, at most 60 s. |
 | `rtcConnectTimeoutMs` | 8000 | Give up on a data channel that hasn't proven itself by then. |
 | `pumpHz` | 60 | How often queued states and events are scheduled onto the wires. |
+| `syncPings` / `syncPingMs` / `pingMs` | 8 / 250 / 1000 | Clock sync: a burst of pings after each connect, then one a second. |
 | `websocket` | `u => new WebSocket(u)` | Socket factory (tests, Node clients, proxies). |
 
 Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means "not accepted", and the same
@@ -115,7 +116,7 @@ await server.listen();
 
 | Member | |
 |---|---|
-| `sessions` | Map of id to `GameSession`: `id`, `room`, `subject`, `ip`, `hello` (latest `auth`), `connected`, `transport`, `data` (yours), `sendEvent`, `sendState`, `onEvent`, `onState`, `onStateAck`, `endpoint`. |
+| `sessions` | Map of id to `GameSession`: `id`, `room`, `subject`, `ip`, `hello` (latest `auth`), `connected`, `transport`, `data` (yours), `sendEvent`, `sendState`, `flush()` (send now, not at the next 60 Hz pump), `onEvent`, `onState`, `onStateAck`, `endpoint`. |
 | `on('session' \| 'disconnect' \| 'expire', fn)` | Listeners beside `onSession` / `onDisconnect` / `onExpire`. |
 | `endSession(session, reason)` | Kick: the client gets `onSessionLost(reason)`. |
 | `broadcast(room, json)` | To every session that said hello with that `room`. |
@@ -163,7 +164,8 @@ a join, a leave or a drop cancels it, but name and meta changes don't. `LobbyCli
 goes once the bucket is full). `maxBufferedBytes` (64 KiB): socket backpressure. `maxStateBytes` (64 KiB, at most
 256 KiB). `datagramStateBytes` (8 KiB): bigger states use the WebSocket. `datagramEvents` (true). `stateAckIntervalMs`
 (50). `probeIntervalMs`/`probeTimeoutMs` (250/1500). `maxStreams` (1024). `events: {maxEvents, maxBytes,
-maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 256 KiB waiting for a gap). `impair`. Both ends should agree on `maxStateBytes`.
+maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 256 KiB waiting for a gap). `lateStates`
+(`'drop'`): `'deliver'` passes on an overtaken state once, within the last 32 of its stream, with `late: true`. `impair`. Both ends should agree on `maxStateBytes`.
 
 ## Netcode
 
@@ -171,9 +173,15 @@ maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 2
 step and reports dropped time instead of spiralling. `PROFILES` has starting rates for social, action, strategy and
 turn-based games.
 
-**Snapshot interpolation.** One `Timeline` per entity, `AdaptivePlayback(intervalMs)` to choose a render time that
-covers the jitter you actually see: `observe(clock.serverTime(now), state.time)` on arrival, `advance(serverNow, dt)`
-per frame, then `timeline.sample(renderTime, lerp, extrapolate?, maxMs)`. Mark teleports as `discontinuity`.
+**Snapshot interpolation.** One `Timeline` per entity, `AdaptivePlayback(intervalMs, minMs?, maxMs?, {halfLifeMs,
+percentile}?)` to choose a render time that covers the jitter you actually see: `observe(clock.serverTime(now),
+state.time)` on arrival, `advance(serverNow, dt)` per frame, then `timeline.sample(renderTime, lerp, extrapolate?,
+maxMs)`. Lateness is a time-decayed histogram (half-life 2 s), so its memory doesn't depend on how many snapshots
+arrive; `latenessMs` is the covered percentile. Mark teleports as `discontinuity`. With `endpoint: { lateStates:
+'deliver' }`, a snapshot overtaken by a newer one still arrives (`late: true`) and can fill its place in the timeline.
+
+**The server clock** is the server process's `performance.now()`: it starts near zero and restarts with the process.
+For wall-clock time (a time of day), add `performance.timeOrigin` on the server and send it.
 
 **Prediction.** `Predictor(initial, step, dt)`: `push(input)` predicts, `recent(n)` for redundant sends
 (`encodeInputs`), `reconcile({ack, tick, state})` replays what the server hasn't applied. The server feeds

@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 (2026-10-25)
 
+Accuracy improvements measured by porting a 50-player shared world (kimu.nyc) onto Twinwire, plus everything in 1.0.1.
+
+- **Clock sync**: a burst of pings after each connect (`syncPings` 8, `syncPingMs` 250, then `pingMs` 1000) instead of
+  one a second after the first reply, and `NetworkClock` jumps to an estimate more than `jumpMs` (50) away instead of
+  slewing for seconds. With 50 clients on an emulated 5G link, the spread of their server-time estimates had stayed at
+  20 to 27 ms; every sample's timestamp carries that error, so it widened everyone's interpolation delay.
+- **`AdaptivePlayback`**: lateness is a time-decayed histogram (2 ms buckets, `halfLifeMs` 2000) instead of the last
+  128 observations, so its memory is a span of time: fed one observation per snapshot at 60 Hz it had forgotten a
+  congested cell's stalls within two seconds and under-sized the delay. `latenessMs` exposes the covered percentile.
+- **Late states** (`endpoint.lateStates: 'deliver'`): a state overtaken by a newer one on its stream is delivered once
+  with `late: true` (within the last 32, de-duplicated; acks still follow the newest), so a 60 Hz snapshot stream with
+  jitter fills its interpolation buffer instead of losing every reordered snapshot. Default unchanged (`'drop'`).
+- `GameSession.flush()` sends now instead of at the next 60 Hz pump. `sendEvent`, `broadcast` and `Room.send` accept
+  typed interfaces (`JsonInput`), still checked when serialized.
 - **Impairment**: `stallMs` stalls the WebSocket the way a retransmitted TCP segment does: with probability `loss`, a
   send and everything queued behind it waits `stallMs` longer, in order (`stats.impairedStalls`). Without it, `loss`
   still drops datagrams only. This makes a lossy cellular network comparable across the two wires in load tests.

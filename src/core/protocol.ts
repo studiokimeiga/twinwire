@@ -20,6 +20,8 @@ export const FrameKind = { state: 1, probe: 2, reply: 3, events: 4, sack: 5, sta
 export type FrameKind = typeof FrameKind[keyof typeof FrameKind];
 const KINDS = new Set<number>(Object.values(FrameKind));
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+/** What sendEvent accepts: any JSON value, typed interfaces included (checked when it is serialized). */
+export type JsonInput = Json | object;
 export interface Frame {
   kind: FrameKind; epoch: number; stream: number; seq: number; time: number; payload: Uint8Array;
 }

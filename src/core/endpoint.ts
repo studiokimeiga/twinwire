@@ -2,7 +2,7 @@ import { TokenBucket } from './budget.js';
 import { EventRejected, ReliableEvents, type ReliableOptions } from './reliable.js';
 import {
   decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MTU_STATE_BYTES, newer, stringify,
-  isUint, utf8, fromUtf8, utf8Length, type Frame, type Json,
+  isUint, utf8, fromUtf8, utf8Length, type Frame, type Json, type JsonInput,
 } from './protocol.js';
 export interface ReliableLink {
   readonly open: boolean; readonly bufferedAmount: number;
@@ -12,7 +12,8 @@ export interface DatagramLink {
   readonly open: boolean; readonly bufferedAmount: number;
   send(data: Uint8Array): boolean; close(): void;
 }
-export interface StateMessage { stream: number; seq: number; time: number; data: Uint8Array; via: 'ws' | 'rtc' }
+/** `late`: older than the newest state seen on its stream but not seen before (only with `lateStates: 'deliver'`). */
+export interface StateMessage { stream: number; seq: number; time: number; data: Uint8Array; via: 'ws' | 'rtc'; late?: boolean }
 /** Simulated network trouble on this endpoint's outgoing traffic (tests and tuning). lagMs is one way.
  * `loss` drops datagrams. On the WebSocket nothing is lost, but with `stallMs` a lost segment is retransmitted: with
  * probability `loss` a send (and everything queued behind it, in order) waits `stallMs` longer, as TCP's head-of-line
@@ -29,6 +30,9 @@ export interface EndpointOptions {
   datagramStateBytes?: number;
   /** Mirror reliable events on the datagram path so they arrive at UDP latency (default true). */
   datagramEvents?: boolean;
+  /** A state overtaken by a newer one on its stream: 'drop' it (default), or 'deliver' it once with `late: true` if it
+   * is one of the last 32 and wasn't seen (for snapshots that feed an interpolation buffer). */
+  lateStates?: 'drop' | 'deliver';
   /** How often state acknowledgements go back to the sender (default 50 ms). */
   stateAckIntervalMs?: number;
   events?: ReliableOptions;
@@ -57,6 +61,9 @@ export class Endpoint {
   private epoch = 0;
   private sequence = new Map<number, number>();
   private received = new Map<number, number>();
+  /** Per stream: bit i set = the state i+1 before the newest was seen (late delivery only). */
+  private seen = new Map<number, number>();
+  private deliverLate: boolean;
   private queued = new Map<number, QueuedState>();
   private acksOut = new Map<number, number>();
   private acksIn = new Map<number, number>();
@@ -89,7 +96,7 @@ export class Endpoint {
     this.probeInterval = o.probeIntervalMs ?? 250; this.probeTimeout = o.probeTimeoutMs ?? 1500;
     this.maxStateBytes = o.maxStateBytes ?? DEFAULT_STATE_BYTES;
     this.datagramStateBytes = o.datagramStateBytes ?? 8 * 1024;
-    this.datagramEvents = o.datagramEvents ?? true;
+    this.datagramEvents = o.datagramEvents ?? true; this.deliverLate = o.lateStates === 'deliver';
     this.stateAckInterval = o.stateAckIntervalMs ?? 50;
     this.events = new ReliableEvents(o.events);
     if (!(this.highWater > 0) || !isUint(this.maxStreams, 65536) || this.maxStreams < 1 ||
@@ -117,7 +124,7 @@ export class Endpoint {
     if (!isUint(epoch) || !epoch) throw new Error('Invalid epoch');
     this.detach(); this.epoch = epoch; this.reliable = this.impairReliable(reliable);
     this.ackDue = this.events.received > 0; this.lastEventSent = this.events.acknowledged; this.datagramAcked = 0;
-    this.sequence.clear(); this.received.clear(); this.acksOut.clear(); this.acksIn.clear();
+    this.sequence.clear(); this.received.clear(); this.seen.clear(); this.acksOut.clear(); this.acksIn.clear();
     for (const e of this.events.entries()) { e.datagramAt = -Infinity; e.datagramTries = 0; }
   }
   detach(): void {
@@ -142,7 +149,7 @@ export class Endpoint {
     try { if (!ws.send(data)) return false; } catch { return false; }
     this.stats.bytesSent += utf8Length(data); return true;
   }
-  sendEvent(data: Json): number { const seq = this.events.push(data); this.flush(); return seq; }
+  sendEvent(data: JsonInput): number { const seq = this.events.push(data); this.flush(); return seq; }
   /** Retains only the newest unsent payload per stream. Returns the state's seq (0 when offline).
    * An accepted enqueue is not a delivery guarantee; use `ack: true` and onStateAck to learn what arrived. */
   sendState(stream: number, data: Uint8Array, time: number, o: StateOptions = {}): number {
@@ -195,11 +202,23 @@ export class Endpoint {
       case FrameKind.sack: return this.receiveStateAcks(f);
     }
     const prior = this.received.get(f.stream);
-    if (prior !== undefined && !newer(f.seq, prior)) { this.stats.stale++; return; }
-    if (prior === undefined && this.received.size >= this.maxStreams) { this.stats.invalid++; return; }
-    this.received.set(f.stream, f.seq); this.stats.statesReceived++;
-    if (f.kind === FrameKind.stateAcked) this.acksOut.set(f.stream, f.seq);
-    try { this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via }); }
+    let late = false;
+    if (prior !== undefined && !newer(f.seq, prior)) {
+      // overtaken: dropped, or delivered once if recent and unseen (acks keep following the newest)
+      const back = (prior - f.seq) >>> 0, mask = this.seen.get(f.stream) ?? 0, bit = back >= 1 && back <= 32 ? (1 << (back - 1)) >>> 0 : 0;
+      if (!this.deliverLate || !bit || (mask & bit)) { this.stats.stale++; return; }
+      this.seen.set(f.stream, (mask | bit) >>> 0); late = true;
+    } else {
+      if (prior === undefined && this.received.size >= this.maxStreams) { this.stats.invalid++; return; }
+      if (this.deliverLate) {
+        const d = prior === undefined ? 0 : (f.seq - prior) >>> 0, mask = this.seen.get(f.stream) ?? 0;
+        this.seen.set(f.stream, !d || d > 32 ? 0 : ((d < 32 ? (mask << d) >>> 0 : 0) | (1 << (d - 1))) >>> 0);
+      }
+      this.received.set(f.stream, f.seq);
+      if (f.kind === FrameKind.stateAcked) this.acksOut.set(f.stream, f.seq);
+    }
+    this.stats.statesReceived++;
+    try { this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via, late }); }
     catch (e) { this.callbackError(e); }
   }
   private callbackError(e: unknown): void {

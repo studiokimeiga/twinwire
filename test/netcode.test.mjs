@@ -95,3 +95,25 @@ test('default clones work where structuredClone must be called bare (browsers th
     const inbox = new InputInbox(); assert.ok(inbox.add({ seq: 1, value: { dx: 1 } })); assert.equal(inbox.next().value.dx, 1);
   } finally { globalThis.structuredClone = real; }
 });
+
+test('the clock jumps to a far-off estimate instead of slewing toward it for seconds', () => {
+  const c = new NetworkClock();
+  c.observe(0, 400, 10200);                          // a slow first exchange: offset 10000
+  for (let i = 1; i <= 7; i++) c.observe(i * 250, i * 250 + 20, i * 250 + 10 + 9800); // fast ones: offset 9800
+  assert.equal(c.sampleCount, 8);
+  c.advance(16); assert.equal(c.serverTime(2000), 2000 + 9800, 'a 200 ms error is corrected at once');
+  c.observe(2000, 2010, 2005 + 9810); c.advance(16);  // a small drift (from a faster exchange) is still slewed
+  assert.ok(c.serverTime(2100) - 2100 < 9810 && c.serverTime(2100) - 2100 > 9800);
+});
+test('adaptive playback remembers lateness for a span of time, whatever the observation rate', () => {
+  // the same network at 60 and at 3000 observations a second: a burst of 200 ms lateness, then 3 s of calm
+  for (const rate of [60, 3000]) {
+    const p = new AdaptivePlayback(16, 16, 400); let t = 0;
+    const feed = (ms, late) => { for (const end = t + ms; t < end; t += 1000 / rate) p.observe(t, t - late(t)); p.advance(t, 16); };
+    feed(1000, () => 10); feed(500, t => (t % 100 < 20 ? 200 : 10)); feed(400, () => 10);
+    assert.ok(p.latenessMs >= 150, rate + '/s: the burst still counts 0.4 s later (p95 ' + p.latenessMs + ')');
+    feed(6000, () => 10);
+    assert.ok(p.latenessMs <= 14, rate + '/s: and is forgotten after seconds of calm (p95 ' + p.latenessMs + ')');
+  }
+  assert.throws(() => new AdaptivePlayback(16, 16, 400, { halfLifeMs: 0 }));
+});

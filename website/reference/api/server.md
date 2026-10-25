@@ -150,6 +150,7 @@ on `maxStateBytes`.
 | `datagramStateBytes` | 8 KiB | Bigger states use the WebSocket even when datagrams are up |
 | `datagramEvents` | true | Mirror events on the datagram path |
 | `stateAckIntervalMs` | 50 | How often state acknowledgements go back |
+| `lateStates` | 'drop' | 'deliver': a state overtaken by a newer one on its stream still arrives once (within the last 32), with `late: true` |
 | `probeIntervalMs`, `probeTimeoutMs` | 250, 1500 | Datagram proof: how often to probe, and how long without a reply before giving the path up |
 | `maxStreams` | 1024 | |
 | `events` | `{ maxEvents: 512, maxBytes: 1 MiB, maxEventBytes: 64 KiB, maxEarly: 256, maxEarlyBytes: 256 KiB }` | The event outbox, and events waiting for an earlier one |

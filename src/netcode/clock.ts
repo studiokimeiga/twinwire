@@ -6,6 +6,10 @@ export class NetworkClock {
   private initialized = false;
   private last = -Infinity;
   get synced() { return this.initialized; }
+  /** Samples since the last reset (at most 16 are kept). */
+  get sampleCount() { return this.samples.length; }
+  /** Further than this from the estimate, advance() jumps instead of slewing (after a reconnect or a bad first sample). */
+  jumpMs = 50;
   rttMs = 0;
   uncertaintyMs = Infinity;
   reset() { this.samples = []; this.offset = this.target = 0; this.initialized = false; this.last = -Infinity; this.uncertaintyMs = Infinity; }
@@ -23,7 +27,9 @@ export class NetworkClock {
   }
   advance(dtMs: number) {
     if (!Number.isFinite(dtMs) || dtMs < 0) throw new RangeError('Invalid time step');
-    const max = dtMs * 0.05; this.offset += Math.max(-max, Math.min(max, this.target - this.offset));
+    const off = this.target - this.offset;
+    if (Math.abs(off) > this.jumpMs) { this.offset = this.target; return; }
+    const max = dtMs * 0.05; this.offset += Math.max(-max, Math.min(max, off));
   }
   serverTime(localTime: number): number { this.last = Math.max(this.last, localTime + this.offset); return this.last; }
 }

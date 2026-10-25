@@ -37,31 +37,56 @@ export class Timeline<T> {
     return { value: this.clone(a.value), mode: 'hold', sourceTime: a.time };
   }
 }
+export interface PlaybackOptions {
+  /** How fast old lateness is forgotten: an observation's weight halves every halfLifeMs (default 2000). */
+  halfLifeMs?: number;
+  /** Which lateness to cover (default 0.95). */
+  percentile?: number;
+}
+/** Chooses how far behind the server clock to render: the lateness percentile of recent snapshots plus one interval.
+ * Lateness is kept as a time-decayed histogram (2 ms buckets), so its memory is a span of time whatever the rate of
+ * observations; it grows quickly when the network gets worse and shrinks slowly, so it doesn't oscillate. */
 export class AdaptivePlayback {
-  private lateness: number[] = [];
+  private static readonly BUCKET_MS = 2;
+  private buckets: Float64Array;
+  private total = 0;
+  private origin = NaN;
   private cursor = -Infinity;
+  readonly halfLifeMs: number;
+  readonly percentile: number;
   delayMs: number;
-  constructor(readonly intervalMs: number, readonly minMs = intervalMs, readonly maxMs = 400) {
-    if (!(intervalMs > 0) || minMs < 0 || maxMs < minMs) throw new RangeError('Invalid playback policy');
+  /** The covered lateness percentile (p95 by default), in ms. */
+  latenessMs = 0;
+  constructor(readonly intervalMs: number, readonly minMs = intervalMs, readonly maxMs = 400, o: PlaybackOptions = {}) {
+    this.halfLifeMs = o.halfLifeMs ?? 2000; this.percentile = o.percentile ?? 0.95;
+    if (!(intervalMs > 0) || minMs < 0 || maxMs < minMs || !(this.halfLifeMs > 0) || !(this.percentile > 0 && this.percentile <= 1))
+      throw new RangeError('Invalid playback policy');
+    this.buckets = new Float64Array(Math.ceil((maxMs + 1000) / AdaptivePlayback.BUCKET_MS) + 1);
     this.delayMs = minMs;
   }
   observe(arrivalOnServerClock: number, sampleTime: number) {
     const late = arrivalOnServerClock - sampleTime;
     if (!Number.isFinite(late) || late < -1000 || late > 30000) return;
-    this.lateness.push(Math.max(0, late)); if (this.lateness.length > 128) this.lateness.shift();
+    if (Number.isNaN(this.origin)) this.origin = arrivalOnServerClock;
+    // newer observations weigh more (rather than older ones decaying), rescaled before the numbers get large
+    let w = 2 ** ((arrivalOnServerClock - this.origin) / this.halfLifeMs);
+    if (w > 1e9) { const k = 1 / w; for (let i = 0; i < this.buckets.length; i++) this.buckets[i]! *= k; this.total *= k; this.origin = arrivalOnServerClock; w = 1; }
+    const i = Math.min(this.buckets.length - 1, Math.floor(Math.max(0, late) / AdaptivePlayback.BUCKET_MS));
+    this.buckets[i]! += w; this.total += w;
   }
   advance(serverNow: number, dtMs: number): number {
     if (!Number.isFinite(serverNow) || !Number.isFinite(dtMs) || dtMs < 0) throw new RangeError('Invalid clock');
-    if (this.lateness.length) {
-      const sorted = [...this.lateness].sort((a, b) => a - b);
-      const p95 = sorted[Math.floor((sorted.length - 1) * 0.95)]!;
-      const target = Math.max(this.minMs, Math.min(this.maxMs, p95 + this.intervalMs));
+    if (this.total > 0) {
+      const goal = this.total * this.percentile; let sum = 0, i = 0;
+      for (; i < this.buckets.length - 1; i++) { sum += this.buckets[i]!; if (sum >= goal) break; }
+      this.latenessMs = (i + 1) * AdaptivePlayback.BUCKET_MS;
+      const target = Math.max(this.minMs, Math.min(this.maxMs, this.latenessMs + this.intervalMs));
       const rate = target > this.delayMs ? 8 : 0.5;
       this.delayMs += (target - this.delayMs) * (1 - Math.exp(-rate * dtMs / 1000));
     }
     this.cursor = Math.max(this.cursor, serverNow - this.delayMs); return this.cursor;
   }
-  reset() { this.lateness = []; this.cursor = -Infinity; this.delayMs = this.minMs; }
+  reset() { this.buckets.fill(0); this.total = 0; this.origin = NaN; this.latenessMs = 0; this.cursor = -Infinity; this.delayMs = this.minMs; }
 }
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export const lerpAngle = (a: number, b: number, t: number) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
