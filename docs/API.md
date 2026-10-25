@@ -48,6 +48,17 @@ const client = new GameClient({
 | `intercept(fn)`, `on('session' \| 'lost', fn)` | Extra listeners for helpers such as `LobbyClient`. |
 | `endpoint.stats` | Traffic, stale/expired/coalesced states, `eventsViaDatagram`, `datagramRttMs`, and more. |
 | `options.impair` | `{lagMs, jitterMs, loss, duplicate}` on this client's sends, and asked of the server (which honours it only with `allowImpairment`). `lagMs` is one way. |
+| `onError(e)`, `flush()` | Errors that don't end the session; send what's queued now instead of at the next pump. |
+| `simulateDrop()` | Close the socket as a network drop would (testing): the client reconnects and resumes. |
+
+| Option | Default | |
+|---|---|---|
+| `reconnectBaseMs` / `reconnectMaxMs` | 200 / 8000 | Reconnect backoff, doubling each try, with jitter. |
+| `heartbeatTimeoutMs` | 8000 | A socket silent this long is replaced. |
+| `rtcRetryMs` | 3000 | Wait before retrying a data channel that failed; doubles per failure up to 16×, at most 60 s. |
+| `rtcConnectTimeoutMs` | 8000 | Give up on a data channel that hasn't proven itself by then. |
+| `pumpHz` | 60 | How often queued states and events are scheduled onto the wires. |
+| `websocket` | `u => new WebSocket(u)` | Socket factory (tests, Node clients, proxies). |
 
 Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means "not accepted" and the event
 comes again.
@@ -95,6 +106,10 @@ await server.listen();
 | `rateLimit` | 300 msg/s, 256 KiB/s | Per connection, both transports together. |
 | `allowImpairment` | false | Honour a client's `impair`. Development only. |
 | `endpoint` | | Endpoint options for every session (below). |
+| `path` | `/connect` | The WebSocket path. |
+| `heartbeatTimeoutMs` / `handshakeTimeoutMs` | 15 000 / 5 000 | Drop a connection that goes silent, or that doesn't finish its hello in time. |
+| `http` | 404 | `(req, res)` for every other HTTP request (`/health`, your pages). |
+| `onError`, `onSession`, `onDisconnect`, `onExpire` | | Callbacks, also settable as properties. |
 
 | Member | |
 |---|---|
@@ -131,7 +146,14 @@ ready), `setMeta(patch)`, `setVisibility(v)`, `start()`, `close(reason)`. `Membe
 `name`, `ready`, `connected`, `meta`, `data` (yours). `lobby.createRoom(...)`, `roomOf(session)`, `memberOf(session)`.
 
 A member keeps its seat while disconnected, until its session expires (`resumeGraceMs`). Seats are the lowest free
-number. The host is the earliest-joined connected member.
+number. The first member is the host; when the host leaves or drops, the earliest-joined connected member takes over,
+and keeps the role when the old host comes back (so it doesn't flip back and forth on a shaky connection).
+
+Quick play joins a public room of that mode whose `meta` matches and that has a free seat, an allowed phase and at
+least one connected player: the fullest first, then the newest. Otherwise it creates one. `maxRooms` (500) caps rooms
+on the server. The ready countdown starts when every connected member (at least `minMembers`) is ready; an unready,
+a join, a leave or a drop cancels it, but name and meta changes don't. `LobbyClient` requests time out after 20 s
+(its second constructor argument).
 
 ## Endpoint options
 
