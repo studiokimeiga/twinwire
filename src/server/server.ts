@@ -22,6 +22,9 @@ export interface GameServerOptions {
    * from that address replaces its longest-disconnected one, so a player who reloads a lot recycles their own. */
   maxSessionsPerIp?: number;
   resumeGraceMs?: number; heartbeatTimeoutMs?: number; handshakeTimeoutMs?: number;
+  /** How often queued states and events go out (default 60 Hz). A game ticking faster (a 64 or 128 Hz shooter) sets
+   * its tick rate here, or calls session.flush() after each snapshot; otherwise ticks between pumps are coalesced. */
+  pumpHz?: number;
   endpoint?: EndpointOptions; rtc?: RtcFactory;
   /** STUN/TURN servers handed to each client in its welcome (a function can mint per-session TURN credentials). */
   iceServers?: IceServer[] | ((session: GameSession) => IceServer[] | Promise<IceServer[]>);
@@ -88,6 +91,7 @@ export class GameServer {
   constructor(readonly options: GameServerOptions, ws: WsModule) {
     if (typeof options.origins !== 'function' && (!Array.isArray(options.origins) || options.origins.some(s => typeof s !== 'string' || s === '*')))
       throw new Error('Supply exact permitted origins, not a wildcard');
+    if (options.pumpHz !== undefined && !(options.pumpHz >= 10 && options.pumpHz <= 250)) throw new RangeError('pumpHz must be 10 to 250');
     this.maxFrame = new Endpoint(options.endpoint).maxFrameBytes;
     this.httpServer = createServer((req, res) => {
       if (options.http) options.http(req, res); else { res.writeHead(404); res.end(); }
@@ -113,7 +117,7 @@ export class GameServer {
       const error = (e: Error) => reject(e); this.httpServer.once('error', error);
       this.httpServer.listen(this.options.port ?? 0, this.options.host ?? '127.0.0.1', () => { this.httpServer.off('error', error); resolve(); });
     });
-    this.timer = setInterval(() => this.pump(), 1000 / 60);
+    this.timer = setInterval(() => this.pump(), 1000 / (this.options.pumpHz ?? 60));
     return (this.httpServer.address() as { port: number }).port;
   }
   private report(error: unknown) {

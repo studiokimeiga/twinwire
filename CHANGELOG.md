@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 (2026-10-25)
+
+For shooters that send a snapshot every tick.
+
+- **`GameServer({ pumpHz })`**: how often queued states and events go out (default 60, 10 to 250). At 64 or 128 Hz
+  the default pump coalesced states between pumps, now and then dropping a tick from a stream interpolated two ticks
+  behind; set the tick rate here, or `session.flush()` after each snapshot.
+- **`PROFILES.fps64` / `fps128`**: a snapshot every tick, the bandwidth for it (96 / 192 KiB/s) and two ticks of render
+  delay.
+- ADOPTING: a shooter section (send rate, bandwidth, inputs, datagram size, late states, lag compensation).
+
 ## 1.1.2 (2026-10-25)
 
 - **Clock across reconnects**: a closed socket reset the client's clock, so through every outage `serverTime()`

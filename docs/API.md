@@ -104,6 +104,7 @@ await server.listen();
 | `iceServers` | `[]` | Array or `(session) => array \| Promise`. Sent in each welcome. |
 | `trustProxy` | false | Read the client address from the last `X-Forwarded-For` hop when the peer is a local proxy. |
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits. |
+| `pumpHz` | 60 | How often queued states and events go out. A game ticking faster sets its tick rate (10 to 250), or calls `session.flush()` after each snapshot. |
 | `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. |
 | `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table. |
 | `rateLimit` | 300 msg/s, 256 KiB/s | Per connection, both transports together. |
@@ -171,7 +172,7 @@ maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 2
 
 **Clock and timing.** `NetworkClock` (the client has one). `FixedStepper(hz, maxCatchUp)` runs a fixed simulation
 step and reports dropped time instead of spiralling. `PROFILES` has starting rates for social, action, strategy and
-turn-based games.
+turn-based games, and `fps64` / `fps128` for shooters that send a snapshot every tick (see ADOPTING.md).
 
 **Snapshot interpolation.** One `Timeline` per entity, `AdaptivePlayback(intervalMs, minMs?, maxMs?, {halfLifeMs,
 percentile}?)` to choose a render time that covers the jitter you actually see: `observe(clock.serverTime(now),

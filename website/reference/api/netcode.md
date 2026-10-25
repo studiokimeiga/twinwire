@@ -14,8 +14,8 @@ most 5% of the elapsed time. `serverTime(localTime)` never goes backwards. `sync
 step, at most `maxCatchUp` times per call, and returns how many ran. Time it couldn't catch up is dropped and counted
 (`droppedMs`, `overruns`) instead of spiralling. `tick`, `dtMs`, and `alpha` (how far into the next step, for drawing).
 
-**`PROFILES`**: starting rates for `social`, `action`, `strategy` and `turnBased` games (`simulationHz`, `sendHz`,
-`bytesPerSecond`, `interpolationMinMs`).
+**`PROFILES`**: starting rates for `social`, `action`, `strategy` and `turnBased` games, and `fps64` / `fps128` for
+shooters that send a snapshot every tick (`simulationHz`, `sendHz`, `bytesPerSecond`, `interpolationMinMs`).
 
 ## Interpolation
 
