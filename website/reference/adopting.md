@@ -63,3 +63,5 @@ repeated unacknowledged messages in every packet.
 - Both directions survive UDP failing while the WebSocket stays up.
 - A phone that drops (a tunnel, an app switch) comes back to its seat; a reload with a checkpoint does too.
 - Measure before and after with the same inputs: corrections, input-to-screen delay, missed snapshots, bytes.
+- Testing a new Twinwire build from a tarball under Vite? Its dev server keeps serving the copy it pre-bundled in
+  `node_modules/.vite` after `npm install`: delete that folder (or start Vite with `--force`) first.

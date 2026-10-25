@@ -34,6 +34,9 @@ move pieces onto Twinwire's helpers only where they're better than what you have
 - Reloads: a game without checkpoints (every reload is a new player) wants the old session gone at once, which
   `bindPageLifecycle()` does by default; one that saves `checkpoint()` on `pagehide` to keep the seat across a reload
   should pass `{ unload: 'pause' }`.
+- Trying a new Twinwire build from a tarball under Vite: its dev server keeps serving the dependency it pre-bundled
+  (in `node_modules/.vite`) after `npm install`. Delete that folder, or start Vite with `--force`, or you are still
+  testing the old build.
 
 ## Sizes
 
