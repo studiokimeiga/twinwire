@@ -172,3 +172,15 @@ test('a page that unloads leaves (no ghost for the resume grace) unless it check
     if (!hadWindow) delete globalThis.window; if (!hadDocument) delete globalThis.document;
   }
 });
+
+test('the clock estimate survives a dropped connection (same server, same clock) and is redone for a new session', async () => {
+  const s = await setup(); const c = client(s.url);
+  try {
+    c.connect(); await until(() => c.status === 'online' && c.clock.synced);
+    c.simulateDrop(); await until(() => c.status !== 'online');
+    assert.ok(c.clock.synced, 'still synced while reconnecting: serverTime() stays on the server timeline');
+    await until(() => c.status === 'online'); await until(() => c.clock.sampleCount >= 9, 3500);
+    c.newSession(); await until(() => c.status === 'online');
+    assert.ok(c.clock.sampleCount <= 2, 'a new session starts the estimate over');
+  } finally { c.close(); await s.server.close(); }
+});

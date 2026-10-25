@@ -48,6 +48,7 @@ export class GameClient {
   private token: string | null = null;
   private socket?: WebSocket;
   private checkpointed = false;
+  private burstLeft = 0;
   private generation = 0;
   private epoch = 0;
   private peer?: BrowserRtcPeer;
@@ -158,7 +159,8 @@ export class GameClient {
     ws.onerror = () => {}; // close/retry is the single failure path
     ws.onclose = ev => {
       if (generation !== this.generation) return;
-      this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.clock.reset(); this.pendingPings.clear();
+      // (the clock is kept: a resumed session talks to the same server process, so the same clock; see the welcome)
+      this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.pendingPings.clear();
       if (!this.stopped) {
         if ([1002, 1008, 4001, 4002, 4004].includes(ev.code)) {
           this.stopped = true; clearInterval(this.pumpTimer); clearTimeout(this.retryTimer); this.setStatus('lost');
@@ -186,7 +188,10 @@ export class GameClient {
         send(data) { if (ws.readyState !== 1) return false; ws.send(typeof data === 'string' ? data : data.slice().buffer); return true; },
         close() { ws.close(); },
       });
-      this.lastPing = -Infinity; this.clock.reset(); this.setStatus('online');
+      // a new session may be a new server (restarted, so a new clock): start the estimate over; a resumed one keeps it.
+      // Either way a burst of pings, for whatever the network is now.
+      if (!m.resumed) this.clock.reset();
+      this.lastPing = -Infinity; this.burstLeft = this.options.syncPings ?? 8; this.setStatus('online');
       const info = { id: this.id, resumed: m.resumed };
       for (const f of this.listeners.session) try { f(info); } catch (e) { this.report(e); }
       this.onSession(info); this.rtcFailures = 0; this.rtcRetryAt = performance.now();
@@ -249,8 +254,8 @@ export class GameClient {
         this.wakeDeadline = Infinity; this.socket?.close(4000, 'heartbeat timeout'); return;
       }
       // a burst of pings after each connect so the clock settles in about two seconds, then one a second
-      const o = this.options, burst = this.clock.sampleCount < (o.syncPings ?? 8) && this.pendingPings.size < 8;
-      if (now - this.lastPing >= (burst ? o.syncPingMs ?? 250 : o.pingMs ?? 1000)) this.ping(now);
+      const o = this.options, burst = this.burstLeft > 0 && this.pendingPings.size < 8;
+      if (now - this.lastPing >= (burst ? o.syncPingMs ?? 250 : o.pingMs ?? 1000)) { this.ping(now); if (burst) this.burstLeft--; }
       if (this.peer && now - this.rtcStartedAt > (this.options.rtcConnectTimeoutMs ?? 8000) && !this.endpoint.fastActive) this.stopRtc(true);
       if (!this.peer && now >= this.rtcRetryAt) this.startRtc();
       this.endpoint.pump();

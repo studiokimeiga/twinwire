@@ -1,6 +1,6 @@
 {
   "name": "twinwire",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Multiplayer networking for browser games: one resumable session on two wires (WebSocket + WebRTC datagrams), reliable events at UDP latency, delta snapshots, a lobby with codes, quick play and ready-up, and netcode helpers. Works in every browser, iPhone Safari included.",
   "keywords": [
     "multiplayer",

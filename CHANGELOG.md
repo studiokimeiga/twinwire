@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.2 (2026-10-25)
+
+- **Clock across reconnects**: a closed socket reset the client's clock, so through every outage `serverTime()`
+  silently became the page's own time, and a playback that never goes backwards could lock onto that timeline and
+  freeze after reconnecting to a restarted server (kimu.nyc measured remote players stuck and reversing for 10 s).
+  The estimate is now kept through a drop (a resumed session talks to the same server, so the same clock) and starts
+  over only with a new session; every welcome still brings a fresh burst of pings.
+- **`AdaptivePlayback`** starts over when the clock jumps back by more than a second (a new server) instead of holding
+  until the new clock passes the old cursor; a growing delay still never rewinds it.
+- Docs: hold playback until `clock.synced`, and reset it in `onSession` when `resumed` is false.
+
 ## 1.1.1 (2026-10-25)
 
 - **Page unload**: `bindPageLifecycle()` paused the session when a page closed or reloaded, so in a game without

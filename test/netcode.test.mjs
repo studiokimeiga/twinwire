@@ -117,3 +117,11 @@ test('adaptive playback remembers lateness for a span of time, whatever the obse
   }
   assert.throws(() => new AdaptivePlayback(16, 16, 400, { halfLifeMs: 0 }));
 });
+
+test('playback starts over when the clock jumps far back (a new server), but a growing delay still never rewinds it', () => {
+  const p = new AdaptivePlayback(16, 16, 400); let t = 50000, last = 0;
+  for (; t < 52000; t += 16) { p.observe(t, t - 20); last = p.advance(t, 16); }
+  assert.ok(last > 51000);
+  for (t = 2000; t < 2200; t += 16) { p.observe(t, t - 20); last = p.advance(t, 16); }
+  assert.ok(last > 1900 && last < 2200, 'follows the new clock (' + Math.round(last) + '), not frozen at the old one');
+});

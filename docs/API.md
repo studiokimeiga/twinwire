@@ -181,7 +181,12 @@ arrive; `latenessMs` is the covered percentile. Mark teleports as `discontinuity
 'deliver' }`, a snapshot overtaken by a newer one still arrives (`late: true`) and can fill its place in the timeline.
 
 **The server clock** is the server process's `performance.now()`: it starts near zero and restarts with the process.
-For wall-clock time (a time of day), add `performance.timeOrigin` on the server and send it.
+For wall-clock time (a time of day), add `performance.timeOrigin` on the server and send it. The client's estimate is
+kept through a dropped connection (a resumed session talks to the same process, so the same clock) and starts over with
+a new session (`onSession` with `resumed: false`, which is also what a restarted server gives). Until the first sync,
+`clock.synced` is false and `serverTime()` is the page's own time: hold playback until synced, and reset your
+playback (`playback.reset()`, the timelines) in `onSession` when `resumed` is false. `AdaptivePlayback` also starts over
+by itself if the clock jumps back by more than a second, rather than freezing until the new clock catches up.
 
 **Prediction.** `Predictor(initial, step, dt)`: `push(input)` predicts, `recent(n)` for redundant sends
 (`encodeInputs`), `reconcile({ack, tick, state})` replays what the server hasn't applied. The server feeds

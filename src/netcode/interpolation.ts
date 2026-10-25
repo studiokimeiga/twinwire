@@ -84,7 +84,10 @@ export class AdaptivePlayback {
       const rate = target > this.delayMs ? 8 : 0.5;
       this.delayMs += (target - this.delayMs) * (1 - Math.exp(-rate * dtMs / 1000));
     }
-    this.cursor = Math.max(this.cursor, serverNow - this.delayMs); return this.cursor;
+    // never backwards (a growing delay holds instead), unless the clock itself jumped far back (a new server, a reset
+    // clock): then start over from there rather than freeze until the new clock passes the old one
+    const want = serverNow - this.delayMs;
+    this.cursor = want < this.cursor - Math.max(1000, 2 * this.maxMs) ? want : Math.max(this.cursor, want); return this.cursor;
   }
   reset() { this.buckets.fill(0); this.total = 0; this.origin = NaN; this.latenessMs = 0; this.cursor = -Infinity; this.delayMs = this.minMs; }
 }

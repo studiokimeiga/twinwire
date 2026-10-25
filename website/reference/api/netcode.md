@@ -29,7 +29,10 @@ the render time. `observe(arrival, sampleTime)` on each arrival (both on the ser
 each frame returns the render time. The delay aims at the 95th percentile of recent lateness plus one interval, rising
 fast and falling slowly. Lateness is a time-decayed histogram (2 ms buckets, each observation's weight halving every
 `halfLifeMs`), so how much it remembers is a span of time, not a number of packets. `delayMs`, `latenessMs` (the
-percentile), `reset()`.
+percentile), `reset()`. The render time never goes backwards, except when the clock itself jumps back by more than a
+second (a restarted server): then it starts over from there. Call `reset()` in `onSession` when `resumed` is false,
+and hold playback while `client.clock.synced` is false (until then `serverTime()` is the page's own time). The
+client keeps its clock estimate through a dropped connection and starts over with a new session.
 
 **`lerp(a, b, t)`**, **`lerpAngle(a, b, t)`** (the short way round), **`lerpVec3(a, b, t)`**.
 
