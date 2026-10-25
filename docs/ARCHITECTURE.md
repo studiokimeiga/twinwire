@@ -55,7 +55,7 @@ Control messages are JSON text on the WebSocket: `hello`, `welcome`, `event`, `a
 
 `sendState` keeps only the newest unsent payload per stream, expires it after `ttlMs`, and sends by priority and age
 within the byte budget. Receivers drop anything not newer than what they have on that stream, whichever path it
-came by. A payload up to 1078 bytes fits one datagram; larger ones (up to `maxStateBytes`) are fragmented by SCTP on
+came by. A payload up to 1086 bytes fits one datagram; larger ones (up to `maxStateBytes`) are fragmented by SCTP on
 the datagram path, and anything over `datagramStateBytes` (8 KiB) goes on the WebSocket instead, where a large
 snapshot can't be lost piecewise.
 

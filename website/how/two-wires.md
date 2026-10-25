@@ -67,7 +67,7 @@ path it came by.
 
 | Size of a state | Where it goes while datagrams are up |
 |---|---|
-| Up to 1078 bytes | One datagram |
+| Up to 1086 bytes | One datagram |
 | Up to 8 KiB (`datagramStateBytes`) | Datagrams, fragmented by the data channel |
 | Larger, up to 64 KiB (`maxStateBytes`) | The WebSocket, so a big snapshot can't be lost piecewise |
 

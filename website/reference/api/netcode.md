@@ -76,7 +76,7 @@ ack }`; `get(id)`; `clear()`. **`encodeReplica`** and **`decodeReplica`** for th
 **`defineSchema(fields)`** makes a fixed binary layout: each field is `{ type, scale? }` with `type` one of `u8`, `i8`,
 `u16`, `i16`, `u32`, `f32`, `f64`. Integer fields are scaled and rounded (`{ type: 'i16', scale: 10 }` keeps one
 decimal). The result has `byteLength`, `encode(value)` (throws when a value is out of range) and `decode(bytes)` (null
-for the wrong length). A layout must fit one datagram (1078 bytes).
+for the wrong length). A layout must fit one datagram (1086 bytes).
 
 ```ts
 const player = defineSchema({ x: { type: 'i16', scale: 10 }, y: { type: 'i16', scale: 10 }, hp: { type: 'u8' } });

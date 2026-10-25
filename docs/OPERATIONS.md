@@ -91,3 +91,21 @@ its host candidates carry the public address, or add a STUN server to the factor
 
 `server.metrics()` returns sessions, connections, how many are on rtc vs ws, bytes each way, pending events and
 protocol errors: serve it from your `http` handler on `/health`.
+
+
+## Releases without an interactive npm login
+
+The `release.yml` GitHub Actions workflow runs on `v*` tags, checks the version,
+builds and tests, then publishes with npm trusted publishing (OIDC) and creates
+the GitHub release. It runs on GitHub-hosted runners with Node 24 and
+`id-token: write`; no `NPM_TOKEN` secret is required. It must use npm 11.5.1 or newer.
+
+One-time package-owner setup: authorize GitHub repository `studiokimeiga/twinwire`,
+workflow filename `release.yml`, with direct `npm publish` allowed. Leave the
+optional environment blank because this workflow does not use an environment.
+Account authentication or a passkey may be required when creating that trust.
+After configuration, verify an actual tagged release publishes successfully;
+editing a workflow alone does not establish npm-side trust. New trust must be
+validated by a successful publish within two days.
+
+See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).

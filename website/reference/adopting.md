@@ -24,7 +24,7 @@ world; then move pieces onto Twinwire's helpers only where they're better than w
 
 ## Sizes
 
-A state can be up to 64 KiB (`maxStateBytes`, up to 256 KiB), but a per-tick packet that fits 1078 bytes fits one
+A state can be up to 64 KiB (`maxStateBytes`, up to 256 KiB), but a per-tick packet that fits 1086 bytes fits one
 datagram on any path. Bigger states are fragmented by the data channel, and anything over `datagramStateBytes` (8 KiB)
 takes the WebSocket instead, where it can't be lost piecewise: fine for a whole snapshot after a map change, not for
 every tick. Events are JSON up to 64 KiB each.
@@ -43,7 +43,7 @@ every tick. Events are JSON up to 64 KiB each.
     the client (the 32 KiB/s default is less than a 500-byte snapshot every tick).
   - Inputs: `client.sendState(stream, encodeInputs(predictor.recent(n)))` and `client.flush()` each tick, so a lost
     datagram is covered by the next; at 128 Hz, raise `rateLimit.messages` above 300 if inputs, pings and acks get close.
-  - Keep a snapshot under 1078 bytes (one datagram on any path); a bigger world splits it across streams, so a loss
+  - Keep a snapshot under 1086 bytes (one datagram on any path); a bigger world splits it across streams, so a loss
     touches only part of it.
   - Render others with `AdaptivePlayback(1000 / hz, PROFILES.fps64.interpolationMinMs)`, and receive with
     `endpoint: { lateStates: 'deliver' }` so a reordered snapshot still fills its place.

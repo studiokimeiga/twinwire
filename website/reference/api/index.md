@@ -18,7 +18,7 @@ optional: without it, sessions run over the WebSocket only.
 | | `sendEvent(json)` | `sendState(stream, bytes, options?)` |
 |---|---|---|
 | Delivery | Ordered, acknowledged, deduplicated, replayed after reconnects | Latest wins per stream (0 to 65535); older ones dropped |
-| Size | JSON up to 64 KiB | Up to `maxStateBytes` (64 KiB; one datagram up to 1078 bytes) |
+| Size | JSON up to 64 KiB | Up to `maxStateBytes` (64 KiB; one datagram up to 1086 bytes) |
 | Path | WebSocket, with a copy on the datagrams while they are proven | Datagrams while proven, else the WebSocket; over 8 KiB always the WebSocket |
 | Receiver | `onEvent(data, seq)`: each event once, in order | `onState({ stream, seq, time, data, via })`: newer than any seen on that stream |
 | Options | | `ttlMs` (100), `priority` (1), `ack` (false) |
