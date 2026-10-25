@@ -28,6 +28,17 @@ jobs:
       - name: publish with npm trusted publishing (unless already published)
         run: |
           if npm view "twinwire@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then echo "already on npm"; else npm publish --provenance --access public; fi
+      - name: verify the public package can be downloaded
+        run: |
+          for attempt in {1..40}; do
+            if npm pack "twinwire@${GITHUB_REF_NAME#v}" --ignore-scripts --prefer-online --full-metadata --pack-destination "$RUNNER_TEMP" >/dev/null 2>&1; then
+              exit 0
+            fi
+            echo "Waiting for npm registry processing ($attempt/40)"
+            sleep 15
+          done
+          echo "Published package is still unavailable from the public registry" >&2
+          exit 1
       - name: GitHub release from the changelog
         env:
           GH_TOKEN: ${{ github.token }}

@@ -50,3 +50,14 @@ the tested delivery/latency behavior, but does not establish universal CPU parit
 The A/B run predates the separate game lag-compensation fix.
 
 Release and application deployment remain separate gates; a local pack or a PR is not npm publication.
+
+## Published package identity
+
+`twinwire@2.0.0` and the `latest` dist-tag were verified on public npm after the
+GitHub-hosted `v2.0.0` release workflow used OIDC trusted publishing successfully.
+Published source/tag: `6248572d0af6b3f49c08865b2f71bd10fb66804c` / `v2.0.0`.
+Published tarball SHA-256: `a8244eddb3f279317cc27c116d2db8d2c4f540a2ea7677cc130de881c3a5cacd`.
+The downloaded 95-file tarball exactly matches the final local pack, including its SHA-512 registry integrity.
+Compared with the measured `07126a91…` candidate, only ADOPTING, ARCHITECTURE and OPERATIONS documentation differs;
+all runtime files and package.json are byte-identical. npm exposes a SLSA provenance attestation.
+The registry initially returned 404 during npm processing; verification waited for a real public download.
