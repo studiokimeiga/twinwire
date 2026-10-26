@@ -55,7 +55,7 @@ const client = new GameClient({
 |---|---|---|
 | `reconnectBaseMs` / `reconnectMaxMs` | 200 / 8000 | Reconnect backoff, doubling each try, with jitter. |
 | `heartbeatTimeoutMs` | 8000 | A socket silent this long is replaced. |
-| `rtcRetryMs` | 3000 | Wait before retrying a data channel that failed; doubles per failure up to 16×, at most 60 s. |
+| `rtcRetryMs` | 3000 | Wait before retrying a data channel that failed; doubles per consecutive failure up to 16×, at most 60 s. Bidirectional RTC proof clears the failure count. Duplicate resets for an already-stopped attempt are ignored. |
 | `rtcConnectTimeoutMs` | 8000 | Give up on a data channel that hasn't proven itself by then. |
 | `pumpHz` | 60 | How often queued states and events are scheduled onto the wires. |
 | `syncPings` / `syncPingMs` / `pingMs` | 8 / 250 / 1000 | Clock sync: a burst of pings after each connect, then one a second. |

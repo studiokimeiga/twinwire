@@ -111,6 +111,7 @@ export class GameClient {
   get transport(): Transport { return this.status !== 'online' ? 'none' : this.endpoint.fastActive ? 'rtc' : 'ws'; }
   private noteTransport() {
     const t = this.transport;
+    if (t === 'rtc') this.rtcFailures = 0; // bidirectional proof recovered: the next outage starts at the base retry
     if (t !== this.lastTransport) { this.lastTransport = t; try { this.onTransport(t); } catch (e) { this.report(e); } }
   }
   private report(error: unknown) { this.onError(error instanceof Error ? error : new Error(String(error))); }
@@ -204,7 +205,7 @@ export class GameClient {
       this.pendingPings.delete(m.n); this.clock.observe(at, performance.now(), m.s); return;
     }
     if (m.t === 'signal' && m.a === this.rtcAttempt && validSignal(m.d)) { void this.peer?.signal(m.d); return; }
-    if (m.t === 'rtc-reset' && m.a === this.rtcAttempt) this.stopRtc(false);
+    if (m.t === 'rtc-reset' && m.a === this.rtcAttempt && this.peer) this.stopRtc(false);
   }
   private retry(): void {
     if (this.stopped) return;

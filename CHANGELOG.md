@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A proven RTC recovery now clears retry backoff, so an intermittent network outage does not inherit debt from an
+  earlier recovered outage. Duplicate `rtc-reset` controls for an already-stopped attempt no longer increase that
+  debt. This changes no wire bytes or application API. The native gate repeats three recoveries and injects duplicate
+  resets; OS-level one-way UDP checks also retain their original failing observation and the candidate rerun.
+
 ## 2.0.0 (2026-10-25)
 
 For shooters that send a snapshot every tick, and a smaller wire. Protocol version 4: server and clients upgrade
