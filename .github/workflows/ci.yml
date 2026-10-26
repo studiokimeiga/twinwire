@@ -55,6 +55,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: bash tools/prepare-browser-runner.sh
       - run: npx playwright install --with-deps "$ENGINES"
       - run: npm run test:browser
       - run: IMPAIR=1 npm run test:browser
