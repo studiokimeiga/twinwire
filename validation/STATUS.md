@@ -1,3 +1,11 @@
+# Validation status: 2.2.0 (2026-10-26)
+
+The release runtime passes154 local checks, native RTC, Chromium/Firefox/WebKit normal, impaired and WebSocket-only runs, and the party example on both paths. The final [Node22/24 sixty-minute run](https://github.com/studiokimeiga/twinwire/actions/runs/40365174817) at8e79d0f completed successfully. Both independent hours report no lost/duplicated/reordered echo in sessions that lived, every honest life online, bounded heap, event-loop p99 under50ms, no unexpected server errors and zero sessions/connections/rooms/timers/sockets after drain. Hostile garbage/forged/flood traffic produces expected protocol rejections.
+
+The subsequent Worker-only fix changes worker.js/map/declaration; all101 Node/browser distributed files are byte-identical to that hour-tested runtime. The real workerd compatibility matrix passes both2025-01-01 and2026-03-17 binary delivery, ordered replay, same-ID recovery, takeover, origin checks and prompt close handshakes. Hosted core gates execute this matrix on Node22/24. Runnable Node/Worker starter source and documentation change no library runtime bytes. Actual Node starter application snapshots were proven RTC; the live Worker starter was proven WebSocket, including movement, queued ping once and checkpoint reload. These checks do not certify every device/NAT, durable transport storage or perfect end-to-end playback.
+
+The historical candidate observations below retain the failing observations and progression. The2.1 release evidence remains intact.
+
 ## 2.2 candidate verification update (2026-10-26)
 
 Named-channel and Worker host commit 1cdd96f passes hosted Node22/24 core/native/workerd gates and Chromium, Firefox and WebKit normal, impaired, WS-only and party tests in run40336880191. Its two 60-minute soaks were still running at this update. A later configurable named-state age budget passes 152 local checks and requires final hosted validation. Real local ports have passed Wollosseum and nt-web movement/action/resume tests, durable Emoji Mahjong private-hand/restart tests, and Superfighters two-browser gameplay/pause/same-round recovery. These are candidate observations, not a publication/deployment receipt. The original 2.1 evidence and measured 2.0 baseline remain preserved.

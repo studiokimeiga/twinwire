@@ -1,7 +1,7 @@
 # Changelog
 
 
-## 2.2.0 — unreleased
+## 2.2.0 (2026-10-26)
 
 - The Worker host explicitly selects ArrayBuffer binary delivery and completes close handshakes on older runtimes. Real workerd regressions failed under the modern Blob default and the older manual-close behavior before this fix; both compatibility dates are release gates.
 
@@ -12,7 +12,7 @@
 - New channel/Worker integration tests cover recovery, offline event replay, latest-state readiness, private room broadcast, explicit expiry, takeover and auth revalidation. The auto-connect helper cannot resurrect a client closed during its creation task.
 - Added complete Node and Worker starter projects sharing an interactive two-tab client. They demonstrate authoritative movement, ordered pings, temporary interruption and checkpoint reload. Worker arenas use invite URLs and WebSocket; the Node starter can use native RTC.
 
-Release gates and game migrations are in progress; this section is not a publication receipt.
+Release validation is recorded in validation/STATUS.md. Game migrations and the website rollout have their own deployment receipts.
 
 ## 2.1.0 (2026-10-26)
 
