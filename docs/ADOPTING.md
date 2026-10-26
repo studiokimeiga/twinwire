@@ -78,8 +78,13 @@ for every tick. Events are JSON up to 64 KiB each.
     touches only part of it.
   - Render others with `AdaptivePlayback(1000 / hz, PROFILES.fps64.interpolationMinMs)`, and receive with
     `endpoint: { lateStates: 'deliver' }` so a reordered snapshot still fills its place.
-  - Lag compensation is yours: keep a short history of hitboxes per tick on the server and rewind to what the shooter
-    saw (`rewindTime` clamps the request); a shot is an event naming its tick.
+  - Optional sub-tick inputs: `SubtickInputBuffer` preserves press/release edges inside one command;
+    `replaySubtick` advances your physics between those events. Keep the same event-time clock for each input window,
+    encode the fractions in your game's input payload, and retain fixed authoritative server ticks.
+  - Lag compensation is yours: keep a short history of hitboxes per tick and rewind to what the shooter
+    saw. `rewindTime` only clamps; `selectRewindTime` additionally compares the requested view time with an
+    independently server-derived estimate and falls back if implausible. A client-reported ACK is not
+    independently trustworthy. Use an application-chosen history cap and tolerance, not a universal default.
 - **Social and co-op worlds:** interest-filter what each player gets (`SpatialGrid` for "who is near"), send compact
   records at a modest rate (10-20 Hz), and acknowledged records (`ReplicaSender`) for things that change rarely.
 - **Strategy:** commands are events, applied by the server; snapshots at the simulation's own rate.

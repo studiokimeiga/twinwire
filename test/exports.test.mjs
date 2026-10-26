@@ -9,13 +9,14 @@ test('every published entry point resolves by package name', async () => {
   assert.equal(typeof core.Endpoint, 'function'); assert.equal(core.VERSION, 4);
   for (const k of ['GameClient', 'LobbyClient', 'StateReceiver']) assert.equal(typeof client[k], 'function', k);
   for (const k of ['createGameServer', 'GameServer', 'Lobby', 'createNativeRtcFactory', 'turnCredentials', 'cloudflareTurn']) assert.equal(typeof server[k], 'function', k);
-  for (const k of ['NetworkClock', 'Timeline', 'AdaptivePlayback', 'Predictor', 'InputInbox', 'FixedStepper', 'SnapshotHistory', 'diffEntities', 'applyEntityDelta', 'ReplicaSender', 'SpatialGrid', 'defineSchema']) assert.equal(typeof netcode[k], 'function', k);
+  for (const k of ['NetworkClock', 'Timeline', 'AdaptivePlayback', 'Predictor', 'InputInbox', 'FixedStepper', 'SnapshotHistory', 'diffEntities', 'applyEntityDelta', 'ReplicaSender', 'SpatialGrid', 'defineSchema', 'SubtickInputBuffer', 'replaySubtick', 'selectRewindTime']) assert.equal(typeof netcode[k], 'function', k);
   const require = createRequire(import.meta.url);
   const iife = require.resolve('twinwire/browser'), esm = await import('twinwire/browser');
   assert.match(iife, /dist[\\/]browser[\\/]twinwire\.js$/);
   assert.match(await readFile(iife, 'utf8'), /var Twinwire\s*=/);
   assert.equal(typeof esm.GameClient, 'function'); assert.equal(typeof esm.LobbyClient, 'function');
   assert.equal(typeof esm.StateReceiver, 'function');
+  for (const k of ['SubtickInputBuffer', 'replaySubtick', 'selectRewindTime']) assert.equal(typeof esm[k], 'function', k);
 });
 
 test('browser entry points carry no Node or native imports', async () => {

@@ -56,6 +56,23 @@ try {
       const [a, b] = [await ca.newPage(), await cb.newPage()];
       const errors = []; for (const p of [a, b]) p.on('pageerror', e => errors.push(String(e)));
       for (const p of [a, b]) { await p.goto(origin + '/'); await p.evaluate(([r, i]) => T.start(r, i ?? undefined), [useRtc, impair]); await wait(p, () => T.client.status === 'online'); }
+      // Verify the published IIFE's new optional netcode APIs actually run in each browser engine.
+      await a.evaluate(() => {
+        const q = new Twinwire.SubtickInputBuffer();
+        q.push(1, 1); q.push(4, 0);
+        const events = q.take(0, 10);
+        const edges = [];
+        let onMs = 0;
+        const last = Twinwire.replaySubtick(0, events, 10,
+          (held, dtMs) => { if (held) onMs += dtMs; },
+          (_before, _after, fraction) => edges.push(fraction));
+        const verdict = Twinwire.selectRewindTime(870, 1000, 900, 200, 20);
+        if (last !== 0 || Math.abs(onMs - 3) > 1e-10 ||
+            edges.length !== 2 || edges[0] !== .1 || edges[1] !== .4 ||
+            verdict.timeMs !== 900 || verdict.source !== 'server')
+          throw Error('Subtick/replay/rewind browser smoke failed');
+      });
+      result.netcode = { subtick: true, rewind: true };
       // lobby: a private room by code, both ready, countdown, playing
       const code = await a.evaluate(async () => (await T.lobby.create({ mode: 'e2e' })).code);
       await b.evaluate(c => T.lobby.join(c), code);
