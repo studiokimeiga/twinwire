@@ -10,7 +10,9 @@ The published 2.2.0 release passes 154 local checks, native RTC, and real-server
 
 The Worker compatibility matrix runs real workerd Durable Objects at both 2025-01-01 and 2026-03-17 compatibility dates: binary state, ordered replay, same-session recovery, takeover fencing, origin rejection and close handshakes. The hosted arena verifies actual movement, a queued ping exactly once, same-player reconnect and checkpoint reload. The complete Node starter also verifies application snapshots over native RTC.
 
-Local game migration checks against the published package exercise retained seats, current worlds, private Mahjong hands, durable game restart, action delivery and independently owned state streams. Each production game rollout is verified separately; the release validation record distinguishes local, published and deployed results.
+Ten paired game deployments now run the published 2.2.0 package. Actual public-browser checks cover movement/actions, same-session reconnects and current-world presentation on native RTC and forced WebSocket for the Node games. Emoji Mahjong's WebSocket deployment preserves private hands and seats through disconnect and reload in desktop Chromium, phone-sized Chromium and phone-sized WebKit. Sipoga additionally exercises damage, respawn, mobile controls and an 8.5-second outage. [Try the live integrations](/demos#live-game-integrations).
+
+The downloadable public starter archive was fetched again after publication: all six extracted files match the clean-installed, browser-tested 2.2.0 starter. The live phone layout has no horizontal overflow or page exceptions. The release record separates SDK lifecycle soaks, game replays and these production acceptance checks.
 
 [Release and source](https://github.com/studiokimeiga/twinwire/releases/tag/v2.2.0) ·
 [One-hour verification](https://github.com/studiokimeiga/twinwire/actions/runs/40365174817) ·

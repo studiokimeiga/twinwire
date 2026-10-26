@@ -6,6 +6,61 @@ The subsequent Worker-only fix changes worker.js/map/declaration; all101 Node/br
 
 The historical candidate observations below retain the failing observations and progression. The2.1 release evidence remains intact.
 
+## Published package and production acceptance (2026-10-26)
+
+Release `v2.2.0` is published from `64501f4cfe1acf73180f1d5ac93a908a239bf933` by
+[trusted publisher run 40375657182](https://github.com/studiokimeiga/twinwire/actions/runs/40375657182).
+The [public artifact receipt](release-2.2.0.json) records its SHA256, npm integrity and all 104 distributed-file hashes.
+The public tarball is byte-for-byte equivalent to the final candidate's runtime files; wire generation remains 4.
+
+Ten client/server pairs were deployed and checked through their actual public URLs:
+
+| Game | Deployed source | Production acceptance |
+| --- | --- | --- |
+| CS2 | `d5f929242347bcffd5822c1fc9a2bb476060812e` | Two browsers, RTC/WS movement, firing, once-only actions, same ID and fresh world |
+| Nocturne Keep | `5981d659852b6d3a52e62c3a5516d67bd473ec13` | Chromium RTC and phone-sized WebKit WS, private room, night combat, same players/room and fresh world |
+| kimu.nyc | `8d9afc8844314899a3cb516159d9e6d64a4ae6db` | Two independent phone-sized browsers, RTC/WS movement, same players and current world after drop |
+| Superfighters | `1d498bb0a9eb1fd2eabea50350fed501981ce0d5` | RTC/WS two-player movement, held-input release, same round/host world and terminal return to lobby |
+| Emoji Mahjong | `dc21b7ae798eb102232ba48a153c7edeacef8fc4` | Worker WebSocket; desktop/phone Chromium and phone WebKit, private hands, disconnect/reload, original seats and hand IDs |
+| Gallax | `f951cba2f5b6efdf5d5ffc0e5a29f79cd379c541` | RTC/WS independent desktop/phone browsers, keyboard movement, peer snapshots, same position and queued chat once |
+| Webstrike | `4b4f01f6f16439bce765e076a7b2d118f6790821` | RTC/WS movement, fire, same player, fresh world, terminal player cleanup and continued events |
+| Sipoga / NT Web | `71291a75f6d2142dabf6ea24b0044b8824e03f4c` | Public movement/damage/kill/respawn/mobile controls; RTC/WS 8.5-second outage retains player, health and position |
+| Wollosseum | `8f27d70451e9024d0df7c227a6d4ac597f190f4f` | RTC/WS two-browser commands and same seat/world after reconnect |
+| TDBR | `be4432a205359ccfb2b3ae9534d8060d19f215dc` | RTC/WS independent-browser movement/fire, same player/inventory/world after drop |
+
+Deployment source identifies the tested application artifact; later test/CI-only commits need no game redeployment.
+Eight Node backends were additionally inspected over SSH: all 104 installed SDK files match the published tarball.
+Mahjong's public JS/CSS bytes match the tested build; its HTML differs only in Windows/Linux line endings.
+Fresh game processes report no automatic restarts. Original release directories, process configuration and durable game data remain preserved.
+
+The live Worker starter is version `35f52178-e099-4505-be95-11942e4bf8f2`. Public movement, one queued ping, same-ID recovery
+and checkpoint reload pass. The live downloadable Node starter's six extracted files match the clean-tested archive;
+its dependency is exactly 2.2.0 and application snapshots were verified over native RTC.
+
+Production acceptance does not erase observed limits. CS2's excluded private weapon icons still return 404;
+the movement/fire/reconnect checks pass. Phone-sized automation is not a physical-device certification.
+Shared-runner playback includes game CPU work, browser scheduling, intentional buffering and transport delays.
+The controlled kimu capture matrix reproduces the former false duplicate sample under both SDK 2.1 and 2.2,
+and verifies that the fixed game receiver keeps the two real samples under both SDKs. It preserves the original
+capture and codec; it is not a new capture or a native scheduling measurement.
+
+[CS2's independent RTC and WS hour runs](https://github.com/Kimeiga/cs2-ag2-browser/actions/runs/40388683968)
+both passed with 57 same-seat recoveries per path and approximately 64 snapshots/second.
+[Kimu's 60-minute replay job](https://github.com/Kimeiga/kimu-nyc/actions/runs/40388683897/job/121803640560)
+and its stop/reversal/group/pause audits passed with three independent browsers (two native RTC, one forced WS),
+133,872–137,278 updates per client, no browser exceptions and zero missing/stale group members across 826,227 checks.
+The same workflow's old version-hardcoded preflight failed; the corrected exact-version and controlled capture checks
+pass in [separate run 40391431191](https://github.com/Kimeiga/kimu-nyc/actions/runs/40391431191), and the latest PR gate passes.
+The application and SDK files are unchanged between these runs. One short shared-runner attempt rejected its own
+insufficient update cadence; the unchanged gate passed on another runner. Its failure evidence remains retained.
+Nocturne's independent [60-minute network workflow](https://github.com/Kimeiga/nocturne-keep/actions/runs/40391394985)
+records its exact source, eight multiplayer suites and repeated drop/pause checks separately from the SDK lifecycle hours.
+
+The kimu replay remains a game-level measurement: physical replay error p99 is about 0.92–1.01 m across pairs,
+with a 3.02 m worst scored sample, and recovery/scheduling holds can make declared replay age reach 10.6 seconds.
+Raster draws are suppressed in this runner mode; update cadence is not render FPS. These observations are retained,
+not relabeled as perfect motion or attributed exclusively to the transport.
+
 ## 2.2 candidate verification update (2026-10-26)
 
 Named-channel and Worker host commit 1cdd96f passes hosted Node22/24 core/native/workerd gates and Chromium, Firefox and WebKit normal, impaired, WS-only and party tests in run40336880191. Its two 60-minute soaks were still running at this update. A later configurable named-state age budget passes 152 local checks and requires final hosted validation. Real local ports have passed Wollosseum and nt-web movement/action/resume tests, durable Emoji Mahjong private-hand/restart tests, and Superfighters two-browser gameplay/pause/same-round recovery. These are candidate observations, not a publication/deployment receipt. The original 2.1 evidence and measured 2.0 baseline remain preserved.
