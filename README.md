@@ -40,66 +40,31 @@ Twinwire does that part, so the game can be the game:
 - **Snapshot recovery.** `receiveState` resets or retains a stream's history according to policy and holds playback
   until usable fresh data arrives after reconnecting. A connected socket or retained clock cannot release it alone.
 - **STUN/TURN** handed to each client by the server (coturn shared-secret credentials or Cloudflare's managed relay).
-- **Every browser.** Tested in Chromium, Firefox and WebKit (Safari's engine) against the real server over WebRTC, on
-  a bad network and with UDP blocked; about 18 KB gzipped in the browser.
+- **Browser coverage.** Tested in Chromium, Firefox and WebKit (Safari's engine) against the real server over WebRTC, on
+  a bad network and with UDP blocked; see the release build for current bundle sizes.
 
 Your game keeps its rules, physics and rendering. Twinwire carries the bytes and the session; your server decides what
 is true.
 
 ## Quick start
 
-**Server** (Node 22+)
+Start with the complete [standalone arena](examples/starter): install its locked dependencies, run
+`npm start`, and open http://localhost:8787 in two tabs. Move with WASD/arrows or drag on touch screens, send a
+reliable ping, then disconnect for two seconds and check that the player identity, position and score survive.
+The client and server code is included; no undefined game-engine helpers or bundler are needed.
 
-```js
-import { createGameServer, createNativeRtcFactory, Lobby } from 'twinwire/server';
+The [getting started guide](https://studiokimeiga.github.io/twinwire/guide/getting-started) includes a downloadable
+project and deployment instructions. The [party example](examples/party) adds room codes, matchmaking, prediction
+and interpolation. For an existing game, [named channels](docs/API.md#named-channels) preserve familiar message
+names and room membership while making pause, fresh-state recovery and terminal expiry explicit. For Durable
+Objects or another standard-WebSocket host, see [the Worker adapter](docs/API.md#worker--durable-object-host).
 
-const server = await createGameServer({
-  port: 8787,
-  origins: ['https://mygame.com'],
-  rtc: await createNativeRtcFactory({ port: 8788 }),     // one UDP port for everyone (needs node-datachannel)
-});
-const lobby = new Lobby(server, { maxMembers: 4, ready: { countdownMs: 3000 } });
-
-lobby.onCreate = room => { room.data = createWorld(); };
-lobby.onEvent = (room, member, msg) => room?.data.command(member.seat, msg);   // validate, then apply
-lobby.onState = (room, member, input) => room?.data.input(member.seat, input.data);
-setInterval(() => {
-  for (const room of lobby.rooms.values()) {
-    room.data?.step();
-    for (const m of room.members.values()) if (m.connected) m.session.sendState(0, room.data.snapshotFor(m.seat));
-  }
-}, 1000 / 30);
-
-await server.listen();
-```
-
-**Browser** (with a bundler: `twinwire/client` and `twinwire/netcode`; or a script tag with `twinwire/browser`,
-which defines `window.Twinwire`)
-
-```js
-import { GameClient, LobbyClient } from 'twinwire/client';
-
-const net = new GameClient({ url: 'wss://play.mygame.com/connect', room: 'mygame', auth: { name: 'WREN' } });
-const lobby = new LobbyClient(net);
-net.bindPageLifecycle();                 // pause in the background, come back fast
-net.connect();
-await net.whenOnline();
-
-await lobby.quickPlay({ mode: 'coop' }); // or lobby.create() / lobby.join('KQXT')
-lobby.onRoom = room => drawLobby(room);  // members, seats, ready, lobby.countdownMs()
-await lobby.setReady(true);
-
-net.onState = s => snapshots.push(s);    // raw bytes; s.via is 'rtc' or 'ws'
-net.onEvent = e => applyEvent(e);
-net.sendEvent({ type: 'shoot', aim: 0.4 });   // ordered, acknowledged
-net.sendState(1, encodeInput(input));         // latest wins
-```
-
-For game snapshots, use [`net.receiveState(...)`](docs/API.md#snapshot-recovery) to manage the recovery lifecycle
-and playback gate. The raw callback above does not manage application-owned histories. The party example uses
-the shared receiver, including pause/resume coverage in real browsers.
+Your game still validates commands, owns physics and persistence, and decides when a complete snapshot or durable
+board is usable. See [snapshot recovery](docs/API.md#snapshot-recovery) before attaching a renderer to raw callbacks.
 
 ## Examples
+
+- **[Play the hosted starter](https://twinwire-demo.hak7alp.workers.dev/)**: a real private-invite arena, authoritative movement, ordered ping score and same-ID recovery over WebSocket. [Worker source](examples/starter-worker); no claim of durable transport storage.
 
 - **[`examples/party`](examples/party)**: a complete little game. Quick play or a room by code, ready-up, then move
   around a shared arena and chat. Server-authoritative movement with client-side prediction and reconciliation, other
@@ -108,7 +73,7 @@ the shared receiver, including pause/resume coverage in real browsers.
 - **[`examples/arena`](examples/arena)**: the transport on its own, with live numbers (path, RTT, bytes).
   `npm run demo`.
 
-Used in production by **[Nocturne Keep](https://nocturnekeep.com)**: co-op story, maker rooms and a roguelike played
+The 2.1 release is used in **CS2**, **[kimu.nyc](https://kimu.nyc)** and **[Nocturne Keep](https://nocturnekeep.com)**: co-op story, maker rooms and a roguelike played
 together, with the game's own code running each room's world on a $5 server.
 
 ## Documentation

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Twinwire starter</title><style>
+:root{color-scheme:dark;background:#121426;color:#e7e9f4;font:17px system-ui}body{max-width:720px;padding:24px;margin:auto}
+h1{font-size:38px;margin-bottom:8px}p{line-height:1.6;color:#bcc2db}canvas{width:100%;background:#1a1e36;border:1px solid #464d71;border-radius:12px;touch-action:none}
+button,a{font:inherit;color:inherit}button{background:#282e4c;border:1px solid #626d9b;border-radius:7px;padding:10px 14px;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid #ffa94d;outline-offset:3px}.controls{display:flex;gap:8px;flex-wrap:wrap}
+output{display:block;min-height:48px;font:14px monospace;margin:14px 0;overflow-wrap:anywhere}#messages{min-height:28px}
+</style></head><body><h1>One game. Two tabs.</h1>
+<p>Move with WASD, arrow keys, or drag inside the arena. Your player is amber. Open this URL in another tab to meet another player.</p>
+<canvas id="arena" width="640" height="320" tabindex="0" aria-label="Multiplayer arena. Use arrow keys to move your player."></canvas>
+<output id="status" aria-live="polite">Connecting…</output>
+<div class="controls"><button id="ping">Send reliable ping</button><button id="drop">Disconnect for 2 seconds</button><button id="new" hidden>Start a new session</button></div>
+<p id="messages" aria-live="polite">A ping adds one point. A reconnect keeps your ID and score.</p>
+<p>This demo uses a real server. Add <code>?rtc=0</code> to test WebSocket only. To try WebRTC, restart the server with <code>RTC=1 npm start</code>.</p>
+<a href="https://studiokimeiga.github.io/twinwire/guide/getting-started">Read the code walkthrough →</a>
+<script type="module" src="/game.mjs"></script></body></html>
