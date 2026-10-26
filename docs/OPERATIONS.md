@@ -1,5 +1,28 @@
 # VPS operation and the $5 target
 
+## Hosted validation
+
+The networking workflow runs core/native gates on Node 22 and 24, gives each browser engine its own standard Ubuntu
+runner, and runs two independent ten-minute lifecycle/hostile-client soaks alongside them. A PR no longer repeats
+the same suite for both its branch push and its pull-request event: pushes run on main, PR updates run the PR workflow.
+New commits cancel obsolete runs for that ref. Native and browser jobs remain separate from the long soak.
+
+The workflow's manual dispatch accepts 10, 30 or 60 minutes. Each soak uses 48 honest and 6 hostile WebSocket clients
+in a worker thread, checks action ordering and cleanup, and records revision, Node, CPU, memory, source hashes and
+raw logs. Artifacts are retained for three days. A failed or cancelled run is not a completed soak. The existing
+randomized harness does not provide an identical seeded replay schedule.
+
+These jobs use standard hosted runners. Public-repository standard runner minutes are free; artifact storage has a
+separate allowance. Personal Pro does not upgrade an organization account. Private game repositories consume their
+owner's included minutes and should use bounded manual long runs rather than duplicating every development edit.
+[GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions) and
+[runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) describe the current terms.
+
+Independent VMs reduce local CPU contention and provide parallel feedback. A ten-minute test still requires ten
+minutes of exposure. Hosted VM timing is its own baseline: it does not establish physical-device behavior, cellular
+handoffs, TURN reachability, separate-machine capacity or a production VPS performance budget. Keep those checks
+in an environment that actually reproduces them.
+
 The package has no hosting fees. It does not impose a provider bill cap, buy servers, or guarantee that a $5 VPS can run every game. Simulation cost, concurrency, entity density, activity hours, transfer allowance, and public-IP costs determine that result. A New Jersey server can be a test baseline for nearby players; it cannot provide equally low latency to players worldwide.
 
 ## Budget before deployment
