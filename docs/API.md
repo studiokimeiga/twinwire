@@ -380,6 +380,28 @@ by itself if the clock jumps back by more than a second, rather than freezing un
 `AdaptivePlayback.updateDelay(dtMs)` updates only the delay policy without moving the cursor; `advance` normally does
 both. `StateReceiver.advance` uses that separation during recovery, with one adaptation per render frame.
 
+**Sub-tick input (optional).** `SubtickInputBuffer<T>` records input-state transitions with local monotonic
+timestamps and `take(startMs, endMs, maxPerTick?)` emits ordered fractions inside each fixed-step input command.
+Events exactly at `endMs` belong to the next command. It snapshots input values, bounds pending transitions,
+rejects nonmonotonic timestamps and refuses to silently shift old events after a skipped tick or CPU stall.
+Call `reset()` on a deliberate simulation discontinuity. DOM `event.timeStamp` and tick boundaries must use the
+same local clock. This is client-side input timing, not a trusted timestamp.
+
+`replaySubtick(initial, transitions, tickMs, step, change?)` calls `step(held, dtMs, fromFraction, toFraction)`
+between transitions, `change(before, after, fraction)` at each edge, and returns the final held state.
+All fractions must be sorted in [0, 1); malformed input fails before any callback. The application defines
+button meanings, physics, aim interpolation, and serialization (for example encode commands as the payload
+of `encodeInputs`). These helpers neither change Twinwire's wire format nor change the server tick rate.
+
+**Server rewind selection (optional).** `selectRewindTime(requestedViewTimeMs, nowMs,
+expectedViewTimeMs, maxRewindMs, toleranceMs)` returns `{timeMs, source, reason}`.
+It accepts a client-requested view time only within the hard history window and the tolerance of an
+**independently server-derived** estimate; otherwise it selects the bounded server estimate. A client
+ACK/timestamp cannot be used as that trusted estimate, and RTT/2 alone is not measured one-way latency.
+Games must account for input-command age, network jitter, interpolation, and snapshot delivery history,
+then independently validate the shot, shooter position, and hitboxes. A large tolerance still permits
+the client to choose a time within that tolerance. No default fairness policy or cap is imposed.
+
 **Prediction.** `Predictor(initial, step, dt)`: `push(input)` predicts, `recent(n)` for redundant sends
 (`encodeInputs`), `reconcile({ack, tick, state})` replays what the server hasn't applied. The server feeds
 `InputInbox` and acks the last input it applied. `rewindTime` clamps lag-compensation requests.
