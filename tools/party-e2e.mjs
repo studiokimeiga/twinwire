@@ -34,8 +34,15 @@ try {
       if (Math.abs(bx - ax) > 1) throw new Error(`B sees A at ${bx}, A is at ${ax}`);
       await b.fill('#say', 'hello from bo'); await b.click('#chat button');
       await wait(a, () => document.querySelector('#log').textContent.includes('BO: hello from bo'));
+      // The shared receiver resets buffers automatically on resume, then waits for usable current state.
+      const before = await b.evaluate(() => [__party.client.id, __party.lobby.room.you]);
+      await b.evaluate(() => { __party.client.pause(); if (__party.snapshots.ready) throw Error('offline replay is ready'); });
+      await b.evaluate(() => __party.client.resume());
+      await wait(b, () => __party.snapshots.ready && __party.me && __party.others.size === 1);
+      const after = await b.evaluate(() => [__party.client.id, __party.lobby.room.you]);
+      if (JSON.stringify(before) !== JSON.stringify(after)) throw Error('resume changed session or seat');
       if (errors.length) throw new Error('page errors: ' + errors.join(' | '));
-      console.log(JSON.stringify({ engine: name, code, moved: Math.round(ax - x0), agree: Math.abs(bx - ax).toFixed(2), transport: await a.evaluate(() => __party.client.transport), pass: true }));
+      console.log(JSON.stringify({ engine: name, code, moved: Math.round(ax - x0), agree: Math.abs(bx - ax).toFixed(2), transport: await a.evaluate(() => __party.client.transport), receiverResume: true, pass: true }));
     } catch (e) { failed = true; console.log(JSON.stringify({ engine: name, pass: false, error: String(e.message).split('\n')[0] })); }
     finally { await browser.close(); }
   }

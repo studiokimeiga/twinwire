@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `GameClient.receiveState` / `StateReceiver`: shared reconnect recovery for authoritative snapshot streams. It
+  resets or retains application histories by policy, holds playback through offline and online-without-fresh-data
+  phases, and accepts recovery only after a usable current-connection snapshot on the selected stream. New sessions
+  always reset. Idle snapshot headers can release recovery; rejected deltas, queued old state and unrelated streams
+  cannot. Raw callbacks and wire protocol 4 are unchanged. The party example uses the shared receiver.
+- `AdaptivePlayback.updateDelay(dtMs)` separates delay adaptation from cursor movement. The receiver learns valid
+  recovery-header lateness while holding its cursor, so a slower new route can recover without advancing old state.
+
 ## 2.0.0 (2026-10-25)
 
 For shooters that send a snapshot every tick, and a smaller wire. Protocol version 4: server and clients upgrade

@@ -20,6 +20,21 @@ move pieces onto Twinwire's helpers only where they're better than what you have
    reconnects through the session itself; `onReconnect` is where your world re-sends whatever a fresh client needs.
 5. **Then the helpers, if they beat yours.** Deltas against acknowledged snapshots (`ack: true`, `SnapshotHistory`),
    interpolation (`Timeline`, `AdaptivePlayback`), prediction (`Predictor`, `InputInbox`, `encodeInputs`).
+6. **Put snapshot recovery on the shared receiver.** `client.receiveState({stream, apply, reset, playback})` owns the
+   lifecycle and fresh-data gate. `apply` decodes and returns true only for usable state; `reset` clears the game's
+   own histories. Use `receiver.advance(dtMs)` rather than advancing playback merely because the clock is synced.
+   Default resume resets histories. Choose `resume: 'retain'` only when they remain valid for the same session;
+   new sessions always reset. [Recovery contract and example](API.md#snapshot-recovery).
+
+The two production adapters illustrate why this needs an explicit integration boundary. Nocturne uses its own
+server-frame clock and snapshot/delta buffers; its reset callback can keep those rules while the receiver owns
+when to reset and when fresh data is ready. A timestamped shared city such as kimu can supply `AdaptivePlayback`
+and retain same-session entity histories. Omit `stream` for grouped player streams and reject the world/traffic
+packet family in `apply`; those streams cannot release player replay just by being active. Fresh snapshot headers
+can describe unchanged idle entities. Teleport flags, game speed limits and recovery of missing delta bases still
+belong to the game's codec/model. Merely installing a new library cannot discover and rewrite an existing game's
+private buffers; migrating the adapter once puts subsequent lifecycle fixes in the library. The live games' 2.0.0
+adapters retain their existing tested recovery code until this unreleased API is adopted.
 
 ## Defaults to check
 

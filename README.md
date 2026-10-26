@@ -37,9 +37,11 @@ Twinwire does that part, so the game can be the game:
   ready-up with a countdown, kick, rate limits.
 - **Netcode helpers.** Clock sync, snapshot interpolation with adaptive playback delay, client-side prediction and
   reconciliation, input redundancy, fixed-step simulation, interest queries, compact binary codecs.
+- **Snapshot recovery.** `receiveState` resets or retains a stream's history according to policy and holds playback
+  until usable fresh data arrives after reconnecting. A connected socket or retained clock cannot release it alone.
 - **STUN/TURN** handed to each client by the server (coturn shared-secret credentials or Cloudflare's managed relay).
 - **Every browser.** Tested in Chromium, Firefox and WebKit (Safari's engine) against the real server over WebRTC, on
-  a bad network and with UDP blocked; 15 KB gzipped in the browser.
+  a bad network and with UDP blocked; about 18 KB gzipped in the browser.
 
 Your game keeps its rules, physics and rendering. Twinwire carries the bytes and the session; your server decides what
 is true.
@@ -87,11 +89,15 @@ await lobby.quickPlay({ mode: 'coop' }); // or lobby.create() / lobby.join('KQXT
 lobby.onRoom = room => drawLobby(room);  // members, seats, ready, lobby.countdownMs()
 await lobby.setReady(true);
 
-net.onState = s => snapshots.push(s);    // s.via is 'rtc' or 'ws'
+net.onState = s => snapshots.push(s);    // raw bytes; s.via is 'rtc' or 'ws'
 net.onEvent = e => applyEvent(e);
 net.sendEvent({ type: 'shoot', aim: 0.4 });   // ordered, acknowledged
 net.sendState(1, encodeInput(input));         // latest wins
 ```
+
+For game snapshots, use [`net.receiveState(...)`](docs/API.md#snapshot-recovery) to manage the recovery lifecycle
+and playback gate. The raw callback above does not manage application-owned histories. The party example uses
+the shared receiver, including pause/resume coverage in real browsers.
 
 ## Examples
 

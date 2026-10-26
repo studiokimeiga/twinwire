@@ -99,10 +99,12 @@ client.onEvent = e => { if (e && e.t === 'chat') log(e.from ? `${e.from}: ${e.te
 // ---- the game: you predict yourself with the server's own move(); everyone else plays back ~a snapshot behind
 let me = null;                                    // Predictor of { x, y }
 const others = new Map(), playback = new AdaptivePlayback(1000 / SNAP_HZ, 1000 / SNAP_HZ, 300);
-client.onSession = () => { me = null; others.clear(); playback.reset(); };
-client.onState = s => {
-  if (s.stream !== 0 || !lobby.room) return;
-  const snap = decodeSnapshot(s.data); if (!snap) return;
+let renderTime = null;
+const snapshots = client.receiveState({ stream: 0, playback,
+  reset: () => { me = null; others.clear(); renderTime = null; },
+  apply: s => {
+  if (!lobby.room) return false;
+  const snap = decodeSnapshot(s.data); if (!snap) return false;
   if (client.clock.synced) playback.observe(client.clock.serverTime(performance.now()), s.time);
   const seen = new Set();
   for (const p of snap.players) {
@@ -117,7 +119,8 @@ client.onState = s => {
     o.insert({ time: s.time, seq: snap.tick, value: { x: p.x, y: p.y } });
   }
   for (const seat of others.keys()) if (!seen.has(seat)) others.delete(seat);
-};
+  return true;
+}});
 // input: keys, or drag anywhere on the arena like a thumbstick
 const keys = new Set(); let drag = null;
 addEventListener('keydown', e => { if (document.activeElement?.tagName !== 'INPUT') keys.add(e.key.toLowerCase()); });
@@ -136,7 +139,7 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.max(0, Math.min(250, now - last)); last = now;
-  const playing = lobby.room?.phase === 'playing' && me && client.status === 'online';
+  const playing = lobby.room?.phase === 'playing' && me && client.status === 'online' && client.clock.synced;
   stepper.advance(dt, () => {
     if (!playing) return;
     const v = input(), q = { dx: Math.round(v.dx * 100) / 100, dy: Math.round(v.dy * 100) / 100 };
@@ -149,18 +152,19 @@ function frame(now) {
   // draw: the arena, everyone else at the playback time, you where you predict yourself
   g.fillStyle = '#10182e'; g.fillRect(0, 0, W, H);
   g.strokeStyle = '#1c2848'; for (let x = 0; x <= W; x += 40) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let y = 0; y <= H; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-  const room = lobby.room, t = client.clock.synced ? playback.advance(client.clock.serverTime(now), dt) : 0;
+  const room = lobby.room, t = snapshots.advance(dt);
+  if (t !== null) renderTime = t; // retain the drawn view during a drop; recovery never advances an old timeline
   const draw = (seat, p, self) => {
     const m = room?.members.find(q => q.seat === seat);
     g.fillStyle = COLORS[seat % COLORS.length]; g.beginPath(); g.arc(p.x, p.y, RADIUS, 0, Math.PI * 2); g.fill();
     if (self) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.stroke(); g.lineWidth = 1; }
     g.fillStyle = '#e6ecff'; g.font = '12px system-ui'; g.textAlign = 'center'; g.fillText(self ? 'you' : m?.name ?? '?', p.x, p.y - RADIUS - 6);
   };
-  for (const [seat, tl] of others) { const s = tl.sample(t, (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) })); if (s) draw(seat, s.value, false); }
+  if (renderTime !== null) for (const [seat, tl] of others) { const s = tl.sample(renderTime, (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) })); if (s) draw(seat, s.value, false); }
   if (me) draw(room?.you ?? 0, me.state, true);
   $('status').textContent = `${client.transport === 'rtc' ? 'WebRTC datagrams' : client.transport === 'ws' ? 'WebSocket' : 'offline'} · ${Math.round(client.clock.rttMs)} ms · playback ${Math.round(playback.delayMs)} ms · ${others.size + (me ? 1 : 0)} players`;
 }
 requestAnimationFrame(frame);
-window.__party = { client, lobby, get me() { return me; }, others };
+window.__party = { client, lobby, snapshots, get me() { return me; }, get renderTime() { return renderTime; }, others };
 </script>
 </html>
