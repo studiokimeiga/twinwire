@@ -158,3 +158,11 @@ The downloaded 95-file tarball exactly matches the final local pack, including i
 Compared with the measured `07126a91…` candidate, only ADOPTING, ARCHITECTURE and OPERATIONS documentation differs;
 all runtime files and package.json are byte-identical. npm exposes a SLSA provenance attestation.
 The registry initially returned 404 during npm processing; verification waited for a real public download.
+
+
+## 2.2 product completion candidate — in progress, 2026-10-26
+
+The published 2.1 evidence above remains the release baseline. A separate product-finish branch adds named channel helpers, a pure standard-WebSocket Worker host sharing GameSession/Endpoint, and a complete runnable starter.
+The first candidate passed all 149 tests; further auto-connect disposal and pure Worker import/bundle regressions were then added. Individual Worker conformance tests passed over actual sockets. These do not yet establish Cloudflare/workerd execution, native/browser release gates, or completed game migration/deployment. Those remain required before release.
+
+Candidate update: all 151 unit/socket/import tests now pass. A real Miniflare/workerd Durable Object gate also passed binary echo, same-ID resume, ordered offline event replay, session takeover and origin rejection, with zero reported runtime errors. The Worker entry bundles on the browser platform without Node/native imports. A creation-task auto-connect disposal regression failed first, then passed after the queued factory start was fenced against close. Native, multi-browser and longer hosted gates are still pending.

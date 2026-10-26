@@ -1,5 +1,15 @@
 # Changelog
 
+
+## 2.2.0 — unreleased
+
+- Added named EventClient/createEventServer helpers for migrating existing games. Configured names are independent latest-wins JSON streams with recovery gates; other names are acknowledged events. Handlers, player identity and room membership survive a physical reconnect. Pauses and terminal session expiry have distinct callbacks.
+- Added twinwire/worker, a standard-WebSocket SocketSessionServer for a long-lived Worker or Durable Object instance. It shares the core wire protocol, GameSession and delivery engine with the Node host. It has exact origin policy, bounded admission/rate limits, authentication revalidation, token/room/subject binding, takeover fencing, heartbeat/handshake timeouts and session expiry. It provides no native RTC, durable transport storage or hibernation restoration.
+- New channel/Worker integration tests cover recovery, offline event replay, latest-state readiness, private room broadcast, explicit expiry, takeover and auth revalidation. The auto-connect helper cannot resurrect a client closed during its creation task.
+- Added a complete standalone starter, a generated website download and a guided path through interactive demos, snapshot recovery and verification limits.
+
+Release gates and game migrations are in progress; this section is not a publication receipt.
+
 ## 2.1.0 (2026-10-26)
 
 - Snapshot generation age is checked continuously, including while the transport stays online. Old payloads in a
