@@ -213,8 +213,11 @@ The state header time must be within the supplied playback's delay plus `maxExtr
 not implausibly in the future relative to the clock uncertainty. Queued old state, unrelated streams, events and
 rejected deltas cannot release it. A current header with unchanged/idle entities can. The timestamp describes the
 snapshot on the server clock; an application must not repackage stale world data as a fresh snapshot. Epoch filtering
-happens before `apply`. After recovery, ordinary packet loss still uses the game's bounded interpolation/prediction;
-`ready` is not a continuous staleness monitor.
+happens before `apply`. Freshness is checked continuously. Ordinary loss inside the configured delay/prediction budget
+remains usable; if generation age exceeds that budget, `ready` becomes false and `advance` holds the cursor until
+usable current data arrives. A busy socket carrying an old backlog cannot advance the declared replay time. The hold
+retains histories and does not reset the session or block outbound input/events. Present-position staleness and
+replay age can still grow during a hold: this does not reconstruct missing movement or reduce transport latency.
 
 `advance(dtMs)` needs the supplied `playback`; it returns a render time or null and never advances its cursor while
 recovering. Usable snapshot headers within the configured delay/prediction budget teach the delay policy during

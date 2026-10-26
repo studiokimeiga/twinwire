@@ -2,6 +2,10 @@
 
 ## 2.1.0 (2026-10-26)
 
+- Snapshot generation age is checked continuously, including while the transport stays online. Old payloads in a
+  receive backlog cannot keep advancing remote replay after its delay/prediction budget is exhausted. This holds
+  the declared playback time and retains histories; it does not invent missing movement or hide present-position lag.
+
 - `GameClient.receiveState` / `StateReceiver`: shared reconnect recovery for authoritative snapshot streams. It
   resets or retains application histories by policy, holds playback through offline and online-without-fresh-data
   phases, and accepts recovery only after a usable current-connection snapshot on the selected stream. New sessions

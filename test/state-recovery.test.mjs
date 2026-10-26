@@ -184,3 +184,33 @@ test('recovery can learn a slower network without first advancing the old playba
     assert.ok(after >= before, 'the retained cursor never rewinds'); assert.ok(playback.delayMs > 100);
   } finally { await s.close(); }
 });
+
+test('online stale-payload traffic holds replay until a current generation arrives', async () => {
+  const s=await setup(),playback=new AdaptivePlayback(20,20,200);let accepted=0,resets=0,advances=0;
+  const advance=playback.advance.bind(playback);playback.advance=(...args)=>{advances++;return advance(...args);};
+  const receiver=s.client.receiveState({stream:0,playback,resume:'retain',maxExtrapolationMs:50,
+    reset:()=>resets++,apply:state=>{if(state.data[0]!==1)return false;accepted++;return true;}});
+  const manual=s.client.receiveState({stream:2,maxExtrapolationMs:50,apply:()=>true});
+  try {
+    await s.connect();await s.send(0,Uint8Array.of(1));await s.send(2,Uint8Array.of(1));
+    const before=receiver.advance(16);assert.equal(manual.ready,true);
+    await sleep(15);assert.notEqual(receiver.advance(16),null,'ordinary loss inside the prediction budget remains usable');
+    const held=advances;
+    await sleep(130);
+    for(let i=0;i<3;i++){
+      await s.send(0,Uint8Array.of(1),2000);
+      assert.equal(receiver.advance(16),null,'receiving old payloads is not current world data');
+      assert.equal(advances,held,'do not advance the declared replay time over a stale online backlog');
+    }
+    assert.equal(s.client.status,'online');assert.equal(s.client.clock.synced,true);
+    assert.equal(receiver.ready,false);assert.equal(manual.ready,false,'manual frame-clock adapters also check age continuously');
+    assert.ok(s.client.sendState(1,Uint8Array.of(9))>0,'outbound controls are independent');
+    await s.send(1,Uint8Array.of(1));assert.equal(receiver.ready,false,'unrelated live streams cannot release it');
+    await s.send(0,Uint8Array.of(0));assert.equal(receiver.ready,false,'a rejected decoder cannot release it');
+    await s.send(0,Uint8Array.of(1));
+    assert.ok(receiver.advance(16)>before);assert.equal(receiver.ready,true);
+    assert.equal(manual.ready,false,'the independent stale stream stays held');
+    assert.equal(resets,1,'an online freshness hold retains application histories');
+    assert.equal(accepted,5);assert.deepEqual(s.errors,[]);
+  } finally {await s.close();}
+});

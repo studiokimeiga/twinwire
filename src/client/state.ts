@@ -13,7 +13,7 @@ export interface StateReceiverOptions {
   resume?: 'reset' | 'retain';
   /** An optional playback clock: reset automatically with the histories; advance() holds it until recovery is ready. */
   playback?: AdaptivePlayback;
-  /** Allowed age beyond the playback delay when releasing recovery (default 100 ms). Match the game's prediction cap. */
+  /** Allowed age beyond the playback delay, including after recovery (default 100 ms). Match the game's prediction cap. */
   maxExtrapolationMs?: number;
 }
 /** @internal The client supplies lifecycle/clock state; no sockets or timers are owned by a receiver. */
@@ -46,17 +46,16 @@ export class StateReceiver {
   }
   /** The session is online, its clock synced, and this connection has supplied a usable snapshot recent enough for
    * the playback delay/prediction cap. A retained clock, events, or unrelated state cannot satisfy this.
-   * Once recovered it stays ready until the next disconnect; ordinary loss still uses the game's bounded prediction. */
+   * Freshness is checked continuously: online traffic with stale generation times holds playback too. */
   get ready(): boolean {
     if (this.disposed || !this.resetOK || !this.context.connected()) return false;
     const now = this.context.now();
     if (now === null) return false;
-    if (this.waiting) {
-      if (this.newest > now + this.context.tolerance() ||
-          this.newest + this.maxExtrapolation < now - (this.options.playback?.delayMs ?? 0)) return false;
-      this.waiting = false;
+    if (this.newest > now + this.context.tolerance() ||
+        this.newest + this.maxExtrapolation < now - (this.options.playback?.delayMs ?? 0)) {
+      this.waiting = true; return false;
     }
-    return true;
+    this.waiting = false; return true;
   }
   /** Return a safe render time, or null to keep the last rendered view while recovering. Outbound input and reliable
    * events are independent. Use this instead of calling the supplied playback.advance() directly. */

@@ -3,7 +3,10 @@
 ## Combined release validation
 
 The additive API and RTC/takeover fixes are being integrated for 2.1.0; wire protocol 4 is unchanged.
-Combined gates and two independent 60-minute hosted lifecycle/hostile-client soaks are required before
+The combined baseline passed 137 tests, the native repeated-recovery gate, all browser modes and both party modes
+on each engine. A subsequent hosted kimu trace exposed continuous online stale-payload traffic advancing replay;
+a new real-WebSocket regression failed before a continuous generation-age check. The updated combined gates and
+two independent 60-minute hosted lifecycle/hostile-client soaks are required before
 publication. Their results will be recorded after completion. Historical independent branch results below
 are preserved and are not a substitute for the combined gate. No game deployment of 2.1.0 has happened yet.
 
