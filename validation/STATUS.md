@@ -1,6 +1,13 @@
-# Validation status: 2.0.0 (2026-10-25)
+# Validation status: 2.1.0 release candidate (2026-10-26)
 
-## Unreleased: session-aware snapshot recovery
+## Combined release validation
+
+The additive API and RTC/takeover fixes are being integrated for 2.1.0; wire protocol 4 is unchanged.
+Combined gates and two independent 60-minute hosted lifecycle/hostile-client soaks are required before
+publication. Their results will be recorded after completion. Historical independent branch results below
+are preserved and are not a substitute for the combined gate. No game deployment of 2.1.0 has happened yet.
+
+## Prior independent snapshot-recovery validation
 
 The working addition provides `GameClient.receiveState` / `StateReceiver`, with default reset-on-resume or retained
 same-session history, and a usable/fresh-state gate independent of connection and clock readiness. Raw APIs and
@@ -25,6 +32,35 @@ These checks establish the helper's lifecycle contract, not a long hostile soak 
 mobile/radio coverage, or automatic understanding of game physics/delta formats. Current production identities
 below refer to the separately deployed 2.0.0 applications. The separately coordinated kimu stop-loss fix/soak is
 not part of this library's source or evidence.
+
+## Prior independent RTC/takeover validation
+
+An isolated real-Chromium/native-RTC test used Linux network namespaces and port-specific INPUT/OUTPUT UDP drops,
+with WSS still available through a local TLS proxy. Published 2.0.0 fell back in 1.44–1.48 s with identity, seat and
+ordered actions preserved. Its retry counter remained elevated after proven recovery; a second observation recovered
+in 2.48 s then 11.50 s, while an earlier run exceeded the declared 15 s recovery budget. That original failure is
+retained, not replaced by the subsequent pass. These are functional observations on one host, not cellular or capacity results.
+
+The candidate clears debt only when datagrams are proven and ignores duplicate resets after an attempt has stopped.
+Its OS-level repeat fell back in 1.449/1.479 s and restored RTC in 2.468/2.852 s after UDP restoration. All 190 actions
+were applied and echoed once, in order, with the same identity/seat/epoch through both wire transitions.
+
+RTC-backoff checks: `npm run check` **126/126 pass**; native gate **three repeat recoveries pass**, including duplicate resets;
+all three browser engines pass normal/impaired/WS-only runs and the party example on WS and RTC. The native regression
+also fails against the published runtime: first retry offer 2033 ms for a 250 ms base/750 ms budget. With the fix,
+the three offers took 260/265/252 ms. Each path is kept healthy beyond the server's one-second offer-rate limit before
+the next induced outage. Tests use local native/browser connections, not physical phones or a measured radio network.
+
+This candidate is unreleased and has not changed the deployed games. No wire/version change is required.
+
+A further takeover regression reproduced the additional published-runtime `Unexpected binary frame` report: input
+queued on the old socket arrived after its session record had been retired. The old player was already protected,
+but the closing socket could still reach the handshake path. The guard now ignores all traffic on that retired
+authenticated connection. A real-WebSocket test also queues a repeated hello and verifies it cannot reclaim the
+player. It failed before the guard and passes afterward; the final core suite passes **127/127**. The final isolated
+Chromium/TLS suite passes all nine payload-size boundaries plus within-grace resume, expiry/new-session and checkpoint
+takeover, with 76 ordered once-only actions and no page/client/server errors. Clients leave zero sessions and members;
+empty lobby objects retain their configured 30-second expiry until the staging server is stopped.
 
 ## Published 2.0.0 evidence
 

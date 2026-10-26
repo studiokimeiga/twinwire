@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 (2026-10-26)
 
 - `GameClient.receiveState` / `StateReceiver`: shared reconnect recovery for authoritative snapshot streams. It
   resets or retains application histories by policy, holds playback through offline and online-without-fresh-data
@@ -9,6 +9,14 @@
   cannot. Raw callbacks and wire protocol 4 are unchanged. The party example uses the shared receiver.
 - `AdaptivePlayback.updateDelay(dtMs)` separates delay adaptation from cursor movement. The receiver learns valid
   recovery-header lateness while holding its cursor, so a slower new route can recover without advancing old state.
+
+- A proven RTC recovery now clears retry backoff, so an intermittent network outage does not inherit debt from an
+  earlier recovered outage. Duplicate `rtc-reset` controls for an already-stopped attempt no longer increase that
+  debt. This changes no wire bytes or application API. The native gate repeats three recoveries and injects duplicate
+  resets; OS-level one-way UDP checks also retain their original failing observation and the candidate rerun.
+- Queued traffic on a socket retired by session takeover is ignored, including a repeated hello. It cannot reclaim
+  the player or produce misleading new protocol errors while its close is still in flight. Unauthenticated binary
+  traffic on a new connection remains rejected.
 
 ## 2.0.0 (2026-10-25)
 
