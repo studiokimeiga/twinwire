@@ -3,7 +3,8 @@ import { withBase } from 'vitepress';
 import { ref } from 'vue';
 import WiresDemo from './demos/WiresDemo.vue';
 const copied = ref(false);
-const copy = async () => { try { await navigator.clipboard.writeText('npm install twinwire'); copied.value = true; setTimeout(() => copied.value = false, 1600); } catch { /* no clipboard */ } };
+const copyError = ref(false);
+const copy = async () => { try { await navigator.clipboard.writeText('npm install twinwire'); copied.value = true; setTimeout(() => copied.value = false, 1600); } catch { copyError.value = true; } };
 </script>
 
 <template>
@@ -13,7 +14,7 @@ const copy = async () => { try { await navigator.clipboard.writeText('npm instal
       <p class="lede">
         Multiplayer networking for browser games. A <span class="ws">WebSocket</span> for what must arrive,
         <span class="dg">WebRTC datagrams</span> for what must arrive fast, and a player session that survives dropped
-        connections, app switches and Wi-Fi hand-offs. Every browser, iPhone Safari included.
+        connections, app switches and Wi-Fi hand-offs. Your server owns the game; Twinwire keeps the session.
       </p>
       <div class="cta">
         <button class="install" type="button" :aria-label="copied ? 'Copied' : 'Copy the install command'" @click="copy">
@@ -21,14 +22,16 @@ const copy = async () => { try { await navigator.clipboard.writeText('npm instal
         </button>
         <div class="links">
           <a class="go primary" :href="withBase('/guide/getting-started')">Get started</a>
-          <a class="go" :href="withBase('/how/sessions')">How it works</a>
+          <a class="go" :href="withBase('/demos')">Try the demos</a>
         </div>
+        <p v-if="copyError" role="status">Select the command above to copy it manually.</p>
       </div>
+      <p class="release-note">MIT licensed · Node 22+ · Chromium, Firefox &amp; WebKit tested</p>
     </div>
     <div class="live">
       <WiresDemo variant="hero" />
       <p class="note">
-        This is Twinwire running in your browser: a browser's endpoint and a server's, exchanging real frames over a
+        Interactive simulation. Two Twinwire endpoints run locally in this page, exchanging real frames over a
         simulated network, slowed down so you can watch. Block UDP, and within 1.5 seconds of game time everything is on
         the WebSocket, without the session noticing.
       </p>
@@ -51,6 +54,7 @@ h1 { font-family: var(--tw-font-display); font-weight: 800; font-size: clamp(54p
 .go.primary { background: var(--tw-ws); border-color: var(--tw-ws); color: var(--tw-panel); }
 .go.primary:hover { background: var(--tw-ws-strong); color: var(--tw-panel); }
 .install:focus-visible, .go:focus-visible { outline: 2px solid var(--tw-ws); outline-offset: 2px; }
+.release-note { font-size: 13px; color: var(--tw-ink-3); margin: 18px 0 0; }
 .note { font-size: 13.5px; line-height: 1.55; color: var(--tw-ink-3); margin: 10px 2px 0; }
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; padding-top: 36px; gap: 28px; }

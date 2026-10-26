@@ -1,7 +1,7 @@
 # twinwire/browser
 
 Everything a page needs in one file, for a script tag or a single-file build: the client, the lobby client and the
-netcode. Built for Safari 15 and every evergreen browser; 15 KB gzipped.
+netcode. The build targets Safari 15 syntax; tested engines and deployment limits are listed in [verification](/reference/verification).
 
 | File | For |
 |---|---|
@@ -14,7 +14,7 @@ netcode. Built for Safari 15 and every evergreen browser; 15 KB gzipped.
 ## A script tag
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/twinwire@1.0.0/dist/browser/twinwire.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/twinwire@2.2.0/dist/browser/twinwire.min.js"></script>
 <script>
   const { GameClient, LobbyClient, Timeline, AdaptivePlayback, lerp } = Twinwire;
   const net = new GameClient({ url: 'wss://play.mygame.com/connect', room: 'mygame' });

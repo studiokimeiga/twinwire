@@ -2,6 +2,8 @@
 
 The browser's side: one `GameClient` per page, and a `LobbyClient` on top of it for rooms.
 
+For `EventClient` / `createEventClient`, see [named channels](/reference/api/channels).
+
 ## GameClient
 
 ```ts

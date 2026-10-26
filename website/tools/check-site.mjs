@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url)), SHOTS = ROOT + '.screens/', PORT = 4173;
 const BASE = `http://127.0.0.1:${PORT}/twinwire/`;
 mkdirSync(SHOTS, { recursive: true });
-const PAGES = ['', 'guide/getting-started', 'guide/party', 'how/sessions', 'how/two-wires', 'how/interpolation', 'how/prediction',
+const PAGES = ['', 'demos', 'guide/recovery', 'reference/verification', 'reference/api/channels', 'reference/api/worker', 'guide/getting-started', 'guide/party', 'how/sessions', 'how/two-wires', 'how/interpolation', 'how/prediction',
   'how/deltas', 'how/interest', 'how/lobby', 'reference/api/', 'reference/api/client', 'reference/api/server',
   'reference/api/netcode', 'reference/api/browser', 'reference/operations', 'reference/adopting', 'reference/changelog'];
 

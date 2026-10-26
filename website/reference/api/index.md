@@ -4,14 +4,17 @@ All modules are ES modules with TypeScript declarations. Browser code never impo
 
 | Import | Runs in | What's in it |
 |---|---|---|
-| [`twinwire/client`](/reference/api/client) | Browser | `GameClient`, `LobbyClient`, `BrowserRtcPeer` |
-| [`twinwire/server`](/reference/api/server) | Node 22+ | `createGameServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `turnCredentials`, `cloudflareTurn` |
+| [`twinwire/client`](/reference/api/client) | Browser | `GameClient`, `EventClient`, `createEventClient`, `StateReceiver`, `LobbyClient`, `BrowserRtcPeer` |
+| [`twinwire/server`](/reference/api/server) | Node 22+ | `createGameServer`, `createEventServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `turnCredentials`, `cloudflareTurn` |
+| [`twinwire/worker`](/reference/api/worker) | Worker / Durable Object | Standard-WebSocket `SocketSessionServer`, `GameSession`; no Node/native imports |
 | [`twinwire/netcode`](/reference/api/netcode) | Both | Clock, timing, interpolation, prediction, inputs, snapshots, replication, codecs, spatial |
 | [`twinwire/browser`](/reference/api/browser) | Browser | One file with the client, the lobby client and the netcode, for a script tag (`window.Twinwire`) or an `import` |
 | `twinwire` | Both | The wire protocol (`encodeFrame`, `decodeFrame`, `FrameKind`, `VERSION`), `Endpoint`, `ReliableEvents`, `TokenBucket`, `estimateEgress`, and the lobby's shared helpers |
 
 The server needs `ws` (installed with Twinwire). WebRTC on the server needs `node-datachannel` 0.33.x, which is
 optional: without it, sessions run over the WebSocket only.
+
+For named JSON APIs and retained room membership, start with [named channels](/reference/api/channels). For a complete runnable game, use the [starter](/guide/getting-started).
 
 ## Messages, in one table
 

@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitepress';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
 // The explainers run the library itself: the built files in ../dist (the same ones npm ships), through the package's
 // own entry points. Build it first: `npm run build` at the repository root.
@@ -21,22 +23,23 @@ export default defineConfig({
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;0,700;1,400&family=Big+Shoulders+Display:wght@600;700;800&display=swap' }],
     ['meta', { name: 'theme-color', content: '#17192e' }],
     ['meta', { property: 'og:title', content: 'Twinwire: multiplayer networking for browser games' }],
-    ['meta', { property: 'og:description', content: 'One session, two wires: WebSocket for what must arrive, WebRTC datagrams for what must arrive fast. Every browser, iPhone Safari included.' }],
+    ['meta', { property: 'og:description', content: 'One session, two wires: WebSocket for what must arrive, WebRTC datagrams for what must arrive fast. With a lobby, automatic reconnects and snapshot recovery.' }],
   ],
   themeConfig: {
     logo: { src: '/logo.svg', alt: '' },
     siteTitle: 'Twinwire',
     nav: [
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '/guide/' },
-      { text: 'How it works', link: '/how/sessions', activeMatch: '/how/' },
+      { text: 'Demos', link: '/demos', activeMatch: '/(demos|how)/' },
       { text: 'Reference', link: '/reference/api/', activeMatch: '/reference/' },
-      { text: '2.0.0', items: [
+      { text: version, items: [
         { text: 'Changelog', link: '/reference/changelog' },
         { text: 'npm', link: 'https://www.npmjs.com/package/twinwire' },
       ] },
     ],
     sidebar: {
       '/guide/': sidebar(),
+      '/demos': sidebar(),
       '/how/': sidebar(),
       '/reference/': sidebar(),
     },
@@ -72,6 +75,8 @@ function sidebar() {
   return [
     { text: 'Guide', items: [
       { text: 'Getting started', link: '/guide/getting-started' },
+      { text: 'Interactive demos', link: '/demos' },
+      { text: 'Snapshot recovery', link: '/guide/recovery' },
       { text: 'The party example', link: '/guide/party' },
     ] },
     { text: 'How it works', items: [
@@ -87,9 +92,12 @@ function sidebar() {
       { text: 'Entry points', link: '/reference/api/' },
       { text: 'twinwire/client', link: '/reference/api/client' },
       { text: 'twinwire/server', link: '/reference/api/server' },
+      { text: 'Named channels', link: '/reference/api/channels' },
+      { text: 'Worker / Durable Object', link: '/reference/api/worker' },
       { text: 'twinwire/netcode', link: '/reference/api/netcode' },
       { text: 'twinwire/browser', link: '/reference/api/browser' },
       { text: 'Operations', link: '/reference/operations' },
+      { text: 'Compatibility & verification', link: '/reference/verification' },
       { text: 'Adopting it', link: '/reference/adopting' },
       { text: 'Changelog', link: '/reference/changelog' },
     ] },
