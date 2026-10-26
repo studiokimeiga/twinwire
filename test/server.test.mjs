@@ -10,6 +10,35 @@ async function setup(options = {}) {
   return { server, errors, url };
 }
 function client(url, extra = {}) { return new GameClient({ url, room: 'test', rtc: false, reconnectBaseMs: 20, ...extra }); }
+
+test('queued frames on a retired takeover socket are ignored without reporting a new protocol violation', async () => {
+  const { default: WS } = await import('ws');
+  const { VERSION } = await import('../dist/core/protocol.js');
+  const inputs = [];
+  const s = await setup({ onSession: (session, resumed) => {
+    if (!resumed) session.data = { seat: 0 };
+    session.onState = state => inputs.push(state.data[0]);
+  }});
+  let raw, b;
+  const a = client(s.url, { websocket: u => (raw = new WS(u)) });
+  try {
+    a.connect(); await until(() => a.status === 'online' && a.clock.synced);
+    const id = a.id, checkpoint = a.checkpoint();
+    raw._socket.pause(); // the replaced tab has not received the close yet and still has input in flight
+    b = client(s.url, { checkpoint, websocket: u => new WS(u) });
+    b.connect(); await until(() => b.status === 'online' && b.clock.synced);
+    a.sendState(1, Uint8Array.of(91)); a.flush();
+    raw.send(JSON.stringify({ t: 'hello', v: VERSION, room: 'test', token: checkpoint.token, auth: null }));
+    b.sendState(1, Uint8Array.of(92)); b.flush(); await until(() => inputs.length > 0);
+    raw._socket.resume(); await until(() => a.status === 'lost');
+    await sleep(30);
+    assert.equal(b.status, 'online', 'a queued hello on the closing socket cannot take the player back');
+    assert.equal(s.server.sessions.get(id).endpoint.active, true);
+    assert.equal(b.id, id); assert.equal(s.server.sessions.get(id).data.seat, 0);
+    assert.deepEqual(inputs, [92], 'only the current connection controls the retained player');
+    assert.deepEqual(s.errors, [], 'normal in-flight traffic on the retired socket is not a new bad-client error');
+  } finally { raw?._socket.resume(); a.close(); b?.close(); await s.server.close(); }
+});
 test('real WebSocket joins, sends binary state and exchanges acknowledged events', async () => {
   const got = [], received = [];
   const s = await setup({ onSession: session => {
