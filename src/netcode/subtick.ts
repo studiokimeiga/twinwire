@@ -29,6 +29,7 @@ export class SubtickInputBuffer<T> {
     this.lastEventMs = atMs;
   }
   take(startMs: number, endMs: number, maxPerTick = Math.min(32, this.capacity)): SubtickTransition<T>[] {
+    if (this.cloning) throw new Error('Reentrant subtick clone');
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs ||
         !Number.isFinite(endMs - startMs) || startMs < this.consumedThroughMs || !Number.isSafeInteger(maxPerTick) || maxPerTick < 1 || maxPerTick > this.capacity)
       throw new RangeError('Invalid subtick window');
@@ -44,6 +45,7 @@ export class SubtickInputBuffer<T> {
     return out;
   }
   reset(): void {
+    if (this.cloning) throw new Error('Reentrant subtick clone');
     this.queued = [];
     this.lastEventMs = this.consumedThroughMs = -Infinity;
   }

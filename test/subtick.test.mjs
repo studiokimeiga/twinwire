@@ -173,3 +173,17 @@ test('seeded burst transitions preserve chronological time and final state at 20
   }
   assert.ok(count > 12000);
 });
+
+test('cloner cannot drain or clear existing inputs reentrantly', () => {
+  for (const method of ['take', 'reset']) {
+    let q;
+    q = new SubtickInputBuffer(4, value => {
+      if (value === 'bad') method === 'take' ? q.take(0, 10) : q.reset();
+      return value;
+    });
+    q.push(0, 'good');
+    assert.throws(() => q.push(1, 'bad'), /Reentrant subtick clone/);
+    assert.equal(q.pending, 1);
+    assert.deepEqual(q.take(0, 2), [{ fraction: 0, value: 'good' }]);
+  }
+});
