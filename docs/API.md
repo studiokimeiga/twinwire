@@ -85,7 +85,7 @@ queue and confirm the committed result separately.
 supports browser GameClient recovery, ordered replay, takeover fencing and binary state without importing Node.
 It uses WebSockets only. A Node server with native RTC is required for the datagram path.
 
-The application owns routing/upgrades and must keep one host instance alive for its room. For a Cloudflare Durable
+The host selects ArrayBuffer binary delivery and replies to close frames on older Worker compatibility dates. The application owns routing/upgrades and must keep one host instance alive for its room. For a Cloudflare Durable
 Object, create the host in the object's constructor; in fetch validate the route, Upgrade header and exact Origin,
 create a WebSocketPair, call `server.accept()` on the accepted server socket, and return the other socket with status 101.
 Pass the real request Origin and an authenticated/proxied client address; do not trust arbitrary forwarded headers
@@ -104,7 +104,7 @@ const host = new SocketSessionServer({
   onExpire:session => { /* apply the game's seat/AI expiry policy */ },
 });
 // In the application upgrade handler, after route/origin/auth checks:
-// const pair = new WebSocketPair(); pair[1].accept();
+// const pair = new WebSocketPair(); pair[1].binaryType='arraybuffer'; pair[1].accept();
 // host.accept(pair[1], {origin:request.headers.get('Origin')||'', ip:trustedClientAddress});
 // return new Response(null,{status:101,webSocket:pair[0]});
 ```

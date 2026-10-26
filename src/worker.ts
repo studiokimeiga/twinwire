@@ -6,7 +6,7 @@ import { readControl, isUint, VERSION, MAX_CONTROL_BYTES, type Json } from './co
 import type { EndpointOptions } from './core/endpoint.js';
 export { GameSession } from './core/session.js';
 export interface SessionSocket {
-  readonly readyState: number; readonly bufferedAmount?: number;
+  readonly readyState: number; readonly bufferedAmount?: number; binaryType?: string;
   send(data: string | Uint8Array): void; close(code?: number, reason?: string): void;
   addEventListener(type: 'message', callback: (event: { data: unknown }) => void): void;
   addEventListener(type: 'close' | 'error', callback: () => void): void;
@@ -52,13 +52,19 @@ export class SocketSessionServer {
     if (this.connections.size >= (this.options.maxConnections ?? 512) || mine >= (this.options.maxPerIp ?? 32)) {
       socket.close(1013, 'capacity'); return;
     }
+    // Workers now default binary frames to Blob. Select synchronous delivery before installing the listener.
+    socket.binaryType = 'arraybuffer';
     const now = performance.now();
     const c: Connection = { socket, ip: context.ip, epoch: 0, started: now, lastSeen: now, authenticating: false,
       messages: new TokenBucket(this.options.rateLimit?.messages ?? 300, this.options.rateLimit?.messages ?? 300, now),
       bytes: new TokenBucket(this.options.rateLimit?.bytes ?? 256 * 1024, this.options.rateLimit?.bytes ?? 256 * 1024, now) };
     this.connections.add(c);
     socket.addEventListener('message', event => this.receive(c, event.data));
-    socket.addEventListener('close', () => this.disconnect(c));
+    socket.addEventListener('close', () => {
+      this.disconnect(c);
+      // Older Worker compatibility dates require an explicit reply to the peer's close frame.
+      if (socket.readyState === 2) try { socket.close(); } catch { /* already closed */ }
+    });
     socket.addEventListener('error', () => { this.disconnect(c); socket.close(1011, 'connection error'); });
     this.timer ??= setInterval(() => this.pump(), 1000 / (this.options.pumpHz ?? 60));
   }

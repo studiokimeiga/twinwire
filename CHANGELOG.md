@@ -3,6 +3,8 @@
 
 ## 2.2.0 — unreleased
 
+- The Worker host explicitly selects ArrayBuffer binary delivery and completes close handshakes on older runtimes. Real workerd regressions failed under the modern Blob default and the older manual-close behavior before this fix; both compatibility dates are release gates.
+
 - A closing browser socket now holds playback and reports recovery promptly. Heartbeat/handshake timeouts retire and generation-fence the old socket before retrying, so an offline close handshake cannot keep the client apparently online or suppress a resume. Late callbacks from the retired socket cannot end the new connection. A real-socket fault regression failed before this fix.
 
 - Added named EventClient/createEventServer helpers for migrating existing games. Configured names are independent latest-wins JSON streams with recovery gates; other names are acknowledged events. Handlers, player identity and room membership survive a physical reconnect. Pauses and terminal session expiry have distinct callbacks.
