@@ -1,8 +1,16 @@
 name: networking-gates
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: Duration of each independent lifecycle soak
+        type: choice
+        required: true
+        default: '10'
+        options: ['10', '30', '60']
 permissions:
   contents: read
 concurrency:
@@ -10,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       matrix:
@@ -22,13 +30,21 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
       - run: npm ci
       - run: npm run check
       - run: npm run test:native
       - run: npm run bench -- --clients 50 --seconds 5
   browsers:
-    runs-on: ubuntu-latest
+    name: browsers (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    env:
+      ENGINES: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -36,8 +52,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npx playwright install --with-deps "$ENGINES"
       - run: npm run test:browser
       - run: IMPAIR=1 npm run test:browser
       - run: RTC=0 npm run test:browser
@@ -46,5 +63,57 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: browser-results
+          name: browser-results-${{ matrix.engine }}
           path: validation/browsers*.json
+          retention-days: 3
+  lifecycle-soak:
+    name: lifecycle soak (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ inputs.soak_minutes == '60' && 80 || inputs.soak_minutes == '30' && 50 || 30 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    env:
+      SOAK_MINUTES: ${{ inputs.soak_minutes || '10' }}
+      TEST_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Record the source and runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$SOAK_MINUTES" in 10|30|60) ;; *) exit 1 ;; esac
+          mkdir -p artifacts/soak
+          node --input-type=module <<'NODE' > artifacts/soak/context.json
+          import os from 'node:os';
+          import { execFileSync } from 'node:child_process';
+          console.log(JSON.stringify({
+            commit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(),
+            testHead: process.env.TEST_HEAD,
+            node: process.version, platform: os.platform(), kernel: os.release(),
+            cpus: os.cpus().length, cpuModel: os.cpus()[0]?.model, memoryBytes: os.totalmem(),
+            minutes: Number(process.env.SOAK_MINUTES), clients: 48, hostile: 6,
+            transport: 'WebSocket; worker-thread clients and server share one runner',
+            randomness: 'Existing soak uses Math.random; this is an independent run, not an identical seeded schedule',
+          }, null, 2));
+          NODE
+          sha256sum package-lock.json tools/soak.mjs > artifacts/soak/source-SHA256SUMS
+      - run: npm ci
+      - name: Churn and hostile-client soak
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run soak -- --minutes "$SOAK_MINUTES" --clients 48 --hostile 6 2>&1 | tee artifacts/soak/soak.log
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: lifecycle-soak-node-${{ matrix.node }}
+          path: artifacts/soak/
+          retention-days: 3
