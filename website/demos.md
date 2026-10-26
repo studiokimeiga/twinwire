@@ -29,3 +29,26 @@ reliable actions and a reconnect button. No art assets, account or build tool ar
 
 The [party example](/guide/party) adds quick play, room codes, ready-up, prediction, interpolation and chat.
 Both include their source. Keep the server and browser on the same Twinwire release.
+
+## Live game integrations
+
+These games run Twinwire 2.2.0. Their deployed clients were checked with independent browsers,
+actual gameplay and a dropped connection. The games own their simulation, accounts, assets and persistence.
+
+| Game | Try it | Recovery exercised |
+| --- | --- | --- |
+| Nocturne Keep | [Co-op platforming](https://nocturnekeep.com) | Same players and private room, current combat world |
+| kimu.nyc | [Shared city](https://kimu.nyc) | Same players, nearby world snapshots and playback after reconnect |
+| CS2 browser prototype | [Authoritative shooter](http://140.82.43.143:8080/mp.html) | Movement, fire events, same session and fresh world |
+| Superfighters | [Two-player arena](https://hakanalpay.com/superfighters/) | Same round, released held controls and current host world |
+| Emoji Mahjong | [Private tile hands](https://emojimahjong.pages.dev/) | Original seats and hands after disconnect and reload |
+| Gallax | [Shared map world](https://gallax.pages.dev/) | Movement, same position and one delivery of queued chat |
+| Webstrike | [Multiplayer shooter](http://140.82.43.143/?online) | Movement, fire, retained player and cleanup on leaving |
+| Sipoga / NT Web | [Multiplayer FPS](https://hakanalpay.com/sipoga/) | Movement, damage, respawn and retained player after an 8.5-second drop |
+| Wollosseum prototype | [Command arena](https://wollo.66-135-17-35.sslip.io/) | Commands and the same seat and world after reconnect |
+| TDBR prototype | [Top-down arena](https://tdbr.66-135-17-35.sslip.io/) | Movement, firing and the same player, inventory and world |
+
+The Node games were checked on both native WebRTC and forced WebSocket. Emoji Mahjong uses
+the Worker WebSocket host; its private-hand recovery was also checked in phone-sized WebKit.
+The two arena prototypes use small public capacity profiles. These checks cover the listed
+scenarios; [the verification record explains their limits](/reference/verification).
