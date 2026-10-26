@@ -63,6 +63,7 @@ export class GameClient {
   private lastPump = 0;
   private lastPing = -Infinity;
   private lastMessage = 0;
+  private closingDeadline = Infinity;
   private openedAt = 0;
   private wakeDeadline = Infinity;
   private pendingPings = new Map<number, number>();
@@ -166,7 +167,7 @@ export class GameClient {
     if (this.stopped) return;
     clearTimeout(this.retryTimer); this.retryTimer = undefined;
     const generation = ++this.generation;
-    const now = performance.now(); this.openedAt = this.lastMessage = now;
+    const now = performance.now(); this.openedAt = this.lastMessage = now; this.closingDeadline = Infinity;
     let ws: WebSocket;
     try { ws = (this.options.websocket ?? (u => new WebSocket(u)))(this.options.url); }
     catch (error) { this.report(error); this.retry(); return; }
@@ -177,7 +178,7 @@ export class GameClient {
         impair: (this.options.impair ?? null) as Json }));
     };
     ws.onmessage = ev => {
-      if (generation !== this.generation || this.stopped) return;
+      if (generation !== this.generation || this.stopped || ws.readyState !== 1) return;
       this.lastMessage = performance.now(); this.wakeDeadline = Infinity;
       try {
         if (ev.data instanceof ArrayBuffer) this.endpoint.receiveBinary(new Uint8Array(ev.data), 'ws');
@@ -237,6 +238,15 @@ export class GameClient {
     if (m.t === 'signal' && m.a === this.rtcAttempt && validSignal(m.d)) { void this.peer?.signal(m.d); return; }
     if (m.t === 'rtc-reset' && m.a === this.rtcAttempt && this.peer) this.stopRtc(false);
   }
+  /** Retire locally before close(): browsers can wait indefinitely for an offline close handshake. */
+  private replaceSocket(reason: string): void {
+    const socket = this.socket, generation = ++this.generation;
+    this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.pendingPings.clear();
+    this.closingDeadline = this.wakeDeadline = Infinity;
+    try { socket?.close(4000, reason); } catch { /* the old socket is already fenced */ }
+    this.setStatus('connecting');
+    if (generation === this.generation) this.retry();
+  }
   private retry(): void {
     if (this.stopped) return;
     clearTimeout(this.retryTimer);
@@ -282,7 +292,13 @@ export class GameClient {
     const now = performance.now(); this.clock.advance(Math.max(0, now - this.lastPump)); this.lastPump = now;
     if (this.status === 'online') {
       if (now - this.lastMessage > (this.options.heartbeatTimeoutMs ?? 8000) || now > this.wakeDeadline) {
-        this.wakeDeadline = Infinity; this.socket?.close(4000, 'heartbeat timeout'); return;
+        this.replaceSocket('heartbeat timeout'); return;
+      }
+      if (this.socket && this.socket.readyState !== 1) {
+        // Announce the interruption immediately, but allow a normal terminal close event to report its reason.
+        this.endpoint.detach(); this.stopRtc(false); this.pendingPings.clear();
+        this.closingDeadline = now + Math.min(1000, this.options.heartbeatTimeoutMs ?? 8000);
+        this.setStatus('connecting'); return;
       }
       // a burst of pings after each connect so the clock settles in about two seconds, then one a second
       const o = this.options, burst = this.burstLeft > 0 && this.pendingPings.size < 8;
@@ -291,7 +307,7 @@ export class GameClient {
       if (!this.peer && now >= this.rtcRetryAt) this.startRtc();
       this.endpoint.pump();
       this.noteTransport();
-    } else if (this.socket && now - this.openedAt > 10000) { this.socket.close(4000, 'handshake timeout'); }
+    } else if (this.socket && (now >= this.closingDeadline || now - this.openedAt > 10000)) { this.replaceSocket('handshake timeout'); }
   }
   private ping(now: number) {
     const n = this.pingId = (this.pingId + 1) >>> 0;

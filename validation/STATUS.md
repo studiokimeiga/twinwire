@@ -1,3 +1,15 @@
+# Validation status: 2.2.0 (2026-10-26)
+
+The release runtime passes154 local checks, native RTC, Chromium/Firefox/WebKit normal, impaired and WebSocket-only runs, and the party example on both paths. The final [Node22/24 sixty-minute run](https://github.com/studiokimeiga/twinwire/actions/runs/40365174817) at8e79d0f completed successfully. Both independent hours report no lost/duplicated/reordered echo in sessions that lived, every honest life online, bounded heap, event-loop p99 under50ms, no unexpected server errors and zero sessions/connections/rooms/timers/sockets after drain. Hostile garbage/forged/flood traffic produces expected protocol rejections.
+
+The subsequent Worker-only fix changes worker.js/map/declaration; all101 Node/browser distributed files are byte-identical to that hour-tested runtime. The real workerd compatibility matrix passes both2025-01-01 and2026-03-17 binary delivery, ordered replay, same-ID recovery, takeover, origin checks and prompt close handshakes. Hosted core gates execute this matrix on Node22/24. Runnable Node/Worker starter source and documentation change no library runtime bytes. Actual Node starter application snapshots were proven RTC; the live Worker starter was proven WebSocket, including movement, queued ping once and checkpoint reload. These checks do not certify every device/NAT, durable transport storage or perfect end-to-end playback.
+
+The historical candidate observations below retain the failing observations and progression. The2.1 release evidence remains intact.
+
+## 2.2 candidate verification update (2026-10-26)
+
+Named-channel and Worker host commit 1cdd96f passes hosted Node22/24 core/native/workerd gates and Chromium, Firefox and WebKit normal, impaired, WS-only and party tests in run40336880191. Its two 60-minute soaks were still running at this update. A later configurable named-state age budget passes 152 local checks and requires final hosted validation. Real local ports have passed Wollosseum and nt-web movement/action/resume tests, durable Emoji Mahjong private-hand/restart tests, and Superfighters two-browser gameplay/pause/same-round recovery. These are candidate observations, not a publication/deployment receipt. The original 2.1 evidence and measured 2.0 baseline remain preserved.
+
 # Validation status: 2.1.0 (2026-10-26)
 
 ## Combined release validation
@@ -158,3 +170,19 @@ The downloaded 95-file tarball exactly matches the final local pack, including i
 Compared with the measured `07126a91…` candidate, only ADOPTING, ARCHITECTURE and OPERATIONS documentation differs;
 all runtime files and package.json are byte-identical. npm exposes a SLSA provenance attestation.
 The registry initially returned 404 during npm processing; verification waited for a real public download.
+
+
+## 2.2 product completion candidate — in progress, 2026-10-26
+
+The published 2.1 evidence above remains the release baseline. A separate product-finish branch adds named channel helpers, a pure standard-WebSocket Worker host sharing GameSession/Endpoint, and a complete runnable starter.
+The first candidate passed all 149 tests; further auto-connect disposal and pure Worker import/bundle regressions were then added. Individual Worker conformance tests passed over actual sockets. These do not yet establish Cloudflare/workerd execution, native/browser release gates, or completed game migration/deployment. Those remain required before release.
+
+Candidate update: all 151 unit/socket/import tests now pass. A real Miniflare/workerd Durable Object gate also passed binary echo, same-ID resume, ordered offline event replay, session takeover and origin rejection, with zero reported runtime errors. The Worker entry bundles on the browser platform without Node/native imports. A creation-task auto-connect disposal regression failed first, then passed after the queued factory start was fenced against close. Native, multi-browser and longer hosted gates are still pending.
+
+Candidate follow-up: the actual Emoji Mahjong offline/reload browser gate exposed a WebSocket close-handshake stall. A real-socket wrapper regression failed before the fix. Both CLOSING and silently-open faults now pass local retirement, same-ID recovery, stale-callback fencing, ordered action-once and fresh-state hold checks. Full `npm run check` passes 154 tests and the workerd gate passes after the fix; candidate-03 contains these runtime bytes. Final hosted validation is started on a separate ref to preserve earlier runs. This is not yet a published release or production deployment.
+
+Worker compatibility follow-up: a real two-browser hosted-starter check exposed the modern Worker Blob binary default. The actual workerd gate failed before fixes with compatibility2026-03-17 at binary event echo, and compatibility2025-01-01 at prompt close-handshake completion. Both dates now pass binary echo, ordered replay, same-ID recovery, takeover, exact-origin rejection and clean close, with no runtime errors. The paired Worker starter now passes actual browser movement, queued ping once, same-ID reconnect and checkpoint reload. Cloudflare documents the [binary default change](https://developers.cloudflare.com/changelog/post/2026-04-21-websocket-standard-binary-type/) and [older close behavior](https://developers.cloudflare.com/workers/runtime-apis/websockets/). The fix selects ArrayBuffer delivery and replies to close frames in the shared Worker adapter.
+
+All154 local checks pass after this Worker-only fix. Comparing candidate03 with candidate04 proves101 distributed files byte-identical, including every Node/server/client/browser runtime file; only worker.js, its source map and declaration changed. The Node/browser hour soaks at8e79d0f therefore exercise identical Node/browser runtime bytes. Worker behavior is additionally exercised in the real-runtime compatibility matrix. No publication/production receipt is claimed yet.
+
+Starter observations: the complete Node starter passes actual two-browser movement, queued ping once, same-ID reconnect and checkpoint reload with both the current transport and received application snapshots proven RTC. The live Worker starter at twinwire-demo.hak7alp.workers.dev passes the same interactions over WebSocket, with a private arena per invite and version4e66992e-7df7-4e7a-8bbc-97ca8b6eb938. The initial failed live check used an invalid >40-character test invite; the bounded route correctly rejected it. The corrected valid-invite check passes. These are actual hosted-demo observations; SDK npm2.2 publication and game production upgrades are still pending. Mahjong additionally passes WebKit phone-sized recovery and disabled session-storage recovery; physical iPhone coverage is not claimed.

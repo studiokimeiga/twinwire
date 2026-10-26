@@ -1,0 +1,18 @@
+{
+  "name": "my-twinwire-game",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "twinwire": "2.2.0"
+  },
+  "optionalDependencies": {
+    "node-datachannel": "^0.33.4"
+  }
+}

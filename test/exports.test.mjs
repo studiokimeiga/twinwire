@@ -24,3 +24,13 @@ test('browser entry points carry no Node or native imports', async () => {
     assert.doesNotMatch(s, /\b(require\(|from\s*["']node:|import\(["']node-datachannel|import\(["']ws["'])/, f);
   }
 });
+
+test('Worker entry shares GameSession with Node and bundles without Node/native modules',async()=>{
+ const worker=await import('twinwire/worker'),server=await import('twinwire/server');
+ assert.equal(worker.GameSession,server.GameSession);
+ assert.equal(typeof worker.SocketSessionServer,'function');
+ const {build}=await import('esbuild');
+ const bundle=await build({entryPoints:[new URL('../dist/worker.js',import.meta.url).pathname],bundle:true,platform:'browser',write:false,metafile:true});
+ assert.ok(bundle.outputFiles[0].text.includes('SocketSessionServer'));
+ for(const input of Object.keys(bundle.metafile.inputs))assert.doesNotMatch(input,/node_modules|node:/);
+});

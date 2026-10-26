@@ -1,0 +1,21 @@
+{
+  "name": "twinwire-hosted-starter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node tools/prepare.mjs",
+    "dev": "npm run build && wrangler dev --local --port 8789",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "twinwire": "2.2.0"
+  },
+  "devDependencies": {
+    "miniflare": "4.20260317.0",
+    "wrangler": "4.75.0"
+  }
+}
