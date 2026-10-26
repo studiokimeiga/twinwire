@@ -1,14 +1,44 @@
-# Validation status: 2.1.0 release candidate (2026-10-26)
+# Validation status: 2.1.0 (2026-10-26)
 
 ## Combined release validation
 
-The additive API and RTC/takeover fixes are being integrated for 2.1.0; wire protocol 4 is unchanged.
-The combined baseline passed 137 tests, the native repeated-recovery gate, all browser modes and both party modes
-on each engine. A subsequent hosted kimu trace exposed continuous online stale-payload traffic advancing replay;
-a new real-WebSocket regression failed before a continuous generation-age check. The updated combined gates and
-two independent 60-minute hosted lifecycle/hostile-client soaks are required before
-publication. Their results will be recorded after completion. Historical independent branch results below
-are preserved and are not a substitute for the combined gate. No game deployment of 2.1.0 has happened yet.
+The combined runtime at `10fd59ce6bf07d204b696866da697385ffea212c` passes the 2.1.0 release gates.
+It includes shared snapshot recovery, continuous online generation-age checks, proven-RTC retry reset and retired-socket
+takeover protection. Wire protocol 4 is unchanged. The final documentation update changes no runtime or generated code.
+
+- `npm run check`: **138 tests pass**, including eleven real-WebSocket receiver regressions. The continuous old-payload
+  backlog regression was observed failing before its fix. Decoder/reset failure, grouped-stream isolation, new-session
+  clock reset, callback generation changes, retained histories, unchanged idle headers and slower-route recovery pass.
+- `npm run test:native`: real RTC, fallback and three repeated recoveries pass; retry offers after proven recovery take
+  **265.6 / 252.3 / 255.3 ms** for the configured 250 ms base. Duplicate resets do not accumulate retry debt.
+- Hosted Node 22 and 24 core checks pass. Chromium, Firefox and WebKit pass normal, impaired and forced-WebSocket
+  browser runs plus the party example on both wires. See [final combined run](https://github.com/studiokimeiga/twinwire/actions/runs/40270623290)
+  and [ten-minute PR gate](https://github.com/studiokimeiga/twinwire/actions/runs/40270573636).
+- Two independent **60-minute** public GitHub-runner lifecycle/hostile-client soaks pass on the final runtime, with
+  48 honest and 6 hostile clients per process. Their raw logs and context/source hashes are retained as run artifacts.
+
+| Node | Honest lives | Events sent | States relayed | Mid / late heap median | Worst event-loop p99 |
+|---|---:|---:|---:|---:|---:|
+| v22.23.3 | 8,851 | 567,850 | 6,176,112 | 9.63 / 10.54 MB | 11.9 ms |
+| v24.21.0 | 8,775 | 564,969 | 6,089,926 | 10.01 / 10.93 MB | 11.8 ms |
+
+Both soaks report zero lost/duplicated/reordered echoes in sessions that lived, every honest life online, heap within
+the declared stability budget, and no unexpected server errors. Sessions deliberately paused beyond grace can lose
+their unacknowledged events. Forged/garbage/oversized/flood traffic creates expected protocol rejections. At drain,
+both report **zero sessions, connections, rooms, timers and sockets**. These shared-runner results are lifecycle and
+correctness evidence, not independent-machine throughput or physical mobile/radio measurements.
+
+The earlier combined runtime also passed two 60-minute soaks in
+[run40267973742](https://github.com/studiokimeiga/twinwire/actions/runs/40267973742); that evidence is preserved separately.
+OS namespace UDP-blackhole checks on that combined transport code pass repeat fallback/recovery and 183 once-only
+ordered actions with identity/seat retained; the 12 payload/resume/expiry/takeover cases pass with 77 ordered actions.
+The subsequent change is confined to the receiver's continuous freshness policy and its regression/documentation.
+
+Game acceptance is recorded in the game repositories and deployment receipts: CS2's 27-shot wire fixture and two
+30-minute RTC/WS soaks pass; Nocturne's smoke, eight multiplayer suites and 30-minute RTC/WS drop/pause soak pass.
+Kimu's complete-group server correction has separate game regressions and timed verification. A receiver cannot
+reconstruct entity records a game server omitted. Game deployments remain a separate paired acceptance step.
+Publication is performed by the version-tag trusted-publisher workflow after these checks.
 
 ## Prior independent snapshot-recovery validation
 

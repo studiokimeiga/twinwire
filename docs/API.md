@@ -229,7 +229,11 @@ There is one receiver per stream plus one filtered receiver for grouped streams,
 (default 1024) total per client. Omit `stream` for a snapshot family split across several streams; `apply` must return
 false for unrelated kinds/streams. One decoded family snapshot then releases that receiver, matching a shared
 playback clock; it does not prove every independently replicated entity is fresh. Use separate receivers for worlds
-whose recovery must be independent. Exact and filtered receivers can coexist; do not apply a payload twice.
+whose recovery must be independent. Exact and filtered receivers can coexist; do not apply a payload twice. A latest-wins group packet must preserve every member whose current state that packet certifies: a partial
+update can replace a pending update for a different member. Send complete current groups, retaining each entity's
+accepted timestamp, or use independent streams/receivers for independent state. Partial reliable history can still
+repair timelines without certifying whole-group freshness. A game may resample newly accepted history at its retained
+render time during a hold; it must not advance that time until the receiver is ready.
 `dispose()` removes a receiver and
 permanently makes it unready. A receiver registered after connection starts its own recovery; use its reset callback
 to clear any pre-existing application histories. It has no timers or sockets of its own.
