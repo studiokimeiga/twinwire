@@ -89,3 +89,15 @@ test('closing an auto-connect channel in its creation task cannot resurrect its 
  try{c.close();await sleep(5);assert.equal(c.net.status,'closed');assert.equal(opened,0);}
  finally{c.close();}
 });
+
+test('named streams allow an explicit freshness budget for a slower snapshot rate',async()=>{
+ const s=await setup();let channel;s.server.onConnection(c=>{channel=c;});
+ const c=new EventClient({url:'ws://127.0.0.1:'+s.server.game.httpServer.address().port+'/connect',room:'arena',rtc:false,latest:{position:1},stateMaxAgeMs:1000});
+ c.on('position',()=>true);c.connect();
+ try{
+  await until(()=>c.net.status==='online'&&c.net.clock.synced);channel.emit('position',{x:1});
+  await until(()=>c.ready('position'));await sleep(160);assert.equal(c.ready('position'),true);
+  c.net.pause();assert.equal(c.ready('position'),false);
+ }finally{c.close();await s.close();}
+ for(const stateMaxAgeMs of [-1,NaN,Infinity,30001])assert.throws(()=>new EventClient({url:'ws://localhost/connect',room:'test',stateMaxAgeMs}));
+});

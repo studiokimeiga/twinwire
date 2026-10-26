@@ -4,13 +4,123 @@ All modules are ESM with TypeScript declarations.
 
 | Import | For |
 |---|---|
-| `twinwire/client` | Browser: `GameClient`, `LobbyClient`, `StateReceiver`, `BrowserRtcPeer` |
-| `twinwire/server` | Node: `createGameServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `turnCredentials`, `cloudflareTurn` |
+| `twinwire/client` | Browser: `GameClient`, `EventClient`, `createEventClient`, `LobbyClient`, `StateReceiver`, `BrowserRtcPeer` |
+| `twinwire/server` | Node: `createGameServer`, `createEventServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `turnCredentials`, `cloudflareTurn` |
+| `twinwire/worker` | Standard WebSocket host: `SocketSessionServer`, `GameSession`; no Node/native dependencies |
 | `twinwire/netcode` | Both: clock, interpolation, prediction, timing, snapshots, replication, codecs, spatial |
 | `twinwire` | Both: the wire protocol and `Endpoint` |
 | `twinwire/browser` | `dist/browser/twinwire.js` (also `.min.js`; ESM `.mjs` for `import`): client + lobby + netcode as `window.Twinwire` |
 
 Browser code never imports the server entry. Node needs `ws`; WebRTC on the server needs `node-datachannel@0.33.x`.
+
+
+## Named channels
+
+For existing games with named JSON messages, use the same namespace and latest-stream mapping on both ends:
+
+```js
+// Node server
+import {createEventServer} from 'twinwire/server';
+const latest = {input:1, world:2};
+const server = await createEventServer({
+  port:8787, namespace:'arena-v1', latest, origins:['https://game.example'], resumeGraceMs:30_000,
+});
+server.onConnection(channel => {
+  channel.join('example-room');
+  channel.on('ping', () => channel.emit('pong', {ok:true}));
+  channel.on('input', input => { /* validate, then update this player's simulation input */ });
+  channel.onPause = () => { /* release held input, retain player and world */ };
+  channel.onResume = () => { /* send a current complete world, retain the same seat */ };
+  channel.onDisconnect(() => { /* explicit leave or expired session: remove the player */ });
+});
+await server.listen();
+
+// Browser (separate file)
+import {createEventClient} from 'twinwire/client';
+const channel = createEventClient({url:'wss://game.example/connect',room:'arena-v1',latest,stateMaxAgeMs:250});
+channel.on('pong', message => console.log(message));
+channel.on('world', world => { /* validate and apply; return false if unusable */ });
+channel.onReset = () => { /* clear old interpolation histories; called per mapped stream */ };
+channel.onPause = () => { /* display reconnecting; preserve the game session */ };
+channel.onConnect(() => { /* identity available on first join and each resume */ });
+channel.net.bindPageLifecycle();
+channel.emit('ping', {});
+// In the render loop, advance world playback only while channel.ready('world').
+```
+
+Names absent from `latest` are ordered acknowledged events. Mapped names are JSON state streams: independent,
+coalesced and disposable. Use a separate stream for each owner or independently replaceable value; relaying every
+player's input under one state name would let one player overwrite another. Configured stream IDs are unique
+integers 1–65535; at most 1024 mapped names. Both peers must use the same mapping and namespace. Treat a mapping
+change as an application protocol change and deploy both ends together.
+
+`new EventClient(options)` waits for `connect()`. `createEventClient(options)` starts in a microtask after callbacks
+in the current task are installed. `on(name, handler)` replaces that name's previous handler. A state handler returning
+`false` rejects readiness; returning `void` accepts valid JSON. Reject invalid snapshots explicitly. Recovery resets
+histories by default and `ready(name)` uses the shared StateReceiver lifecycle and continuous age gate. Configure
+`stateMaxAgeMs` for the game's state cadence (default 100 ms, allowed 0–30000); increasing it permits older playback,
+so choose it deliberately. Raw binary streams, delta bases or coordinated groups should use `channel.net.receiveState`
+directly, with stream IDs outside the named mapping.
+
+Client `onPause` is temporary; `onResume` and `onConnect` run after a successful resume. Client `onDisconnect(handler)`
+is terminal closed/lost only; it does not report temporary physical interruptions. There is one callback slot per
+lifecycle hook. Register the final owning scene/controller when handing a connection between screens. The underlying
+`net` exposes `whenOnline()`, status, lifecycle binding, checkpoints, testing drops and explicit new-session recovery.
+An expired identity cannot silently replay old actions into a new player.
+
+Server `onConnection` runs once per logical session; `channel.onPause` and `channel.onResume` run on that same channel.
+Its handlers and rooms survive. `channel.join(room)`, `leave(room)` / `leave()`, `server.room(room).emit(name,data)`,
+`channel.broadcast.emit(name,data)` (all other sessions) and `server.emit(name,data)` use those retained memberships.
+At most 32 rooms per channel; room names are 1–128 characters. `channel.close()` ends the session. The server exposes
+`channels` and the underlying `game`. Only expiry/explicit leave calls server `channel.onDisconnect(handler)`.
+
+`emit` returns a sequence, or 0 when the underlying state/event cannot be queued. Event limits and callback retry
+rules below still apply. Room/broadcast helpers have no aggregate delivery acknowledgement. An SDK event ACK means
+the callback accepted it, not that a database transaction committed. Persist important commands in an application
+queue and confirm the committed result separately.
+
+## Worker / Durable Object host
+
+`SocketSessionServer` implements the same protocol and GameSession delivery engine over standard WebSockets. It
+supports browser GameClient recovery, ordered replay, takeover fencing and binary state without importing Node.
+It uses WebSockets only. A Node server with native RTC is required for the datagram path.
+
+The application owns routing/upgrades and must keep one host instance alive for its room. For a Cloudflare Durable
+Object, create the host in the object's constructor; in fetch validate the route, Upgrade header and exact Origin,
+create a WebSocketPair, call `server.accept()` on the accepted server socket, and return the other socket with status 101.
+Pass the real request Origin and an authenticated/proxied client address; do not trust arbitrary forwarded headers
+on an untrusted origin. A minimal accepted-socket integration:
+
+```js
+import {SocketSessionServer} from 'twinwire/worker';
+const host = new SocketSessionServer({
+  origins:['https://game.example'], resumeGraceMs:30_000, maxSessions:8, maxConnections:16,
+  authenticate:({room}) => room==='private-room' ? 'validated-player-or-room-subject' : null,
+  onSession(session, resumed) {
+    if (!resumed) session.onEvent = command => { /* validate, enqueue a durable game command */ };
+    // After durable recovery, send that player's current private game snapshot.
+  },
+  onDisconnect:session => { /* retain player during transport grace */ },
+  onExpire:session => { /* apply the game's seat/AI expiry policy */ },
+});
+// In the application upgrade handler, after route/origin/auth checks:
+// const pair = new WebSocketPair(); pair[1].accept();
+// host.accept(pair[1], {origin:request.headers.get('Origin')||'', ip:trustedClientAddress});
+// return new Response(null,{status:101,webSocket:pair[0]});
+```
+
+`allowsOrigin(origin)` lets the upgrade handler reject before accepting. Origins are exact strings or an explicit
+predicate; wildcard entries are rejected. Missing Origin is rejected unless `allowMissingOrigin:true` is deliberately
+enabled for trusted non-browser callers. Additional options: `endpoint`, `maxPerIp`, `maxSessionsPerIp`, `pumpHz`,
+`heartbeatTimeoutMs`, `handshakeTimeoutMs`, `rateLimit:{messages,bytes}` and `onError`. `sessions` and `stats` are
+observable; `endSession(session)` expires one; `close()` stops timers and ends them all.
+
+Transport sessions, bearer tokens and replay queues are in memory. Object eviction/process restart creates a new
+transport session. **No hibernation restoration or durable transport persistence is implemented.** Persist the game
+world and private per-seat resume authorization separately. If the old transport is unavailable, explicitly create
+a new one and authenticate the original game seat; never replay uncommitted old transport actions as new commands.
+For a turn-based durable game, a reliable ready marker sent after the committed private snapshot can release its UI;
+it need not invent a periodic state stream. The workerd integration gate exercises actual upgrades and recovery.
 
 ## GameClient
 

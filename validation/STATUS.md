@@ -1,3 +1,7 @@
+## 2.2 candidate verification update (2026-10-26)
+
+Named-channel and Worker host commit 1cdd96f passes hosted Node22/24 core/native/workerd gates and Chromium, Firefox and WebKit normal, impaired, WS-only and party tests in run40336880191. Its two 60-minute soaks were still running at this update. A later configurable named-state age budget passes 152 local checks and requires final hosted validation. Real local ports have passed Wollosseum and nt-web movement/action/resume tests, durable Emoji Mahjong private-hand/restart tests, and Superfighters two-browser gameplay/pause/same-round recovery. These are candidate observations, not a publication/deployment receipt. The original 2.1 evidence and measured 2.0 baseline remain preserved.
+
 # Validation status: 2.1.0 (2026-10-26)
 
 ## Combined release validation

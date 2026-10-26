@@ -2,7 +2,7 @@ import { GameClient, type ClientOptions } from './client.js';
 import type { StateReceiver } from './state.js';
 import { channelName, channelSchema, encodeChannel, decodeChannel, namedEvent, type LatestChannels, type ChannelHandler } from '../core/channels.js';
 import type { JsonInput } from '../core/protocol.js';
-export interface EventClientOptions extends ClientOptions { latest?: LatestChannels }
+export interface EventClientOptions extends ClientOptions { latest?: LatestChannels; stateMaxAgeMs?: number }
 /** Named JSON events and states on one GameClient. A pause is not a terminal disconnect. */
 export class EventClient {
   readonly net: GameClient;
@@ -16,10 +16,12 @@ export class EventClient {
   onReset: () => void = () => {};
   constructor(options: EventClientOptions) {
     this.schema = channelSchema(options.latest);
+    const age = options.stateMaxAgeMs ?? 100;
+    if (!Number.isFinite(age) || age < 0 || age > 30000) throw new RangeError('stateMaxAgeMs must be 0 to 30000');
     this.net = new GameClient(options);
     for (const [name, stream] of this.schema) {
       this.receivers.set(name, this.net.receiveState({
-        stream, reset: () => this.onReset(),
+        stream, maxExtrapolationMs: age, reset: () => this.onReset(),
         apply: state => {
           const data = decodeChannel(state.data), handler = this.handlers.get(name);
           if (data === undefined || !handler) return false;
