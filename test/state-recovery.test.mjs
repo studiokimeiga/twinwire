@@ -154,3 +154,33 @@ test('a reset callback that closes the client cannot be overwritten by the pendi
     await sleep(30); assert.equal(s.client.status, 'closed');
   } finally { await s.close(); }
 });
+
+test('a grouped snapshot receiver accepts its decoded family while rejecting unrelated world streams', async () => {
+  const s = await setup(); let applied = 0;
+  try {
+    const receiver = s.client.receiveState({ resume: 'retain',
+      apply: state => { if (state.stream < 16 || state.stream >= 1024 || state.data[0] !== 1) return false; applied++; return true; },
+    });
+    await s.connect(); await s.send(16, Uint8Array.of(1)); assert.equal(receiver.ready, true);
+    s.client.pause(); s.client.resume(); await until(() => s.client.status === 'online');
+    await s.send(1024, Uint8Array.of(1)); assert.equal(receiver.ready, false);
+    await s.send(18, Uint8Array.of(0)); assert.equal(receiver.ready, false);
+    await s.send(18, Uint8Array.of(1)); assert.equal(receiver.ready, true); assert.equal(applied, 2);
+  } finally { await s.close(); }
+});
+
+test('recovery can learn a slower network without first advancing the old playback cursor', async () => {
+  const s = await setup(); const playback = new AdaptivePlayback(20, 20, 400);
+  const receiver = s.client.receiveState({ stream: 0, playback, resume: 'retain', maxExtrapolationMs: 50, apply: () => true });
+  try {
+    await s.connect(); await s.send(0, Uint8Array.of(1)); const before = receiver.advance(16);
+    s.client.pause(); s.client.resume(); await until(() => s.client.status === 'online');
+    let after = null;
+    for (let i = 0; i < 30 && after === null; i++) {
+      await s.send(0, Uint8Array.of(1), 200);
+      after = receiver.advance(20); await sleep(20);
+    }
+    assert.notEqual(after, null, 'fresh snapshots must teach the delay policy even while replay is held');
+    assert.ok(after >= before, 'the retained cursor never rewinds'); assert.ok(playback.delayMs > 100);
+  } finally { await s.close(); }
+});

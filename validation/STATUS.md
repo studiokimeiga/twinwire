@@ -8,7 +8,7 @@ wire protocol 4 remain unchanged. It is not yet published or adopted by the live
 
 Fresh checks on Linux/WSL2, Node 22.21.1, node-datachannel 0.33.4 and Playwright 1.63.0:
 
-- `npm run check`: **134 tests pass**, no skips. Ten new real-WebSocket recovery tests cover retained replay,
+- `npm run check`: **136 tests pass**, no skips. Ten new real-WebSocket recovery tests cover retained replay,
   reset-on-resume, new sessions with numerically close clocks, unchanged idle entities, decoder/reset failures,
   future timestamps, callback reentrancy, receiver limits/disposal, grouped snapshot streams and a slower new route.
   The latter learns the new delay while holding its cursor. Targeted regressions were observed failing before their
