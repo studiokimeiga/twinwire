@@ -389,7 +389,7 @@ same local clock. This is client-side input timing, not a trusted timestamp.
 
 `replaySubtick(initial, transitions, tickMs, step, change?)` calls `step(held, dtMs, fromFraction, toFraction)`
 between transitions, `change(before, after, fraction)` at each edge, and returns the final held state.
-All fractions must be sorted in [0, 1); malformed input fails before any callback. The application defines
+All fractions must be sorted in [0, 1); malformed input fails before any callback. The validated event schedule is copied before callbacks, so a callback cannot rewrite later fractions. The application defines
 button meanings, physics, aim interpolation, and serialization (for example encode commands as the payload
 of `encodeInputs`). These helpers neither change Twinwire's wire format nor change the server tick rate.
 

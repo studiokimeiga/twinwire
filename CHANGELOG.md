@@ -4,7 +4,7 @@
 
 - Add optional `SubtickInputBuffer` and `replaySubtick` netcode helpers: capture monotonic client input edges into fixed-tick fractions and replay segments deterministically without changing simulation tick rate or the wire protocol. Queue bounds, skipped windows, nonmonotonic times and invalid fractions fail explicitly.
 - Add `selectRewindTime` for Source-style server-derived rewind-time validation. It falls back to a bounded server estimate when a client requests implausible history; game authority, trustworthy network-time estimation and hit verification remain application responsibilities.
-- Add dedicated edge/boundary/overflow/forged-time regressions and documentation. Existing transports, games and API defaults are unchanged.
+- Add dedicated edge/boundary/overflow/forged-time regressions and documentation. Freeze replay scheduling before invoking game callbacks; reject reentrant input cloning and arithmetic overflow in derived history bounds. Existing transports, games and API defaults are unchanged.
 
 
 ## 2.2.0 (2026-10-26)

@@ -22,6 +22,7 @@ export function selectRewindTime(
   if (![nowMs, expectedViewTimeMs, maxRewindMs, toleranceMs].every(Number.isFinite) ||
       maxRewindMs < 0 || toleranceMs < 0) throw new RangeError('Invalid rewind policy');
   const earliest = nowMs - maxRewindMs;
+  if (!Number.isFinite(earliest)) throw new RangeError('Invalid rewind interval');
   const expected = Math.min(nowMs, Math.max(earliest, expectedViewTimeMs));
   const fallback = (reason: ValidatedRewind['reason']): ValidatedRewind => ({ timeMs: expected, source: 'server', reason });
   if (requestedViewTimeMs === undefined) return fallback('missing');

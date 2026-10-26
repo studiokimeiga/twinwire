@@ -11,16 +11,20 @@ export class SubtickInputBuffer<T> {
   private queued: { atMs: number; value: T }[] = [];
   private lastEventMs = -Infinity;
   private consumedThroughMs = -Infinity;
+  private cloning = false;
   constructor(readonly capacity = 128, readonly clone: (value: T) => T = (v: T) => structuredClone(v)) {
     if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 4096) throw new RangeError('Invalid subtick capacity');
   }
   get pending() { return this.queued.length; }
   push(atMs: number, value: T): void {
+    if (this.cloning) throw new Error('Reentrant subtick clone');
     if (!Number.isFinite(atMs) || atMs < this.lastEventMs || atMs < this.consumedThroughMs)
       throw new RangeError('Nonmonotonic or already-consumed input time');
     if (this.queued.length >= this.capacity) throw new Error('Subtick input buffer full: resync required');
     // Snapshot input values so later mutations cannot change an already recorded command.
-    const copy = this.clone(value);
+    let copy: T;
+    this.cloning = true;
+    try { copy = this.clone(value); } finally { this.cloning = false; }
     this.queued.push({ atMs, value: copy });
     this.lastEventMs = atMs;
   }
@@ -59,14 +63,20 @@ export function replaySubtick<T>(
 ): T {
   if (!Number.isFinite(tickMs) || tickMs <= 0) throw new RangeError('Invalid tick duration');
   let previous = 0;
+  // Snapshot the schedule once. A game callback may mutate the original array,
+  // but must never change already-validated intervals during this replay.
+  const ordered: SubtickTransition<T>[] = [];
   for (const e of transitions) {
-    if (!e || !Number.isFinite(e.fraction) || e.fraction < previous || e.fraction >= 1)
+    if (!e) throw new RangeError('Invalid or unordered subtick transition');
+    const fraction = e.fraction;
+    if (!Number.isFinite(fraction) || fraction < previous || fraction >= 1)
       throw new RangeError('Invalid or unordered subtick transition');
-    previous = e.fraction;
+    ordered.push({ fraction, value: e.value });
+    previous = fraction;
   }
   let held = initial;
   let from = 0;
-  for (const e of transitions) {
+  for (const e of ordered) {
     if (e.fraction > from) step(held, (e.fraction - from) * tickMs, from, e.fraction);
     change(held, e.value, e.fraction);
     held = e.value;
