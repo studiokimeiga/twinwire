@@ -149,7 +149,8 @@ export class GameServer {
     ws.on('error', () => {});
     ws.on('close', () => this.disconnect(c));
     ws.on('message', (raw, binary) => {
-      if (!this.connections.has(c) || c.record && c.record.connection !== c) return;
+      // A takeover clears the old record before its sender receives the close. Retired frames cannot start another hello.
+      if (!this.connections.has(c) || (c.epoch > 0 && !c.record) || c.record && c.record.connection !== c) return;
       const now = performance.now(); c.lastSeen = now;
       if (!c.messages.take(1, now) || !c.bytes.take(raw.byteLength, now)) { this.stats.rateLimited++; ws.close(1008, 'rate'); return; }
       try {

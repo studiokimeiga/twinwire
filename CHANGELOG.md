@@ -6,6 +6,9 @@
   earlier recovered outage. Duplicate `rtc-reset` controls for an already-stopped attempt no longer increase that
   debt. This changes no wire bytes or application API. The native gate repeats three recoveries and injects duplicate
   resets; OS-level one-way UDP checks also retain their original failing observation and the candidate rerun.
+- Queued traffic on a socket retired by session takeover is ignored, including a repeated hello. It cannot reclaim
+  the player or produce misleading new protocol errors while its close is still in flight. Unauthenticated binary
+  traffic on a new connection remains rejected.
 
 ## 2.0.0 (2026-10-25)
 
