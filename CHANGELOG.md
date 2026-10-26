@@ -3,6 +3,8 @@
 
 ## 2.2.0 — unreleased
 
+- A closing browser socket now holds playback and reports recovery promptly. Heartbeat/handshake timeouts retire and generation-fence the old socket before retrying, so an offline close handshake cannot keep the client apparently online or suppress a resume. Late callbacks from the retired socket cannot end the new connection. A real-socket fault regression failed before this fix.
+
 - Added named EventClient/createEventServer helpers for migrating existing games. Configured names are independent latest-wins JSON streams with recovery gates; other names are acknowledged events. Handlers, player identity and room membership survive a physical reconnect. Pauses and terminal session expiry have distinct callbacks.
 - Added twinwire/worker, a standard-WebSocket SocketSessionServer for a long-lived Worker or Durable Object instance. It shares the core wire protocol, GameSession and delivery engine with the Node host. It has exact origin policy, bounded admission/rate limits, authentication revalidation, token/room/subject binding, takeover fencing, heartbeat/handshake timeouts and session expiry. It provides no native RTC, durable transport storage or hibernation restoration.
 - New channel/Worker integration tests cover recovery, offline event replay, latest-state readiness, private room broadcast, explicit expiry, takeover and auth revalidation. The auto-connect helper cannot resurrect a client closed during its creation task.
