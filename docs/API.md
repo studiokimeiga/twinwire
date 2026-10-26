@@ -4,7 +4,7 @@ All modules are ESM with TypeScript declarations.
 
 | Import | For |
 |---|---|
-| `twinwire/client` | Browser: `GameClient`, `LobbyClient`, `BrowserRtcPeer` |
+| `twinwire/client` | Browser: `GameClient`, `LobbyClient`, `StateReceiver`, `BrowserRtcPeer` |
 | `twinwire/server` | Node: `createGameServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `turnCredentials`, `cloudflareTurn` |
 | `twinwire/netcode` | Both: clock, interpolation, prediction, timing, snapshots, replication, codecs, spatial |
 | `twinwire` | Both: the wire protocol and `Endpoint` |
@@ -36,6 +36,7 @@ const client = new GameClient({
 | `onEvent(data, seq)` | Each event exactly once, in order, whichever path brought it first. |
 | `sendState(stream, bytes, {ttlMs, priority, ack}?)` | Latest wins per stream (0 to 65535). Returns the seq, or 0 before the session is online and the clock synced. Up to `maxStateBytes` (64 KiB). |
 | `onState({stream,seq,time,data,via,late})` | Newer than anything seen on that stream this connection (or, with `endpoint.lateStates: 'deliver'`, an overtaken one not seen before, `late: true`). `time` is the sender's server-clock estimate: never trust it for authority. |
+| `receiveState({stream, apply, reset?, playback?, resume?, maxExtrapolationMs?})` | Register a session-aware snapshot receiver. Its `ready` and `advance(dtMs)` wait for usable fresh state after every connect/resume. See below. |
 | `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer has seen. |
 | `iceServers` | What the server suggested in its welcome. |
 | `clock` | `synced`, `rttMs`, `uncertaintyMs`, `serverTime(performance.now())`. |
@@ -168,6 +169,79 @@ goes once the bucket is full). `maxBufferedBytes` (64 KiB): socket backpressure.
 maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 256 KiB waiting for a gap). `lateStates`
 (`'drop'`): `'deliver'` passes on an overtaken state once, within the last 32 of its stream, with `late: true`. `impair`. Both ends should agree on `maxStateBytes`.
 
+## Snapshot recovery
+
+`online` means a session is attached, not that its game state has recovered. A resumed session deliberately retains
+its clock estimate; that estimate cannot tell whether new world data has arrived. Prefer a `StateReceiver` over
+handwritten reconnect flags:
+
+```js
+const playback = new AdaptivePlayback(1000 / 30);
+const timeline = new Timeline();
+const snapshots = client.receiveState({
+  stream: 0, playback, maxExtrapolationMs: 100,
+  reset: () => timeline.clear(),
+  apply: state => {
+    const world = decodeSnapshot(state.data);
+    if (!world) return false; // also false for a delta whose base is missing
+    timeline.insert({ time: state.time, seq: world.tick, value: world });
+    if (client.clock.synced) playback.observe(client.clock.serverTime(performance.now()), state.time);
+    return true;
+  },
+});
+function frame(dtMs) {
+  const at = snapshots.advance(dtMs);
+  if (at !== null) {
+    const state = timeline.sample(at, interpolateWorld);
+    if (state) draw(state.value);
+  }
+  // null: keep the last drawn view. Input sending and reliable events remain independent.
+}
+```
+
+The default **`resume: 'reset'`** resets the supplied playback and calls `reset()` before application `onSession`
+callbacks, on both new and resumed sessions. Register application-owned snapshot/delta histories in that callback.
+**`resume: 'retain'`** keeps same-session histories and the playback policy, while still holding until fresh data;
+new sessions always reset. A game that retains history need not maintain a second reconnect/freshness flag.
+
+`apply` is synchronous and returns **true only for usable decoded state**. False, an omitted return, or an exception
+cannot mark recovery ready. Exceptions reach `client.onError` without stopping raw `onState` observers. A failed
+reset fails closed until a later successful reset. Do not also apply the same state in `onState`.
+
+`ready` requires online transport, clock sync, and accepted state on the selected stream in the current connection.
+The state header time must be within the supplied playback's delay plus `maxExtrapolationMs` (default 100 ms), and
+not implausibly in the future relative to the clock uncertainty. Queued old state, unrelated streams, events and
+rejected deltas cannot release it. A current header with unchanged/idle entities can. The timestamp describes the
+snapshot on the server clock; an application must not repackage stale world data as a fresh snapshot. Epoch filtering
+happens before `apply`. Freshness is checked continuously. Ordinary loss inside the configured delay/prediction budget
+remains usable; if generation age exceeds that budget, `ready` becomes false and `advance` holds the cursor until
+usable current data arrives. A busy socket carrying an old backlog cannot advance the declared replay time. The hold
+retains histories and does not reset the session or block outbound input/events. Present-position staleness and
+replay age can still grow during a hold: this does not reconstruct missing movement or reduce transport latency.
+
+`advance(dtMs)` needs the supplied `playback`; it returns a render time or null and never advances its cursor while
+recovering. Usable snapshot headers within the configured delay/prediction budget teach the delay policy during
+recovery; the policy adapts even while the cursor is held, so a slower new route does not deadlock against the old
+route's smaller buffer. States too old for even the maximum configured delay do not inflate that recovery estimate.
+The game continues its own steady-state observations after recovery. A game with its own frame clock can use `ready`
+instead, keeping its frame conversion and simulation.
+There is one receiver per stream plus one filtered receiver for grouped streams, at most `endpoint.maxStreams`
+(default 1024) total per client. Omit `stream` for a snapshot family split across several streams; `apply` must return
+false for unrelated kinds/streams. One decoded family snapshot then releases that receiver, matching a shared
+playback clock; it does not prove every independently replicated entity is fresh. Use separate receivers for worlds
+whose recovery must be independent. Exact and filtered receivers can coexist; do not apply a payload twice. A latest-wins group packet must preserve every member whose current state that packet certifies: a partial
+update can replace a pending update for a different member. Send complete current groups, retaining each entity's
+accepted timestamp, or use independent streams/receivers for independent state. Partial reliable history can still
+repair timelines without certifying whole-group freshness. A game may resample newly accepted history at its retained
+render time during a hold; it must not advance that time until the receiver is ready.
+`dispose()` removes a receiver and
+permanently makes it unready. A receiver registered after connection starts its own recovery; use its reset callback
+to clear any pre-existing application histories. It has no timers or sockets of its own.
+
+This manages connection recovery, not game authority. Games still decode/validate their data, obtain a full snapshot
+when a delta base is absent, and define teleports, collision, input replay and persistence. Raw `onState` and
+`AdaptivePlayback` remain available for adapters that own their complete lifecycle.
+
 ## Netcode
 
 **Clock and timing.** `NetworkClock` (the client has one). `FixedStepper(hz, maxCatchUp)` runs a fixed simulation
@@ -190,8 +264,11 @@ For wall-clock time (a time of day), add `performance.timeOrigin` on the server 
 kept through a dropped connection (a resumed session talks to the same process, so the same clock) and starts over with
 a new session (`onSession` with `resumed: false`, which is also what a restarted server gives). Until the first sync,
 `clock.synced` is false and `serverTime()` is the page's own time: hold playback until synced, and reset your
-playback (`playback.reset()`, the timelines) in `onSession` when `resumed` is false. `AdaptivePlayback` also starts over
+playback (`playback.reset()`, the timelines) in `onSession` when `resumed` is false. `receiveState` handles this lifecycle
+and the fresh-data gate when given a playback and a reset callback. `AdaptivePlayback` also starts over
 by itself if the clock jumps back by more than a second, rather than freezing until the new clock catches up.
+`AdaptivePlayback.updateDelay(dtMs)` updates only the delay policy without moving the cursor; `advance` normally does
+both. `StateReceiver.advance` uses that separation during recovery, with one adaptation per render frame.
 
 **Prediction.** `Predictor(initial, step, dt)`: `push(input)` predicts, `recent(n)` for redundant sends
 (`encodeInputs`), `reconcile({ack, tick, state})` replays what the server hasn't applied. The server feeds

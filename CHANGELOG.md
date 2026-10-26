@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 (2026-10-26)
+
+- Snapshot generation age is checked continuously, including while the transport stays online. Old payloads in a
+  receive backlog cannot keep advancing remote replay after its delay/prediction budget is exhausted. This holds
+  the declared playback time and retains histories; it does not invent missing movement or hide present-position lag.
+
+- `GameClient.receiveState` / `StateReceiver`: shared reconnect recovery for authoritative snapshot streams. It
+  resets or retains application histories by policy, holds playback through offline and online-without-fresh-data
+  phases, and accepts recovery only after a usable current-connection snapshot on the selected stream. New sessions
+  always reset. Idle snapshot headers can release recovery; rejected deltas, queued old state and unrelated streams
+  cannot. Raw callbacks and wire protocol 4 are unchanged. The party example uses the shared receiver.
+- `AdaptivePlayback.updateDelay(dtMs)` separates delay adaptation from cursor movement. The receiver learns valid
+  recovery-header lateness while holding its cursor, so a slower new route can recover without advancing old state.
 
 - A proven RTC recovery now clears retry backoff, so an intermittent network outage does not inherit debt from an
   earlier recovered outage. Duplicate `rtc-reset` controls for an already-stopped attempt no longer increase that

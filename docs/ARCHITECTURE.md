@@ -34,6 +34,12 @@ The application owns authority. The library can't decide whether a position, hit
 
 A second tab resuming the same token takes the session over; the first reports session loss rather than fighting.
 
+Transport readiness and world readiness are separate. `GameClient.receiveState` owns the recovery gate for a selected
+snapshot stream: disconnect invalidates readiness; a welcome resets or retains application histories by policy;
+only a usable, sufficiently recent current-connection snapshot releases playback. The clock estimate is retained
+on resume, not used as evidence of fresh world state. Applications provide their decoder and history reset, while
+the receiver centralizes the lifecycle. Reliable events and outbound input do not wait behind remote playback.
+
 ## Wire protocol (version 4)
 
 Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (4) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).

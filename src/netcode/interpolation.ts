@@ -83,8 +83,9 @@ export class AdaptivePlayback {
     const i = Math.min(this.buckets.length - 1, Math.floor(Math.max(0, late) / AdaptivePlayback.BUCKET_MS));
     this.buckets[i]! += w; this.total += w;
   }
-  advance(serverNow: number, dtMs: number): number {
-    if (!Number.isFinite(serverNow) || !Number.isFinite(dtMs) || dtMs < 0) throw new RangeError('Invalid clock');
+  /** Update the jitter-delay policy without moving the playback cursor (for recovery while waiting for fresh data). */
+  updateDelay(dtMs: number): void {
+    if (!Number.isFinite(dtMs) || dtMs < 0) throw new RangeError('Invalid time step');
     if (this.total > 0) {
       const goal = this.total * this.percentile; let sum = 0, i = 0;
       for (; i < this.buckets.length - 1; i++) { sum += this.buckets[i]!; if (sum >= goal) break; }
@@ -93,6 +94,10 @@ export class AdaptivePlayback {
       const rate = target > this.delayMs ? 8 : 0.5;
       this.delayMs += (target - this.delayMs) * (1 - Math.exp(-rate * dtMs / 1000));
     }
+  }
+  advance(serverNow: number, dtMs: number): number {
+    if (!Number.isFinite(serverNow) || !Number.isFinite(dtMs) || dtMs < 0) throw new RangeError('Invalid clock');
+    this.updateDelay(dtMs);
     // never backwards (a growing delay holds instead), unless the clock itself jumped far back (a new server, a reset
     // clock): then start over from there rather than freeze until the new clock passes the old one
     const want = serverNow - this.delayMs;

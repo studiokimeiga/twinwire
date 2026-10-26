@@ -4,6 +4,7 @@ import { isUint, readControl, stringify, utf8Length, VERSION, type Json, type Js
 import { validIceServers, validSignal, type IceServer } from '../core/rtc.js';
 import { NetworkClock } from '../netcode/clock.js';
 import { BrowserRtcPeer } from './rtc.js';
+import { StateReceiver, type StateReceiverOptions } from './state.js';
 export type ClientStatus = 'idle' | 'connecting' | 'online' | 'paused' | 'closed' | 'lost';
 export type Transport = 'rtc' | 'ws' | 'none';
 export interface ClientCheckpoint { url: string; room: string; token: string; id: string; events: ReliableCheckpoint }
@@ -72,6 +73,7 @@ export class GameClient {
   private waiters: { resolve: () => void; reject: (e: Error) => void }[] = [];
   private lifecycle?: () => void;
   private interceptors: ((data: Json, seq: number) => boolean)[] = [];
+  private stateReceivers = new Map<number | undefined, StateReceiver>();
   private listeners: { session: ((info: { id: string; resumed: boolean }) => void)[]; lost: ((info: { pendingEvents: number; reason: string }) => void)[] } = { session: [], lost: [] };
   constructor(readonly options: ClientOptions) {
     const u = new URL(options.url);
@@ -86,7 +88,13 @@ export class GameClient {
   }
   private makeEndpoint(): Endpoint {
     const e = new Endpoint({ ...this.options.endpoint, impair: this.options.impair ?? this.options.endpoint?.impair });
-    e.onState = s => this.onState(s);
+    e.onState = s => {
+      const receiver = this.stateReceivers.get(s.stream);
+      if (receiver) try { receiver.receive(s); } catch (error) { this.report(error); }
+      const grouped = this.stateReceivers.get(undefined);
+      if (grouped) try { grouped.receive(s); } catch (error) { this.report(error); }
+      this.onState(s);
+    };
     e.onEvent = (d, s) => { for (const f of this.interceptors) if (f(d, s)) return; this.onEvent(d, s); };
     e.onStateAck = (stream, seq) => this.onStateAck(stream, seq);
     e.onCallbackError = error => this.report(error);
@@ -97,6 +105,24 @@ export class GameClient {
   /** Consume some events before onEvent sees them (return true to consume). Used by LobbyClient. Returns removal. */
   intercept(fn: (data: Json, seq: number) => boolean): () => void {
     this.interceptors.push(fn); return () => { const i = this.interceptors.indexOf(fn); if (i >= 0) this.interceptors.splice(i, 1); };
+  }
+  /** Own recovery for an authoritative snapshot stream. Decode/apply only usable state; let the receiver hold
+   * playback until fresh data arrives. One receiver per stream plus one filtered receiver for grouped streams,
+   * bounded by endpoint.maxStreams (default 1024).
+   * onState remains an observer of all incoming states. Dispose the receiver when its room/world is discarded. */
+  receiveState(options: StateReceiverOptions): StateReceiver {
+    const stream = options.stream;
+    if (this.stateReceivers.has(stream)) throw new Error('Snapshot stream already has a receiver');
+    if (this.stateReceivers.size >= (this.options.endpoint?.maxStreams ?? 1024)) throw new RangeError('Too many state receivers');
+    const receiver = new StateReceiver({
+      connected: () => this.status === 'online' && this.endpoint.active, generation: () => this.generation,
+      now: () => this.clock.synced ? this.clock.serverTime(performance.now()) : null,
+      tolerance: () => Math.max(1, this.clock.uncertaintyMs),
+      remove: () => { if (this.stateReceivers.get(stream) === receiver) this.stateReceivers.delete(stream); },
+    }, options);
+    this.stateReceivers.set(stream, receiver);
+    if (this.status === 'online') try { receiver.session(false); } catch (error) { this.report(error); }
+    return receiver;
   }
   /** Extra listeners next to onSession/onSessionLost. Returns removal. */
   on<K extends 'session' | 'lost'>(kind: K, fn: GameClient['listeners'][K][number]): () => void {
@@ -117,6 +143,7 @@ export class GameClient {
   private report(error: unknown) { this.onError(error instanceof Error ? error : new Error(String(error))); }
   private setStatus(s: ClientStatus) {
     if (s === this.status) return;
+    if (s !== 'online') for (const receiver of this.stateReceivers.values()) receiver.disconnect();
     this.status = s; this.onStatus(s); this.noteTransport();
     if (s === 'online') for (const w of this.waiters.splice(0)) w.resolve();
     else if (s === 'lost' || s === 'closed') for (const w of this.waiters.splice(0)) w.reject(new Error(`Session ${s}`));
@@ -182,6 +209,7 @@ export class GameClient {
       if (this.status !== 'connecting' || !isUint(m.e, 0xffff) || !m.e || typeof m.b !== 'number' || !Number.isFinite(m.b) || typeof m.id !== 'string' ||
           typeof m.token !== 'string' || !/^[\w-]{20,128}$/.test(m.token) || typeof m.resumed !== 'boolean' || m.v !== VERSION)
         throw new Error('Invalid welcome');
+      const generation = this.generation;
       this.token = m.token; this.id = m.id; this.epoch = m.e; this.reconnects = 0; this.serverRtc = m.rtc === true;
       this.iceServers = validIceServers(m.ice) ? m.ice : [];
       this.endpoint.attach(this.epoch, {
@@ -192,6 +220,8 @@ export class GameClient {
       // a new session may be a new server (restarted, so a new clock): start the estimate over; a resumed one keeps it.
       // Either way a burst of pings, for whatever the network is now.
       if (!m.resumed) this.clock.reset();
+      for (const receiver of this.stateReceivers.values()) try { receiver.session(m.resumed); } catch (error) { this.report(error); }
+      if (this.stopped || this.generation !== generation) return; // a reset callback may leave or start a new session
       this.lastPing = -Infinity; this.burstLeft = this.options.syncPings ?? 8; this.setStatus('online');
       const info = { id: this.id, resumed: m.resumed };
       for (const f of this.listeners.session) try { f(info); } catch (e) { this.report(e); }

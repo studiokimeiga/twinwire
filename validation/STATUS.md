@@ -1,6 +1,72 @@
-# Validation status: 2.0.0 (2026-10-25)
+# Validation status: 2.1.0 (2026-10-26)
 
-## Unreleased: recovered RTC paths clear retry debt
+## Combined release validation
+
+The combined runtime at `10fd59ce6bf07d204b696866da697385ffea212c` passes the 2.1.0 release gates.
+It includes shared snapshot recovery, continuous online generation-age checks, proven-RTC retry reset and retired-socket
+takeover protection. Wire protocol 4 is unchanged. The final documentation update changes no runtime or generated code.
+
+- `npm run check`: **138 tests pass**, including eleven real-WebSocket receiver regressions. The continuous old-payload
+  backlog regression was observed failing before its fix. Decoder/reset failure, grouped-stream isolation, new-session
+  clock reset, callback generation changes, retained histories, unchanged idle headers and slower-route recovery pass.
+- `npm run test:native`: real RTC, fallback and three repeated recoveries pass; retry offers after proven recovery take
+  **265.6 / 252.3 / 255.3 ms** for the configured 250 ms base. Duplicate resets do not accumulate retry debt.
+- Hosted Node 22 and 24 core checks pass. Chromium, Firefox and WebKit pass normal, impaired and forced-WebSocket
+  browser runs plus the party example on both wires. See [final combined run](https://github.com/studiokimeiga/twinwire/actions/runs/40270623290)
+  and [ten-minute PR gate](https://github.com/studiokimeiga/twinwire/actions/runs/40270573636).
+- Two independent **60-minute** public GitHub-runner lifecycle/hostile-client soaks pass on the final runtime, with
+  48 honest and 6 hostile clients per process. Their raw logs and context/source hashes are retained as run artifacts.
+
+| Node | Honest lives | Events sent | States relayed | Mid / late heap median | Worst event-loop p99 |
+|---|---:|---:|---:|---:|---:|
+| v22.23.3 | 8,851 | 567,850 | 6,176,112 | 9.63 / 10.54 MB | 11.9 ms |
+| v24.21.0 | 8,775 | 564,969 | 6,089,926 | 10.01 / 10.93 MB | 11.8 ms |
+
+Both soaks report zero lost/duplicated/reordered echoes in sessions that lived, every honest life online, heap within
+the declared stability budget, and no unexpected server errors. Sessions deliberately paused beyond grace can lose
+their unacknowledged events. Forged/garbage/oversized/flood traffic creates expected protocol rejections. At drain,
+both report **zero sessions, connections, rooms, timers and sockets**. These shared-runner results are lifecycle and
+correctness evidence, not independent-machine throughput or physical mobile/radio measurements.
+
+The earlier combined runtime also passed two 60-minute soaks in
+[run40267973742](https://github.com/studiokimeiga/twinwire/actions/runs/40267973742); that evidence is preserved separately.
+OS namespace UDP-blackhole checks on that combined transport code pass repeat fallback/recovery and 183 once-only
+ordered actions with identity/seat retained; the 12 payload/resume/expiry/takeover cases pass with 77 ordered actions.
+The subsequent change is confined to the receiver's continuous freshness policy and its regression/documentation.
+
+Game acceptance is recorded in the game repositories and deployment receipts: CS2's 27-shot wire fixture and two
+30-minute RTC/WS soaks pass; Nocturne's smoke, eight multiplayer suites and 30-minute RTC/WS drop/pause soak pass.
+Kimu's complete-group server correction has separate game regressions and timed verification. A receiver cannot
+reconstruct entity records a game server omitted. Game deployments remain a separate paired acceptance step.
+Publication is performed by the version-tag trusted-publisher workflow after these checks.
+
+## Prior independent snapshot-recovery validation
+
+The working addition provides `GameClient.receiveState` / `StateReceiver`, with default reset-on-resume or retained
+same-session history, and a usable/fresh-state gate independent of connection and clock readiness. Raw APIs and
+wire protocol 4 remain unchanged. It is not yet published or adopted by the live games.
+
+Fresh checks on Linux/WSL2, Node 22.21.1, node-datachannel 0.33.4 and Playwright 1.63.0:
+
+- `npm run check`: **136 tests pass**, no skips. Ten new real-WebSocket recovery tests cover retained replay,
+  reset-on-resume, new sessions with numerically close clocks, unchanged idle entities, decoder/reset failures,
+  future timestamps, callback reentrancy, receiver limits/disposal, grouped snapshot streams and a slower new route.
+  The latter learns the new delay while holding its cursor. Targeted regressions were observed failing before their
+  corresponding fixes; a reset callback that closes the client also exposed and now prevents a pending welcome
+  from overriding that close.
+- `npm run test:native`: real datagrams, WebSocket fallback, RTC recovery and the same session pass.
+- Browser tests: Chromium 153.0.8010.12, Firefox 155.0 and WebKit 26.6 pass normally, with 40 ms one-way delay,
+  20 ms jitter and 5% loss on each endpoint, and with RTC disabled. Normal runs receive 60/60 states on RTC;
+  impaired runs receive 51/53/51 latest-wins states. Reliable events, same session/seat and RTC after resume pass.
+- The party example now uses the shared receiver. All three engines pass over WebSocket and RTC: movement,
+  prediction agreement, chat and a same-session/seat resume with fresh usable state. No page errors were recorded.
+
+These checks establish the helper's lifecycle contract, not a long hostile soak using the new helper, physical
+mobile/radio coverage, or automatic understanding of game physics/delta formats. Current production identities
+below refer to the separately deployed 2.0.0 applications. The separately coordinated kimu stop-loss fix/soak is
+not part of this library's source or evidence.
+
+## Prior independent RTC/takeover validation
 
 An isolated real-Chromium/native-RTC test used Linux network namespaces and port-specific INPUT/OUTPUT UDP drops,
 with WSS still available through a local TLS proxy. Published 2.0.0 fell back in 1.44–1.48 s with identity, seat and
@@ -29,6 +95,8 @@ Chromium/TLS suite passes all nine payload-size boundaries plus within-grace res
 takeover, with 76 ordered once-only actions and no page/client/server errors. Clients leave zero sessions and members;
 empty lobby objects retain their configured 30-second expiry until the staging server is stopped.
 
+## Published 2.0.0 evidence
+
 Run on Linux (WSL2, x86-64), Node 22.21.1, node-datachannel 0.33.4, Playwright 1.63.0.
 
 | Check | Result |
@@ -42,7 +110,7 @@ Run on Linux (WSL2, x86-64), Node 22.21.1, node-datachannel 0.33.4, Playwright 1
 | `npm run bench -- --clients 50 --seconds 5` | 50 WebSocket clients at 20 Hz, 8 recipients each: 39,600 deliveries, no errors, event-loop p99 11.24 ms (2.0.0 rerun, 2026-10-25 18:54 Eastern) (server and clients in one process). |
 | `npm run soak -- --minutes 10 --clients 48 --hostile 6` | PASS: a Lobby server with 48 clients living short lives (states at 20 Hz, echoed events, a clean close, a killed socket, pauses shorter and longer than the resume grace, room changes, garbage on a live socket) and 6 hostile clients (random bytes and text, 2 MB frames, floods, forged resumes, deep JSON, idle sockets, connection bursts). 1,507 client lives, 93,452 events sent and none lost, duplicated or reordered in a session that lived (the 109 not echoed belong to sessions deliberately paused past the grace); 1.01 million states relayed; heap 10.1 MB mid-run, 9.2 MB late; event-loop p99 at most 11.1 ms; every session, connection, room and timer gone afterwards. (1.1.0 also passed a 15-minute run.) |
 | `npm audit` | 0 vulnerabilities (the only runtime dependency is `ws`). |
-| Production (1.x) | Nocturne Keep (nocturnekeep.com) runs on 1.x, not yet 2.0 (protocol 4 needs its server and client upgraded together): its seven multi-browser suites and a live check of the public site in Chromium and WebKit pass, over WebRTC to a 1-vCPU server. |
+| Production (2.0.0, 2026-10-25) | Nocturne Keep and kimu.nyc have deployed matching client/server pairs on wire 4. Public client files match their built releases, and server health/source identities were checked. Live RTC and forced-WebSocket clients retained player identity and received fresh state after explicit session resumes, with no page errors. Nocturne's smoke plus seven multiplayer suites passed; kimu's combined source passed 139 game and 11 deployment tests. CS2 also deployed its post-lag-compensation-fix source with live RTC/WS gameplay and same-player recovery checks. These applications still use their tested 2.0 adapters; the unreleased shared receiver is not deployed. [Nocturne adoption](https://github.com/Kimeiga/nocturne-keep/pull/8), [kimu adoption](https://github.com/Kimeiga/kimu-nyc/pull/3), [CS2 adoption](https://github.com/Kimeiga/cs2-ag2-browser/pull/5). |
 | A 50-player shared world (kimu.nyc, Twinwire 1.1) | Its bots harness: 50 clients and the room server on one machine, the network emulated both ways (one-way delay plus jitter, per-packet loss, and on the WebSocket a TCP stall per loss), interleaved runs, 2 reps x 6 windows. Delay / error p99 / error max of one player's replay of the other 49, against kimu's own hand-built stack (old). **5G WebRTC** old 106-116 ms / 0.6-0.9 cm / 3-16 cm, Twinwire 1.1 113-119 ms / 0.2 cm / 2-21 cm. **5G WebSocket** old 109-126 / 0.4-0.5 / 3-18, 1.1 116-135 / 0.2 / 3-11. **Congested cell WebRTC** old 178-189 / 0.5-11 / 4-60, 1.1 177-189 / 0.2-3.8 / 5-52. **Congested cell WebSocket** old 290-338 / 0.8-3.6 / 13-39, 1.1 311-343 / 0.5-4.5 / 9-59. (1.1 = `lateStates: 'deliver'` and `AdaptivePlayback`, no workarounds.) Clock offset spread across the 50 clients: 7-11 ms (1.0: 20-27 ms; kimu's old sync: 11-18 ms). The 5G delay difference traces to 50 clients sharing one Node event loop in the harness (p99 22 ms vs 18 ms), not the wire. |
 | Physical iPhone on cellular | Not run here. WebKit in Playwright is Safari's engine on Linux, not iOS Safari on a phone radio. |
 
