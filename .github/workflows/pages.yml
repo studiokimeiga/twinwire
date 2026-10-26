@@ -5,7 +5,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ['website/**', 'src/**', '.github/workflows/pages.yml']
+    paths: ['website/**', 'examples/starter/**', 'package.json', 'src/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,9 +27,13 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm run build
+      - run: npm ci --prefix examples/starter
       - run: npm ci
         working-directory: website
       - run: npm run build
+        working-directory: website
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
         working-directory: website
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

@@ -3,6 +3,7 @@
 const fill = (n: number) => globalThis.crypto.getRandomValues(new Uint8Array(n));
 
 class Bytes extends Uint8Array {
+  readUInt16LE(at: number) { return new DataView(this.buffer, this.byteOffset, this.byteLength).getUint16(at, true); }
   readUInt32LE(at: number) { return new DataView(this.buffer, this.byteOffset, this.byteLength).getUint32(at, true); }
   override toString(encoding?: string): string {
     if (encoding === 'hex') return Array.from(this, b => b.toString(16).padStart(2, '0')).join('');

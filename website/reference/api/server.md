@@ -2,6 +2,8 @@
 
 Node 22 or newer. The room server: sessions, the lobby, WebRTC, and TURN credentials.
 
+For `createEventServer`, see [named channels](/reference/api/channels).
+
 ## createGameServer
 
 ```ts
