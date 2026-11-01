@@ -76,9 +76,12 @@ test('server-valid rewind accepts near expected time and denies stale/future cla
   assert.deepEqual(selectRewindTime(NaN,1000,900,200,20),{timeMs:900,source:'server',reason:'invalid'});
 });
 test('server expected rewind is bounded even if expected history is older than retained',()=>{
-  assert.deepEqual(selectRewindTime(undefined,1000,0,200,5),{timeMs:800,source:'server',reason:'missing'});
-  assert.deepEqual(selectRewindTime(800,1000,0,200,5),{timeMs:800,source:'client',reason:'accepted'});
-  assert.deepEqual(selectRewindTime(undefined,1000,1200,200,5),{timeMs:1000,source:'server',reason:'missing'});
+  assert.deepEqual(selectRewindTime(undefined,1000,0,200,5),{timeMs:null,source:'none',reason:'expected-outside-window'});
+  assert.deepEqual(selectRewindTime(800,1000,0,200,5),{timeMs:null,source:'none',reason:'expected-outside-window'});
+  assert.deepEqual(selectRewindTime(undefined,1000,1200,200,5),{timeMs:null,source:'none',reason:'expected-outside-window'});
+  assert.deepEqual(selectRewindTime(1000,1000,1100,200,5),{timeMs:null,source:'none',reason:'expected-outside-window'});
+  assert.deepEqual(selectRewindTime(800,1000,800,200,0),{timeMs:800,source:'client',reason:'accepted'});
+  assert.deepEqual(selectRewindTime(undefined,1000,800,200,0),{timeMs:800,source:'server',reason:'missing'});
   assert.throws(()=>selectRewindTime(800,1000,900,-1,0),RangeError);
   assert.throws(()=>selectRewindTime(800,1000,900,200,NaN),RangeError);
 });
@@ -185,5 +188,77 @@ test('cloner cannot drain or clear existing inputs reentrantly', () => {
     assert.throws(() => q.push(1, 'bad'), /Reentrant subtick clone/);
     assert.equal(q.pending, 1);
     assert.deepEqual(q.take(0, 2), [{ fraction: 0, value: 'good' }]);
+  }
+});
+
+test('server estimate outside history never validates a client time or invents a hit timestamp', () => {
+  for (const expected of [0, 799.999, 1000.001, 1100]) {
+    for (const requested of [undefined, 800, 900, 1000, NaN, Infinity]) {
+      assert.deepEqual(selectRewindTime(requested, 1000, expected, 200, 100000), {
+        timeMs: null, source: 'none', reason: 'expected-outside-window',
+      });
+    }
+  }
+  assert.deepEqual(selectRewindTime(800,1000,800,200,0),{timeMs:800,source:'client',reason:'accepted'});
+  assert.deepEqual(selectRewindTime(1000,1000,1000,200,0),{timeMs:1000,source:'client',reason:'accepted'});
+  assert.deepEqual(selectRewindTime(799.9,1000,800,200,1),{timeMs:800,source:'server',reason:'outside-window'});
+});
+
+test('replay snapshots future object values before callbacks mutate the original events', () => {
+  const transitions = [{fraction:.25,value:{buttons:1}},{fraction:.75,value:{buttons:2}}];
+  const steps = [], edges = [];
+  const last = replaySubtick({buttons:0}, transitions, 16,
+    (held, dt) => steps.push([held.buttons,dt]),
+    (_before,after,fraction) => {
+      edges.push([fraction,after.buttons]);
+      if (fraction === .25) transitions[1].value.buttons = 255;
+    });
+  assert.deepEqual(steps.map(x=>x[0]), [0,1,2]);
+  assert.deepEqual(edges, [[.25,1],[.75,2]]);
+  assert.deepEqual(last,{buttons:2});
+  assert.equal(transitions[1].value.buttons,255);
+});
+
+test('replay isolates aliased event objects and clones initial state', () => {
+  const shared={buttons:1}, initial={buttons:0};
+  const events=[{fraction:.25,value:shared},{fraction:.75,value:shared}];
+  const trace=[];
+  const final=replaySubtick(initial,events,16,
+    (held,dt)=>trace.push([held.buttons,dt]),
+    (_before,after,fraction)=>{if(fraction===.25){shared.buttons=200;initial.buttons=201;after.buttons=9;}});
+  assert.deepEqual(trace.map(x=>x[0]),[0,9,1]);
+  assert.deepEqual(final,{buttons:1});
+});
+
+test('all event cloning completes before any replay callback and fails atomically',()=>{
+  const input=[{fraction:.25,value:{ok:true}},{fraction:.75,value:{bad:()=>true}}];
+  let calls=0;
+  assert.throws(()=>replaySubtick({ok:true},input,16,()=>calls++,()=>calls++),/clone|function/i);
+  assert.equal(calls,0);
+});
+
+test('optional custom cloning supports non-structured-cloneable inputs',()=>{
+  const a={buttons:0, fn:()=>0}, b={buttons:1, fn:()=>1};
+  const seen=[];
+  const final=replaySubtick(a,[{fraction:.5,value:b}],16,
+    (held,dt)=>seen.push([held.buttons,dt]),
+    ()=>{}, v=>({...v}));
+  assert.deepEqual(seen,[[0,8],[1,8]]);
+  assert.notEqual(final,b);
+  assert.equal(final.fn(),1);
+});
+
+test('rewind selection never accepts a value inconsistent with independently expected time',()=>{
+  let seed=0x15a77600;
+  const rnd=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return (seed>>>0)/4294967296};
+  for(let i=0;i<10000;i++){
+    const now=1000+rnd()*100000, max=1+rnd()*1000, expected=now-(rnd()*2-.5)*max*2;
+    const request=now-rnd()*max, tolerance=rnd()*50;
+    const result=selectRewindTime(request,now,expected,max,tolerance);
+    const inside=expected>=now-max&&expected<=now;
+    if(!inside){assert.deepEqual(result,{timeMs:null,source:'none',reason:'expected-outside-window'});continue;}
+    assert.ok(result.timeMs>=now-max&&result.timeMs<=now);
+    if(result.source==='client') assert.ok(Math.abs(result.timeMs-expected)<=tolerance+1e-9);
+    else assert.equal(result.timeMs,expected);
   }
 });

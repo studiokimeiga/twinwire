@@ -387,17 +387,27 @@ rejects nonmonotonic timestamps and refuses to silently shift old events after a
 Call `reset()` on a deliberate simulation discontinuity. DOM `event.timeStamp` and tick boundaries must use the
 same local clock. This is client-side input timing, not a trusted timestamp.
 
-`replaySubtick(initial, transitions, tickMs, step, change?)` calls `step(held, dtMs, fromFraction, toFraction)`
-between transitions, `change(before, after, fraction)` at each edge, and returns the final held state.
-All fractions must be sorted in [0, 1); malformed input fails before any callback. The validated event schedule is copied before callbacks, so a callback cannot rewrite later fractions. The application defines
-button meanings, physics, aim interpolation, and serialization (for example encode commands as the payload
-of `encodeInputs`). These helpers neither change Twinwire's wire format nor change the server tick rate.
+`replaySubtick(initial, transitions, tickMs, step, change?, clone?)` calls
+`step(held, dtMs, fromFraction, toFraction)` between transitions and
+`change(before, after, fraction)` at each edge; it returns the final held value.
+All fractions must be ordered within [0, 1). The full schedule and input values are cloned
+**before** callbacks run (default `structuredClone`), so callbacks cannot rewrite future events
+through the input array or shared object references. The optional `clone(value)` must return
+independent copies when inputs are not structured-cloneable. Game callbacks own any mutations
+to the currently active value. Invalid fractions or failed cloning have no simulation side effects.
+Games define button meanings, physics, aim interpolation, and serialization (for example
+`encodeInputs`); Twinwire's wire format and server tick rate do not change.
 
 **Server rewind selection (optional).** `selectRewindTime(requestedViewTimeMs, nowMs,
 expectedViewTimeMs, maxRewindMs, toleranceMs)` returns `{timeMs, source, reason}`.
-It accepts a client-requested view time only within the hard history window and the tolerance of an
-**independently server-derived** estimate; otherwise it selects the bounded server estimate. A client
-ACK/timestamp cannot be used as that trusted estimate, and RTT/2 alone is not measured one-way latency.
+It accepts a client-requested view time only within the history window and the tolerance of an
+**independently server-derived** estimate. For an implausible client request, it falls back to
+that estimate **only when the estimate itself lies within retained history**. If the estimate
+is older than history or in the future, it returns
+`{timeMs: null, source: 'none', reason: 'expected-outside-window'}`; the game must handle
+that result explicitly, for example by rejecting the shot. It never silently clamps an
+invalid server estimate into an apparently valid historical hit time. A client ACK/timestamp
+cannot be used as that trusted estimate, and RTT/2 alone is not measured one-way latency.
 Games must account for input-command age, network jitter, interpolation, and snapshot delivery history,
 then independently validate the shot, shooter position, and hitboxes. A large tolerance still permits
 the client to choose a time within that tolerance. No default fairness policy or cap is imposed.

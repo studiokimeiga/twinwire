@@ -1,16 +1,18 @@
-/** Selection only: the game must compute expectedViewTimeMs from server-observed data,
- * validate the shot, and check the hitboxes. Neither a client ACK nor a requested
- * timestamp is proof of delivery, visibility or legitimate timing. */
-export type ValidatedRewind = {
-  timeMs: number;
-  source: 'client' | 'server';
-  reason: 'accepted' | 'missing' | 'invalid' | 'outside-window' | 'outside-tolerance';
-};
+/**
+ * Rewind time selection does not authenticate input, delivery or visibility.
+ * Games must derive expectedViewTimeMs from independent server observations,
+ * validate the shot, and choose their own history and tolerance policy.
+ */
+export type ValidatedRewind =
+  | { timeMs: number; source: 'client'; reason: 'accepted' }
+  | { timeMs: number; source: 'server'; reason: 'missing' | 'invalid' | 'outside-window' | 'outside-tolerance' }
+  | { timeMs: null; source: 'none'; reason: 'expected-outside-window' };
 
 /**
- * Use a client-requested historical time only when it is consistent with the server's
- * independently estimated view time and the hard history window. Otherwise fall back
- * to the bounded server estimate, as in Source-style lag compensation.
+ * Use the client's requested historical viewing time only when it is plausible
+ * against the independently server-derived estimate, within retained history.
+ * If that estimate itself falls outside history (or into the future), no
+ * defensible rewind is available. Do not silently clamp and call it validated.
  */
 export function selectRewindTime(
   requestedViewTimeMs: number | undefined,
@@ -23,11 +25,14 @@ export function selectRewindTime(
       maxRewindMs < 0 || toleranceMs < 0) throw new RangeError('Invalid rewind policy');
   const earliest = nowMs - maxRewindMs;
   if (!Number.isFinite(earliest)) throw new RangeError('Invalid rewind interval');
-  const expected = Math.min(nowMs, Math.max(earliest, expectedViewTimeMs));
-  const fallback = (reason: ValidatedRewind['reason']): ValidatedRewind => ({ timeMs: expected, source: 'server', reason });
+  if (expectedViewTimeMs < earliest || expectedViewTimeMs > nowMs)
+    return { timeMs: null, source: 'none', reason: 'expected-outside-window' };
+
+  const fallback = (reason: 'missing' | 'invalid' | 'outside-window' | 'outside-tolerance'): ValidatedRewind =>
+    ({ timeMs: expectedViewTimeMs, source: 'server', reason });
   if (requestedViewTimeMs === undefined) return fallback('missing');
   if (typeof requestedViewTimeMs !== 'number' || !Number.isFinite(requestedViewTimeMs)) return fallback('invalid');
   if (requestedViewTimeMs < earliest || requestedViewTimeMs > nowMs) return fallback('outside-window');
-  if (Math.abs(requestedViewTimeMs - expected) > toleranceMs) return fallback('outside-tolerance');
+  if (Math.abs(requestedViewTimeMs - expectedViewTimeMs) > toleranceMs) return fallback('outside-tolerance');
   return { timeMs: requestedViewTimeMs, source: 'client', reason: 'accepted' };
 }

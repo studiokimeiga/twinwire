@@ -67,9 +67,17 @@ try {
           (held, dtMs) => { if (held) onMs += dtMs; },
           (_before, _after, fraction) => edges.push(fraction));
         const verdict = Twinwire.selectRewindTime(870, 1000, 900, 200, 20);
+        const unavailable = Twinwire.selectRewindTime(800, 1000, 0, 200, 5);
+        const objectEvents = [{fraction:.25,value:{b:1}},{fraction:.75,value:{b:2}}];
+        const rendered = [];
+        Twinwire.replaySubtick({b:0},objectEvents,16,
+          (held) => rendered.push(held.b),
+          (_before,_after,fraction) => { if (fraction === .25) objectEvents[1].value.b = 255; });
         if (last !== 0 || Math.abs(onMs - 3) > 1e-10 ||
             edges.length !== 2 || edges[0] !== .1 || edges[1] !== .4 ||
-            verdict.timeMs !== 900 || verdict.source !== 'server')
+            verdict.timeMs !== 900 || verdict.source !== 'server' ||
+            unavailable.timeMs !== null || unavailable.reason !== 'expected-outside-window' ||
+            rendered.join(',') !== '0,1,2')
           throw Error('Subtick/replay/rewind browser smoke failed');
       });
       result.netcode = { subtick: true, rewind: true };

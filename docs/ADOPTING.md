@@ -83,8 +83,10 @@ for every tick. Events are JSON up to 64 KiB each.
     encode the fractions in your game's input payload, and retain fixed authoritative server ticks.
   - Lag compensation is yours: keep a short history of hitboxes per tick and rewind to what the shooter
     saw. `rewindTime` only clamps; `selectRewindTime` additionally compares the requested view time with an
-    independently server-derived estimate and falls back if implausible. A client-reported ACK is not
-    independently trustworthy. Use an application-chosen history cap and tolerance, not a universal default.
+    independently server-derived estimate, using the server estimate for implausible client requests.
+    If the server estimate itself is outside retained history, `timeMs` is `null`: reject or otherwise
+    handle that shot explicitly rather than treating a clamped timestamp as a hit. A client-reported
+    ACK is not independently trustworthy. Use an application-chosen history cap and tolerance.
 - **Social and co-op worlds:** interest-filter what each player gets (`SpatialGrid` for "who is near"), send compact
   records at a modest rate (10-20 Hz), and acknowledged records (`ReplicaSender`) for things that change rarely.
 - **Strategy:** commands are events, applied by the server; snapshots at the simulation's own rate.

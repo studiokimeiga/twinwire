@@ -55,6 +55,8 @@ export class SubtickInputBuffer<T> {
  * Replay one tick in chronological segments. Games supply their own deterministic movement,
  * hit/weapon, and collision logic. All events are validated before any callback is invoked.
  * Time within a tick is fractional, not a trusted proof of when a network message was sent.
+ * Input values are snapshotted before callbacks (structuredClone by default).
+ * To use non-cloneable values, pass a clone function that returns independent copies.
  */
 export function replaySubtick<T>(
   initial: T,
@@ -62,6 +64,7 @@ export function replaySubtick<T>(
   tickMs: number,
   step: (held: T, dtMs: number, fromFraction: number, toFraction: number) => void,
   change: (before: T, after: T, fraction: number) => void = () => {},
+  clone: (value: T) => T = (v: T) => structuredClone(v),
 ): T {
   if (!Number.isFinite(tickMs) || tickMs <= 0) throw new RangeError('Invalid tick duration');
   let previous = 0;
@@ -76,9 +79,13 @@ export function replaySubtick<T>(
     ordered.push({ fraction, value: e.value });
     previous = fraction;
   }
-  let held = initial;
+  // Clone every input before starting simulation. Mutating an original value
+  // (or one returned by an earlier callback) must not change a future event.
+  // Custom clone implementations must return independent copies to retain this guarantee.
+  const snapshot = ordered.map(e => ({ fraction: e.fraction, value: clone(e.value) }));
+  let held = clone(initial);
   let from = 0;
-  for (const e of ordered) {
+  for (const e of snapshot) {
     if (e.fraction > from) step(held, (e.fraction - from) * tickMs, from, e.fraction);
     change(held, e.value, e.fraction);
     held = e.value;
