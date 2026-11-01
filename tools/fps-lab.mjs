@@ -17,6 +17,8 @@ export const PROFILES = Object.freeze([
   { name: 'rtt-200', upMs: 100, downMs: 100, jitterMs: 0, snapshotLoss: 0 },
   { name: 'downlink-heavy', upMs: 20, downMs: 80, jitterMs: 20, snapshotLoss: 0.1 },
   { name: 'uplink-heavy', upMs: 80, downMs: 20, jitterMs: 20, snapshotLoss: 0.1 },
+  { name: 'jitter-loss-stress', upMs: 80, downMs: 120, jitterMs: 80, snapshotLoss: 0.4 },
+  { name: 'rewind-cap-300', upMs: 150, downMs: 150, jitterMs: 0, snapshotLoss: 0 },
 ]);
 
 function rng(seed) {
