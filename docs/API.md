@@ -380,6 +380,48 @@ by itself if the clock jumps back by more than a second, rather than freezing un
 `AdaptivePlayback.updateDelay(dtMs)` updates only the delay policy without moving the cursor; `advance` normally does
 both. `StateReceiver.advance` uses that separation during recovery, with one adaptation per render frame.
 
+**Sub-tick input (optional).** `SubtickInputBuffer<T>` records input-state transitions with local monotonic
+timestamps and `take(startMs, endMs, maxPerTick?)` emits ordered fractions inside each fixed-step input command.
+Events exactly at `endMs` belong to the next command. It snapshots input values, bounds pending transitions,
+rejects nonmonotonic timestamps and refuses to silently shift old events after a skipped tick or CPU stall.
+Call `reset()` on a deliberate simulation discontinuity. DOM `event.timeStamp` and tick boundaries must use the
+same local clock. This is client-side input timing, not a trusted timestamp.
+
+`replaySubtick(initial, transitions, tickMs, step, change?, clone?)` calls
+`step(held, dtMs, fromFraction, toFraction)` between transitions and
+`change(before, after, fraction)` at each edge; it returns the final held value.
+All fractions must be ordered within [0, 1). The full schedule and input values are cloned
+**before** callbacks run (default `structuredClone`), so callbacks cannot rewrite future events
+through the input array or shared object references. The optional `clone(value)` must return
+independent copies when inputs are not structured-cloneable. Game callbacks own any mutations
+to the currently active value. Invalid fractions or failed cloning have no simulation side effects.
+Games define button meanings, physics, aim interpolation, and serialization (for example
+`encodeInputs`); Twinwire's wire format and server tick rate do not change.
+
+**Server rewind selection (optional).** `selectRewindTime(requestedViewTimeMs, nowMs,
+expectedViewTimeMs, maxRewindMs, toleranceMs)` returns `{timeMs, source, reason}`.
+It accepts a client-requested view time only within the history window and the tolerance of an
+**independently server-derived** estimate. For an implausible client request, it falls back to
+that estimate **only when the estimate itself lies within retained history**. If the estimate
+is older than history or in the future, it returns
+`{timeMs: null, source: 'none', reason: 'expected-outside-window'}`; the game must handle
+that result explicitly, for example by rejecting the shot. It never silently clamps an
+invalid server estimate into an apparently valid historical hit time. A client ACK/timestamp
+cannot be used as that trusted estimate, and RTT/2 alone is not measured one-way latency.
+Games must account for input-command age, network jitter, interpolation, and snapshot delivery history,
+then independently validate the shot, shooter position, and hitboxes. A large tolerance still permits
+the client to choose a time within that tolerance. No default fairness policy or cap is imposed.
+
+**Safari 15.0–15.3 cloning.** All default clone callbacks used by `SubtickInputBuffer`,
+`replaySubtick`, `Timeline`, `Predictor`, `InputInbox`, and reliable-event checkpoints
+use the browser's native `structuredClone` when available. On older Safari they use
+a synchronous fallback for primitives (including `undefined`, `NaN` and `bigint`),
+plain objects, arrays, `Date`, `RegExp`, `Map`, `Set`, `ArrayBuffer`, typed
+arrays, and `DataView`, preserving cyclic references and shared buffer identity.
+Unsupported objects such as DOM nodes or custom class instances fail explicitly;
+supply a custom clone callback for specialized game inputs. This fallback does
+not install or replace a global `structuredClone`.
+
 **Prediction.** `Predictor(initial, step, dt)`: `push(input)` predicts, `recent(n)` for redundant sends
 (`encodeInputs`), `reconcile({ack, tick, state})` replays what the server hasn't applied. The server feeds
 `InputInbox` and acks the last input it applied. `rewindTime` clamps lag-compensation requests.

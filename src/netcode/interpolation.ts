@@ -1,9 +1,10 @@
+import { cloneNetcodeValue } from '../core/clone.js';
 export interface Timed<T> { time: number; seq: number; value: T; discontinuity?: boolean }
 export interface SampleResult<T> { value: T; mode: 'hold' | 'interpolate' | 'extrapolate'; sourceTime: number }
 /** Per-entity history. Discontinuities take effect at their timestamp; they are never blended across. */
 export class Timeline<T> {
   private samples: Timed<T>[] = [];
-  constructor(readonly capacity = 64, readonly clone: (value: T) => T = (v: any) => structuredClone(v)) {
+  constructor(readonly capacity = 64, readonly clone: (value: T) => T = cloneNetcodeValue) {
     if (!Number.isInteger(capacity) || capacity < 2 || capacity > 4096) throw new RangeError('Invalid history capacity');
   }
   get size() { return this.samples.length; }

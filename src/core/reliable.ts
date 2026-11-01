@@ -1,3 +1,4 @@
+import { cloneNetcodeValue } from './clone.js';
 import { stringify, utf8Length, type Json, type JsonInput } from './protocol.js';
 export interface PendingEvent { seq: number; data: Json; bytes: number; text: string; datagramAt: number; datagramTries: number }
 export interface ReliableCheckpoint { next: number; received: number; acknowledged: number; pending: { seq: number; data: Json }[] }
@@ -88,7 +89,7 @@ export class ReliableEvents {
   }
   checkpoint(): ReliableCheckpoint {
     return { next: this.next, received: this.received, acknowledged: this.acknowledged,
-      pending: Array.from(this.pending.values(), e => ({ seq: e.seq, data: structuredClone(e.data) })) };
+      pending: Array.from(this.pending.values(), e => ({ seq: e.seq, data: cloneNetcodeValue(e.data) })) };
   }
   restore(s: ReliableCheckpoint): void {
     if (this.next !== 1 || this.received || this.pending.size) throw new Error('Restore requires a fresh channel');

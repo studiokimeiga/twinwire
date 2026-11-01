@@ -1,5 +1,7 @@
 export * from './clock.js';
 export * from './timing.js';
+export * from './subtick.js';
+export * from './rewind.js';
 export * from './interpolation.js';
 export * from './prediction.js';
 export * from './spatial.js';

@@ -1,3 +1,4 @@
+import { cloneNetcodeValue } from '../core/clone.js';
 export interface Input<I> { seq: number; value: I }
 /** Game-owned step/clone functions keep physics, collision and authority policy outside the transport. */
 export class Predictor<S, I> {
@@ -8,7 +9,7 @@ export class Predictor<S, I> {
   private serverTick = -1;
   constructor(initial: S, readonly step: (state: S, input: I, dtSeconds: number) => S,
     readonly dtSeconds = 1 / 60, readonly maxPending = 256,
-    readonly cloneState: (s: S) => S = (v: any) => structuredClone(v), readonly cloneInput: (i: I) => I = (v: any) => structuredClone(v)) {
+    readonly cloneState: (s: S) => S = cloneNetcodeValue, readonly cloneInput: (i: I) => I = cloneNetcodeValue) {
     if (!(dtSeconds > 0) || !Number.isFinite(dtSeconds) || !Number.isInteger(maxPending) || maxPending < 1) throw new RangeError('Invalid prediction options');
     this.state = cloneState(initial);
   }
@@ -43,7 +44,7 @@ export class Predictor<S, I> {
 export class InputInbox<I> {
   applied = 0;
   private queued = new Map<number, I>();
-  constructor(readonly capacity = 256, readonly clone: (i: I) => I = (v: any) => structuredClone(v)) {}
+  constructor(readonly capacity = 256, readonly clone: (i: I) => I = cloneNetcodeValue) {}
   add(input: Input<I>): boolean {
     if (!Number.isSafeInteger(input.seq) || input.seq <= this.applied || input.seq > this.applied + this.capacity || this.queued.has(input.seq)) return false;
     this.queued.set(input.seq, this.clone(input.value)); return true;

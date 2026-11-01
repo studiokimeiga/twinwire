@@ -56,6 +56,62 @@ try {
       const [a, b] = [await ca.newPage(), await cb.newPage()];
       const errors = []; for (const p of [a, b]) p.on('pageerror', e => errors.push(String(e)));
       for (const p of [a, b]) { await p.goto(origin + '/'); await p.evaluate(([r, i]) => T.start(r, i ?? undefined), [useRtc, impair]); await wait(p, () => T.client.status === 'online'); }
+      // Verify the published IIFE's new optional netcode APIs actually run in each browser engine.
+      await a.evaluate(() => {
+        const q = new Twinwire.SubtickInputBuffer();
+        q.push(1, 1); q.push(4, 0);
+        const events = q.take(0, 10);
+        const edges = [];
+        let onMs = 0;
+        const last = Twinwire.replaySubtick(0, events, 10,
+          (held, dtMs) => { if (held) onMs += dtMs; },
+          (_before, _after, fraction) => edges.push(fraction));
+        const verdict = Twinwire.selectRewindTime(870, 1000, 900, 200, 20);
+        const unavailable = Twinwire.selectRewindTime(800, 1000, 0, 200, 5);
+        const objectEvents = [{fraction:.25,value:{b:1}},{fraction:.75,value:{b:2}}];
+        const rendered = [];
+        Twinwire.replaySubtick({b:0},objectEvents,16,
+          (held) => rendered.push(held.b),
+          (_before,_after,fraction) => { if (fraction === .25) objectEvents[1].value.b = 255; });
+        if (last !== 0 || Math.abs(onMs - 3) > 1e-10 ||
+            edges.length !== 2 || edges[0] !== .1 || edges[1] !== .4 ||
+            verdict.timeMs !== 900 || verdict.source !== 'server' ||
+            unavailable.timeMs !== null || unavailable.reason !== 'expected-outside-window' ||
+            rendered.join(',') !== '0,1,2')
+          throw Error('Subtick/replay/rewind browser smoke failed');
+      });
+      // Safari 15.0-15.3 lacks structuredClone. Exercise all default clone
+      // consumers with that native API absent in every browser engine.
+      await a.evaluate(() => {
+        const native = globalThis.structuredClone;
+        try {
+          globalThis.structuredClone = undefined;
+          const input = new Twinwire.SubtickInputBuffer();
+          const buttons = { fire: true };
+          input.push(1, buttons); buttons.fire = false;
+          const edges = input.take(0, 10);
+          if (edges[0]?.value.fire !== true) throw Error('Safari input clone');
+          const events = [{ fraction: .25, value: { b: 1 } }, { fraction: .75, value: { b: 2 } }];
+          const trace = [];
+          Twinwire.replaySubtick({ b: 0 }, events, 16,
+            held => trace.push(held.b),
+            (_, __, fraction) => { if (fraction === .25) events[1].value.b = 99; });
+          if (trace.join(',') !== '0,1,2') throw Error('Safari replay clone');
+          const timeline = new Twinwire.Timeline();
+          timeline.insert({ seq: 1, time: 0, value: { x: 1 } });
+          timeline.insert({ seq: 2, time: 10, value: { x: 3 } });
+          if (timeline.sample(5, (x, y, f) => ({ x: x.x + (y.x - x.x) * f })).value.x !== 2)
+            throw Error('Safari timeline clone');
+          const predictor = new Twinwire.Predictor({ x: 0 }, (s, i) => ({ x: s.x + i.dx }), 1);
+          predictor.push({ dx: 2 });
+          if (predictor.state.x !== 2) throw Error('Safari predictor clone');
+          const inbox = new Twinwire.InputInbox();
+          inbox.add({ seq: 1, value: { dx: 3 } });
+          if (inbox.next()?.value.dx !== 3) throw Error('Safari inbox clone');
+          if (!T.client.checkpoint()?.events) throw Error('Safari event checkpoint clone');
+        } finally { globalThis.structuredClone = native; }
+      });
+      result.netcode = { subtick: true, rewind: true, safariFallback: true };
       // lobby: a private room by code, both ready, countdown, playing
       const code = await a.evaluate(async () => (await T.lobby.create({ mode: 'e2e' })).code);
       await b.evaluate(c => T.lobby.join(c), code);
