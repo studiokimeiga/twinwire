@@ -33,6 +33,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: Record deterministic FPS lab metrics
+        if: matrix.node == 22
+        run: |
+          mkdir -p artifacts/fps-lab
+          node tools/fps-lab.mjs | tee artifacts/fps-lab/results.json
+      - uses: actions/upload-artifact@v7
+        if: matrix.node == 22
+        with:
+          name: fps-lab-matrix-node22
+          path: artifacts/fps-lab/results.json
+          retention-days: 7
       - run: npm run test:worker
       - run: npm run test:native
       - run: npm run bench -- --clients 50 --seconds 5
