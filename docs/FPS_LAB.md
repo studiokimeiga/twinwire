@@ -20,7 +20,7 @@ The lab test is also included automatically in `npm test` and `npm run check`.
 - A server-owned 64 Hz timeline with a peeker moving across a wall, then returning behind cover; a holder remains stationary.
 - A horizontal ray against a simplified hitbox, with cover and historical positions checked on the server.
 - Peeker and holder first-shot times after a fixed 100 ms reaction delay. The holder sees delayed server snapshots; the peeker knows their own position immediately.
-- Seeded 0/50/100/200 ms round-trip profiles, plus 20/80 and 80/20 ms directional delays, with jitter and lossy snapshots.
+- Seeded 0/50/100/200 ms round-trip profiles, plus 20/80 and 80/20 ms directional delays, a high-jitter/high-loss stress case, and an intentionally over-cap 300 ms RTT case.
 - Sub-tick fire-edge replay, maximum input age, 250 ms maximum rewind, and a 45 ms client-request tolerance against a server-owned *model* estimate.
 
 The JSON output includes `hitRate`, `rejectRate`, `fallbackRate`, `peekerAdvantageMedianMs`, and `peekerFiredFirstRate`. The advantage is **holder local fire time minus peeker local fire time**, so a positive value means the peeker fired first. These are outcomes of the scripted scenario, not measured fairness or player skill. Null metrics mean no eligible observations.
