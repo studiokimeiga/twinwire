@@ -15,6 +15,8 @@ node --test test/fps-lab.test.mjs
 
 The lab test is also included automatically in `npm test` and `npm run check`.
 
+On PR and `main` CI, the Node 22 core job also uploads a seven-day `fps-lab-matrix-node22` artifact containing the seeded JSON summary. This is model output, not measured performance on the CI runner's network.
+
 ## What the model measures
 
 - A server-owned 64 Hz timeline with a peeker moving across a wall, then returning behind cover; a holder remains stationary.
