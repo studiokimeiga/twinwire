@@ -24,6 +24,8 @@ test('seeded network matrix is repeatable and peeker delay grows with downlink d
   assert.ok(one[0].peekerAdvantageMedianMs > 0);
   assert.ok(one[3].peekerAdvantageMedianMs > one[0].peekerAdvantageMedianMs);
   assert.ok(one[4].peekerAdvantageMedianMs > one[5].peekerAdvantageMedianMs);
+  assert.ok(one.find(p => p.name === 'jitter-loss-stress').fallbackRate > 0);
+  assert.equal(one.find(p => p.name === 'rewind-cap-300').rejectRate, 1);
   for (const p of one) {
     assert.ok(p.shots > 0);
     assert.ok(p.hitRate >= 0 && p.hitRate <= 1);
