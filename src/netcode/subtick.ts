@@ -1,3 +1,4 @@
+import { cloneNetcodeValue } from '../core/clone.js';
 /** Input transitions carry a fraction of one simulation tick, independent of the network clock. */
 export interface SubtickTransition<T> { fraction: number; value: T }
 
@@ -12,7 +13,7 @@ export class SubtickInputBuffer<T> {
   private lastEventMs = -Infinity;
   private consumedThroughMs = -Infinity;
   private cloning = false;
-  constructor(readonly capacity = 128, readonly clone: (value: T) => T = (v: T) => structuredClone(v)) {
+  constructor(readonly capacity = 128, readonly clone: (value: T) => T = cloneNetcodeValue) {
     if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 4096) throw new RangeError('Invalid subtick capacity');
   }
   get pending() { return this.queued.length; }
@@ -64,7 +65,7 @@ export function replaySubtick<T>(
   tickMs: number,
   step: (held: T, dtMs: number, fromFraction: number, toFraction: number) => void,
   change: (before: T, after: T, fraction: number) => void = () => {},
-  clone: (value: T) => T = (v: T) => structuredClone(v),
+  clone: (value: T) => T = cloneNetcodeValue,
 ): T {
   if (!Number.isFinite(tickMs) || tickMs <= 0) throw new RangeError('Invalid tick duration');
   let previous = 0;

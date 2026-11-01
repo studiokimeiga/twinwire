@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Restore Safari 15.0–15.3 compatibility for default clones across sub-tick capture/replay, prediction, interpolation, input inboxes and reliable-event checkpoints. Use native `structuredClone` where available; otherwise clone common structured input data without JSON serialization loss, with explicit failure for unsupported objects. Add missing-native browser and regression coverage; protocol and dependencies are unchanged.
+
 - Add optional `SubtickInputBuffer` and `replaySubtick` netcode helpers: capture monotonic client input edges into fixed-tick fractions and replay segments deterministically without changing simulation tick rate or the wire protocol. Queue bounds, skipped windows, nonmonotonic times and invalid fractions fail explicitly.
 - Add `selectRewindTime` for Source-style server-derived rewind-time validation. It falls back to an independently estimated server time for implausible client requests only while that estimate is within history. Otherwise it returns `timeMs: null` and requires explicit game policy; game authority and hit verification remain application responsibilities.
 - Add dedicated edge/boundary/overflow/forged-time regressions and documentation. Freeze replay scheduling and clone input values before invoking game callbacks; reject reentrant input cloning and arithmetic overflow in derived history bounds. Existing transports, games and API defaults are unchanged.

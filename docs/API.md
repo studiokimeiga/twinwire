@@ -412,6 +412,16 @@ Games must account for input-command age, network jitter, interpolation, and sna
 then independently validate the shot, shooter position, and hitboxes. A large tolerance still permits
 the client to choose a time within that tolerance. No default fairness policy or cap is imposed.
 
+**Safari 15.0–15.3 cloning.** All default clone callbacks used by `SubtickInputBuffer`,
+`replaySubtick`, `Timeline`, `Predictor`, `InputInbox`, and reliable-event checkpoints
+use the browser's native `structuredClone` when available. On older Safari they use
+a synchronous fallback for primitives (including `undefined`, `NaN` and `bigint`),
+plain objects, arrays, `Date`, `RegExp`, `Map`, `Set`, `ArrayBuffer`, typed
+arrays, and `DataView`, preserving cyclic references and shared buffer identity.
+Unsupported objects such as DOM nodes or custom class instances fail explicitly;
+supply a custom clone callback for specialized game inputs. This fallback does
+not install or replace a global `structuredClone`.
+
 **Prediction.** `Predictor(initial, step, dt)`: `push(input)` predicts, `recent(n)` for redundant sends
 (`encodeInputs`), `reconcile({ack, tick, state})` replays what the server hasn't applied. The server feeds
 `InputInbox` and acks the last input it applied. `rewindTime` clamps lag-compensation requests.

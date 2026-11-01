@@ -80,7 +80,38 @@ try {
             rendered.join(',') !== '0,1,2')
           throw Error('Subtick/replay/rewind browser smoke failed');
       });
-      result.netcode = { subtick: true, rewind: true };
+      // Safari 15.0-15.3 lacks structuredClone. Exercise all default clone
+      // consumers with that native API absent in every browser engine.
+      await a.evaluate(() => {
+        const native = globalThis.structuredClone;
+        try {
+          globalThis.structuredClone = undefined;
+          const input = new Twinwire.SubtickInputBuffer();
+          const buttons = { fire: true };
+          input.push(1, buttons); buttons.fire = false;
+          const edges = input.take(0, 10);
+          if (edges[0]?.value.fire !== true) throw Error('Safari input clone');
+          const events = [{ fraction: .25, value: { b: 1 } }, { fraction: .75, value: { b: 2 } }];
+          const trace = [];
+          Twinwire.replaySubtick({ b: 0 }, events, 16,
+            held => trace.push(held.b),
+            (_, __, fraction) => { if (fraction === .25) events[1].value.b = 99; });
+          if (trace.join(',') !== '0,1,2') throw Error('Safari replay clone');
+          const timeline = new Twinwire.Timeline();
+          timeline.insert({ seq: 1, time: 0, value: { x: 1 } });
+          timeline.insert({ seq: 2, time: 10, value: { x: 3 } });
+          if (timeline.sample(5, (x, y, f) => ({ x: x.x + (y.x - x.x) * f })).value.x !== 2)
+            throw Error('Safari timeline clone');
+          const predictor = new Twinwire.Predictor({ x: 0 }, (s, i) => ({ x: s.x + i.dx }), 1);
+          predictor.push({ dx: 2 });
+          if (predictor.state.x !== 2) throw Error('Safari predictor clone');
+          const inbox = new Twinwire.InputInbox();
+          inbox.add({ seq: 1, value: { dx: 3 } });
+          if (inbox.next()?.value.dx !== 3) throw Error('Safari inbox clone');
+          if (!T.client.checkpoint()?.events) throw Error('Safari event checkpoint clone');
+        } finally { globalThis.structuredClone = native; }
+      });
+      result.netcode = { subtick: true, rewind: true, safariFallback: true };
       // lobby: a private room by code, both ready, countdown, playing
       const code = await a.evaluate(async () => (await T.lobby.create({ mode: 'e2e' })).code);
       await b.evaluate(c => T.lobby.join(c), code);
