@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The server now measures each client's round trip itself: every `probeMs` (2000 by default, 0 turns it off) it sends a small probe that clients echo at once, and keeps a smoothed `session.rttMs` and the connection's `session.minRttMs`. This is the independent observation `selectRewindTime` asks for: expect a shooter's view half the round trip, its playback delay (which already includes the other half), a frame and its input-queue wait behind `now` (docs/ADOPTING.md has the model and a calibration). Both hosts (Node and Worker) probe; clients before this release never answer and leave `rttMs` null, so keep a fallback. Measurements restart on each connection.
+- Tests build and pass on Windows: a worker-bundle path no longer goes through `URL.pathname`, and the 128 Hz pump test drives its game loop by elapsed time, stating that a Windows host's coarse timers cannot run a 128 Hz pump (`flush()` per tick still carries every state).
+
 - Restore Safari 15.0–15.3 compatibility for default clones across sub-tick capture/replay, prediction, interpolation, input inboxes and reliable-event checkpoints. Use native `structuredClone` where available; otherwise clone common structured input data without JSON serialization loss, with explicit failure for unsupported objects. Add missing-native browser and regression coverage; protocol and dependencies are unchanged.
 
 - Add optional `SubtickInputBuffer` and `replaySubtick` netcode helpers: capture monotonic client input edges into fixed-tick fractions and replay segments deterministically without changing simulation tick rate or the wire protocol. Queue bounds, skipped windows, nonmonotonic times and invalid fractions fail explicitly.

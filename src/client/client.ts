@@ -235,6 +235,8 @@ export class GameClient {
       const at = this.pendingPings.get(m.n); if (at === undefined) return;
       this.pendingPings.delete(m.n); this.clock.observe(at, performance.now(), m.s); return;
     }
+    // The server's round-trip probe (GameSession.rttMs): echo at once, ahead of the next pump.
+    if (m.t === 'probe' && isUint(m.n)) { this.endpoint.sendControl({ t: 'probe-ack', e: this.epoch, n: m.n }); return; }
     if (m.t === 'signal' && m.a === this.rtcAttempt && validSignal(m.d)) { void this.peer?.signal(m.d); return; }
     if (m.t === 'rtc-reset' && m.a === this.rtcAttempt && this.peer) this.stopRtc(false);
   }

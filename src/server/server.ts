@@ -23,6 +23,8 @@ export interface GameServerOptions {
    * from that address replaces its longest-disconnected one, so a player who reloads a lot recycles their own. */
   maxSessionsPerIp?: number;
   resumeGraceMs?: number; heartbeatTimeoutMs?: number; handshakeTimeoutMs?: number;
+  /** Interval of the server's round-trip probes per session, in ms (default 2000; 0 turns them off). See GameSession.rttMs. */
+  probeMs?: number;
   /** How often queued states and events go out (default 60 Hz). A game ticking faster (a 64 or 128 Hz shooter) sets
    * its tick rate here, or calls session.flush() after each snapshot; otherwise ticks between pumps are coalesced. */
   pumpHz?: number;
@@ -184,7 +186,7 @@ export class GameServer {
     const old = record.connection;
     if (old && old !== c) { this.stopRtc(old, false); old.record = undefined; old.ws.close(4002, 'session resumed elsewhere'); }
     record.connection = c; c.record = record; c.authenticating = false;
-    c.epoch = this.epoch = (this.epoch + 1) & 0xffff || 1; s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth;
+    c.epoch = this.epoch = (this.epoch + 1) & 0xffff || 1; s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth; s.resetRtt();
     try { s.endpoint.setImpairment(this.options.allowImpairment && isRecord(m.impair) ? m.impair as Impairment : null); }
     catch (e) { this.report(e); s.endpoint.setImpairment(null); }
     const socket = c.ws, base = performance.now();   // the connection's time base: frame times travel relative to it
@@ -202,6 +204,7 @@ export class GameServer {
     const endpoint = r.session.endpoint;
     if (endpoint.receiveControl(m)) return;
     if (m.t === 'ping' && isUint(m.n)) { endpoint.sendControl({ t: 'pong', e: c.epoch, n: m.n, s: performance.now() }); return; }
+    if (m.t === 'probe-ack') { r.session.probeAnswered(m.n, performance.now()); return; }
     if (m.t === 'leave') { this.expire(r); return; }
     if (m.t === 'rtc-reset' && m.a === c.attempt) { this.stopRtc(c, false); return; }
     if (m.t === 'signal' && isUint(m.a) && m.a > 0 && validSignal(m.d)) {
@@ -270,6 +273,8 @@ export class GameServer {
       // frame times reach about six days from the connection's base: well before that, reconnect (it resumes, with a new base)
       if (c.record && now - c.started > 4 * 86400000) { c.ws.close(4000, 'reconnect'); continue; }
       if (c.rtc && now - c.rtcStarted > 10000 && !c.record?.session.endpoint.fastActive) this.stopRtc(c, true);
+      const probe = c.record?.connection === c ? c.record.session.nextProbe(now, this.options.probeMs ?? 2000) : null;
+      if (probe !== null) c.record!.session.endpoint.sendControl({ t: 'probe', e: c.epoch, n: probe });
     }
     const sessions = [...this.sessions.values()];
     const start = this.pumpCursor++ % Math.max(1, sessions.length);
