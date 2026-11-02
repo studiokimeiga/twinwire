@@ -14,6 +14,8 @@ export interface SessionSocket {
 export interface SocketSessionOptions {
   origins: string[] | ((origin: string) => boolean); allowMissingOrigin?: boolean;
   endpoint?: EndpointOptions; resumeGraceMs?: number; heartbeatTimeoutMs?: number; handshakeTimeoutMs?: number;
+  /** Interval of the round-trip probes per session, in ms (default 2000; 0 turns them off). See GameSession.rttMs. */
+  probeMs?: number;
   maxSessions?: number; maxConnections?: number; maxPerIp?: number; maxSessionsPerIp?: number; pumpHz?: number;
   rateLimit?: { messages?: number; bytes?: number };
   authenticate?: (request: { room: string; auth: Json; resuming: boolean; ip: string }) => string | null | Promise<string | null>;
@@ -90,6 +92,7 @@ export class SocketSessionServer {
       r.session.endpoint.stats.bytesReceived += bytes.length;
       if (r.session.endpoint.receiveControl(message)) return;
       if (message.t === 'ping' && isUint(message.n)) r.session.endpoint.sendControl({t:'pong',e:c.epoch,n:message.n,s:performance.now()});
+      else if (message.t === 'probe-ack') r.session.probeAnswered(message.n, performance.now());
       else if (message.t === 'leave') this.expire(r);
       else if (message.t === 'signal' && isUint(message.a)) r.session.endpoint.sendControl({t:'rtc-reset',e:c.epoch,a:message.a});
     } catch (error) { this.stats.protocolErrors++; this.report(error); c.socket.close(1002, 'protocol'); }
@@ -126,7 +129,7 @@ export class SocketSessionServer {
     record.connection = c; c.record = record; c.authenticating = false;
     const s = record.session, socket = c.socket, base = performance.now();
     c.epoch = this.epoch = (this.epoch + 1) & 65535 || 1;
-    s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth;
+    s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth; s.resetRtt();
     s.endpoint.attach(c.epoch,{
       get open(){return socket.readyState === 1;},get bufferedAmount(){return socket.bufferedAmount ?? 0;},
       send(data){if(socket.readyState!==1)return false;socket.send(data);return true;},close(){socket.close();},
@@ -164,6 +167,7 @@ export class SocketSessionServer {
       if (!c.record && now-c.started > (this.options.handshakeTimeoutMs ?? 10_000) ||
         now-c.lastSeen > (this.options.heartbeatTimeoutMs ?? 45_000)) { this.disconnect(c); c.socket.close(1000,'timeout'); }
       else if (c.record && now-c.started > 4*86400_000) { this.disconnect(c); c.socket.close(4000,'reconnect'); }
+      else if (c.record?.connection === c) { const probe = c.record.session.nextProbe(now, this.options.probeMs ?? 2000); if (probe !== null) c.record.session.endpoint.sendControl({t:'probe',e:c.epoch,n:probe}); }
     }
     for (const record of this.records.values()) {
       const s=record.session;

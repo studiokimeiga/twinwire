@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 // what a project that installed the package sees: every entry point resolves through package.json "exports"
 test('every published entry point resolves by package name', async () => {
@@ -31,7 +32,7 @@ test('Worker entry shares GameSession with Node and bundles without Node/native 
  assert.equal(worker.GameSession,server.GameSession);
  assert.equal(typeof worker.SocketSessionServer,'function');
  const {build}=await import('esbuild');
- const bundle=await build({entryPoints:[new URL('../dist/worker.js',import.meta.url).pathname],bundle:true,platform:'browser',write:false,metafile:true});
+ const bundle=await build({entryPoints:[fileURLToPath(new URL('../dist/worker.js',import.meta.url))],bundle:true,platform:'browser',write:false,metafile:true});
  assert.ok(bundle.outputFiles[0].text.includes('SocketSessionServer'));
  for(const input of Object.keys(bundle.metafile.inputs))assert.doesNotMatch(input,/node_modules|node:/);
 });

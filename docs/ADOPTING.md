@@ -87,6 +87,11 @@ for every tick. Events are JSON up to 64 KiB each.
     If the server estimate itself is outside retained history, `timeMs` is `null`: reject or otherwise
     handle that shot explicitly rather than treating a clamped timestamp as a hit. A client-reported
     ACK is not independently trustworthy. Use an application-chosen history cap and tolerance.
+    The server's own estimate comes from `session.rttMs` (measured by server probes, not reported
+    by the client): `expected = now - session.rttMs / 2 - yourInterpolationDelayMs`, with a tolerance
+    that covers your interpolation buffer's range. A client can still slow its echoes to look laggier;
+    the history cap bounds what that buys. While `rttMs` is null (a client before 2.3), keep your
+    previous policy.
 - **Social and co-op worlds:** interest-filter what each player gets (`SpatialGrid` for "who is near"), send compact
   records at a modest rate (10-20 Hz), and acknowledged records (`ReplicaSender`) for things that change rarely.
 - **Strategy:** commands are events, applied by the server; snapshots at the simulation's own rate.
