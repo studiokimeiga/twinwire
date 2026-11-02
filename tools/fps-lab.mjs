@@ -62,39 +62,50 @@ export function sampleHistory(history, player, t) {
   return { x: a[key] + (b[key] - a[key]) * fraction, y: 0 };
 }
 
+export function tickStartFor(atMs) {
+  if (!Number.isFinite(atMs) || atMs < 0) throw new RangeError('Invalid simulation time');
+  return Math.floor(atMs / TICK_MS) * TICK_MS;
+}
 export function makeFireTransitions(fireAtMs) {
   const queue = new SubtickInputBuffer(4);
-  const start = Math.floor(fireAtMs / TICK_MS) * TICK_MS;
+  const start = tickStartFor(fireAtMs);
   queue.push(fireAtMs, { fire: true });
   return queue.take(start, start + TICK_MS);
 }
 
-// firedAtServerMs and expectedViewTimeMs must be server-owned estimates. Neither
-// client input fractions nor a client-reported snapshot ACK authenticate shot time.
+// The command tick origin and expected view time are owned by the server.
+// Clients can choose a fractional press time only within that assigned tick.
+// Neither a client-provided tick origin nor a snapshot ACK is authoritative.
 export function adjudicateShot({
-  role, arrivalMs, firedAtServerMs, requestedViewTimeMs, expectedViewTimeMs,
+  role, arrivalMs, commandTickStartMs, requestedViewTimeMs, expectedViewTimeMs,
   transitions, history, aimY = 0, maxRewindMs = MAX_REWIND_MS,
   toleranceMs = TOLERANCE_MS, maxInputAgeMs = 250,
 }) {
   const reject = reason => ({ result: 'rejected', reason, source: 'none', timeMs: null });
   if ((role !== 'peeker' && role !== 'holder') || !Number.isFinite(arrivalMs) ||
-      !Number.isFinite(firedAtServerMs) || !Number.isFinite(aimY) ||
-      !Number.isFinite(maxInputAgeMs) || maxInputAgeMs < 0 ||
-      !Array.isArray(transitions) || !transitions.length || transitions.length > 32)
+      !Number.isFinite(commandTickStartMs) || commandTickStartMs < 0 ||
+      !Number.isFinite(aimY) || !Number.isFinite(maxInputAgeMs) ||
+      maxInputAgeMs < 0 || !Array.isArray(transitions) ||
+      !transitions.length || transitions.length > 32)
     return reject('invalid-command');
-  const age = arrivalMs - firedAtServerMs;
-  if (age < 0 || age > maxInputAgeMs) return reject('input-outside-window');
 
-  let presses = 0;
+  let presses = 0, shotAtMs = null;
   try {
     replaySubtick({ fire: false }, transitions, TICK_MS, () => {},
-      (before, after) => {
-        if (!before.fire && after.fire) presses++;
+      (before, after, fraction) => {
+        if (typeof after?.fire !== 'boolean') throw new TypeError('Invalid fire state');
+        if (!before.fire && after.fire) {
+          presses++;
+          shotAtMs = commandTickStartMs + fraction * TICK_MS;
+        }
       });
   } catch {
     return reject('invalid-subtick');
   }
   if (presses !== 1) return reject('invalid-fire-edges');
+  if (!Number.isFinite(shotAtMs)) return reject('invalid-command');
+  const age = arrivalMs - shotAtMs;
+  if (age < 0 || age > maxInputAgeMs) return reject('input-outside-window');
 
   let chosen;
   try {
@@ -105,7 +116,7 @@ export function adjudicateShot({
   }
   if (chosen.timeMs === null) return reject(chosen.reason);
 
-  const shooter = sampleHistory(history, role, firedAtServerMs);
+  const shooter = sampleHistory(history, role, shotAtMs);
   const targetRole = role === 'peeker' ? 'holder' : 'peeker';
   const target = sampleHistory(history, targetRole, chosen.timeMs);
   if (!shooter || !target) return reject('history-not-retained');
@@ -119,6 +130,7 @@ export function adjudicateShot({
   return {
     result: hit ? 'hit' : 'miss', reason: hit ? 'confirmed' : 'cover-or-aim',
     source: chosen.source, timeMs: chosen.timeMs, rewindReason: chosen.reason,
+    shotAtMs,
   };
 }
 
@@ -160,7 +172,7 @@ export function runTrial(profile, seed = 1) {
     return {
       clientFireMs: fireMs,
       ...adjudicateShot({
-        role, arrivalMs, firedAtServerMs: fireMs,
+        role, arrivalMs, commandTickStartMs: tickStartFor(fireMs),
         requestedViewTimeMs: latest.viewTimeMs,
         expectedViewTimeMs, transitions: makeFireTransitions(fireMs), history,
       }),

@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { createGameServer } from '../dist/server/index.js';
 import { GameClient } from '../dist/client/index.js';
-import { until } from './helpers.mjs';
+import { until, sleep } from './helpers.mjs';
 import {
-  PROFILES, runTrial, runMatrix, makeHistory, makeFireTransitions, adjudicateShot,
+  PROFILES, TICK_MS, tickStartFor, runTrial, runMatrix, makeHistory,
+  makeFireTransitions, adjudicateShot,
 } from '../tools/fps-lab.mjs';
 
 const history = makeHistory();
 const adjudicate = (overrides = {}) => adjudicateShot({
-  role: 'holder', arrivalMs: 700, firedAtServerMs: 675,
+  role: 'holder', arrivalMs: 700, commandTickStartMs: tickStartFor(675),
   expectedViewTimeMs: 600, requestedViewTimeMs: 600,
   history, transitions: makeFireTransitions(675), ...overrides,
 });
@@ -53,7 +54,7 @@ test('server-owned history, input age and rewind estimate control shot outcomes'
   assert.equal(valid.timeMs, 600);
 
   const forged = adjudicate({
-    arrivalMs: 900, firedAtServerMs: 875,
+    arrivalMs: 900, commandTickStartMs: tickStartFor(875),
     expectedViewTimeMs: 800, requestedViewTimeMs: 600,
     transitions: makeFireTransitions(875),
   });
@@ -62,19 +63,38 @@ test('server-owned history, input age and rewind estimate control shot outcomes'
   assert.equal(forged.result, 'miss', 'a forged old view cannot hit a target now behind cover');
 
   const stale = adjudicate({
-    arrivalMs: 900, firedAtServerMs: 875, expectedViewTimeMs: 600,
+    arrivalMs: 900, commandTickStartMs: tickStartFor(875), expectedViewTimeMs: 600,
     transitions: makeFireTransitions(875),
   });
   assert.equal(stale.result, 'rejected');
   assert.equal(stale.reason, 'expected-outside-window');
   assert.equal(stale.timeMs, null);
 
-  const oldInput = adjudicate({ firedAtServerMs: 400 });
+  const oldInput = adjudicate({
+    commandTickStartMs: tickStartFor(400), transitions: makeFireTransitions(400),
+  });
   assert.equal(oldInput.result, 'rejected');
   assert.equal(oldInput.reason, 'input-outside-window');
   assert.equal(adjudicate({ transitions: [{ fraction: 1, value: { fire: true } }] }).reason, 'invalid-subtick');
   assert.equal(adjudicate({ transitions: [{ fraction: .25, value: { fire: false } }] }).reason, 'invalid-fire-edges');
   assert.equal(adjudicate({ aimY: 3 }).result, 'miss');
+});
+
+test('sub-tick press fraction changes a shot at the same tick origin from cover to exposure', () => {
+  const commandTickStartMs = tickStartFor(450); // exposure boundary is inside this tick
+  const fireAt = timeMs => adjudicateShot({
+    role: 'peeker', arrivalMs: 470, commandTickStartMs,
+    requestedViewTimeMs: 440, expectedViewTimeMs: 440, history,
+    transitions: [{
+      fraction: (timeMs - commandTickStartMs) / TICK_MS, value: { fire: true },
+    }],
+  });
+  const covered = fireAt(449), exposed = fireAt(451);
+  assert.equal(covered.result, 'miss');
+  assert.equal(exposed.result, 'hit');
+  assert.ok(Math.abs(covered.shotAtMs - 449) < 1e-10);
+  assert.ok(Math.abs(exposed.shotAtMs - 451) < 1e-10);
+  assert.equal(covered.timeMs, exposed.timeMs, 'the historical view time remains unchanged');
 });
 
 // WebSocket loopback integration: inject real per-direction delay and seeded
@@ -83,19 +103,26 @@ test('server-owned history, input age and rewind estimate control shot outcomes'
 // Packet loss is covered by the synthetic snapshot model above, not by
 // dropping reliable WebSocket frames (which would violate the WS protocol).
 class DelayedSocket {
-  constructor(url, profile) {
+  constructor(url, profile, createSocket = u => new WebSocket(u)) {
     this.upMs = profile.upMs;
     this.downMs = profile.downMs;
     this.jitterMs = profile.jitterMs;
     this.seed = 0x1da757;
-    this.raw = new WebSocket(url);
+    this.closed = false;
+    this.outbound = { queue: [], timer: null, scheduledThrough: 0 };
+    this.inbound = { queue: [], timer: null, scheduledThrough: 0 };
+    this.raw = createSocket(url);
     this.raw.binaryType = 'arraybuffer';
-    this.raw.onopen = e => this.onopen?.(e);
-    this.raw.onclose = e => this.onclose?.(e);
-    this.raw.onerror = e => this.onerror?.(e);
+    this.raw.onopen = e => { if (!this.closed) this.onopen?.(e); };
+    this.raw.onclose = e => {
+      this.closed = true;
+      this.clearPending();
+      this.onclose?.(e);
+    };
+    this.raw.onerror = e => { if (!this.closed) this.onerror?.(e); };
     this.raw.onmessage = e => {
       const data = e.data;
-      setTimeout(() => this.onmessage?.({ data }), this.delay(this.downMs));
+      this.enqueue(this.inbound, this.downMs, () => this.onmessage?.({ data }));
     };
   }
   delay(base) {
@@ -104,21 +131,92 @@ class DelayedSocket {
     this.seed = x >>> 0;
     return Math.max(0, Math.round(base + (this.seed / 4294967296 * 2 - 1) * this.jitterMs));
   }
+  // Model variable per-frame latency without inventing out-of-order TCP/WS frames.
+  // One scheduled callback per direction drains its queue in arrival order.
+  enqueue(lane, baseMs, deliver) {
+    if (this.closed) return;
+    const due = Math.max(performance.now() + this.delay(baseMs), lane.scheduledThrough);
+    lane.scheduledThrough = due;
+    lane.queue.push({ due, deliver });
+    this.drain(lane);
+  }
+  drain(lane) {
+    if (this.closed || lane.timer !== null || !lane.queue.length) return;
+    lane.timer = setTimeout(() => {
+      lane.timer = null;
+      const next = lane.queue.shift();
+      if (!this.closed && this.raw.readyState === WebSocket.OPEN) next.deliver();
+      this.drain(lane);
+    }, Math.max(0, lane.queue[0].due - performance.now()));
+  }
+  clearPending() {
+    for (const lane of [this.outbound, this.inbound]) {
+      if (lane.timer !== null) clearTimeout(lane.timer);
+      lane.timer = null;
+      lane.queue.length = 0;
+      lane.scheduledThrough = 0;
+    }
+  }
   get readyState() { return this.raw.readyState; }
   get bufferedAmount() { return this.raw.bufferedAmount; }
   set binaryType(value) { this.raw.binaryType = value; }
   get binaryType() { return this.raw.binaryType; }
   send(data) {
-    setTimeout(() => {
-      if (this.raw.readyState === WebSocket.OPEN) this.raw.send(data);
-    }, this.delay(this.upMs));
+    this.enqueue(this.outbound, this.upMs, () => this.raw.send(data));
   }
-  close(code, reason) { this.raw.close(code, reason); }
+  close(code, reason) {
+    if (this.closed) return;
+    this.closed = true;
+    this.clearPending();
+    this.raw.close(code, reason);
+  }
 }
+
+// A transport fake isolates the impairment adapter's ordering from the server.
+class FakeWebSocket {
+  readyState = WebSocket.OPEN;
+  bufferedAmount = 0;
+  sent = [];
+  send(data) { this.sent.push(data); }
+  emit(data) { this.onmessage?.({ data }); }
+  close() {
+    this.readyState = WebSocket.CLOSED;
+    this.onclose?.({ code: 1000, reason: '' });
+  }
+}
+test('jittered outgoing and incoming WebSocket bursts remain FIFO', async () => {
+  const raw = new FakeWebSocket();
+  const socket = new DelayedSocket('ignored', { upMs: 20, downMs: 20, jitterMs: 20 }, () => raw);
+  const received = [];
+  socket.onmessage = event => received.push(event.data);
+  const expected = Array.from({ length: 32 }, (_, i) => i);
+  try {
+    for (const value of expected) {
+      socket.send(value);
+      raw.emit(value);
+    }
+    await until(() => raw.sent.length === expected.length && received.length === expected.length, 3000);
+    assert.deepEqual(raw.sent, expected, 'client to server preserves byte-stream order');
+    assert.deepEqual(received, expected, 'server to client preserves byte-stream order');
+  } finally { socket.close(); }
+});
+test('closing a delayed WebSocket cancels queued sends and receives', async () => {
+  const raw = new FakeWebSocket();
+  const socket = new DelayedSocket('ignored', { upMs: 150, downMs: 150, jitterMs: 10 }, () => raw);
+  const received = [];
+  socket.onmessage = event => received.push(event.data);
+  socket.send('stale');
+  raw.emit('stale');
+  socket.close();
+  await sleep(200);
+  assert.deepEqual(raw.sent, []);
+  assert.deepEqual(received, []);
+});
 
 test('two real Twinwire clients exchange snapshots, fire inputs, and receive server-authoritative verdicts', async () => {
   const errors = [], seats = [];
-  const game = { nowMs: 700, expectedViewTimeMs: 600, firedAtServerMs: 675 };
+  const game = { nowMs: 700, expectedViewTimeMs: 600, fireAtMs: 675,
+    commandTickStartMs: tickStartFor(675) };
   const server = await createGameServer({
     origins: ['http://localhost'], allowMissingOrigin: true,
     onError: e => errors.push(e.message),
@@ -128,7 +226,7 @@ test('two real Twinwire clients exchange snapshots, fire inputs, and receive ser
       session.onEvent = command => {
         if (!command || command.type !== 'shot') return;
         const verdict = adjudicateShot({
-          role, arrivalMs: game.nowMs, firedAtServerMs: game.firedAtServerMs,
+          role, arrivalMs: game.nowMs, commandTickStartMs: game.commandTickStartMs,
           expectedViewTimeMs: game.expectedViewTimeMs,
           requestedViewTimeMs: command.requestedViewTimeMs,
           transitions: command.transitions, history,
@@ -177,7 +275,7 @@ test('two real Twinwire clients exchange snapshots, fire inputs, and receive ser
     const fire = async (client, role, seq, requestedViewTimeMs) => {
       client.sendEvent({
         type: 'shot', seq, requestedViewTimeMs,
-        transitions: makeFireTransitions(game.firedAtServerMs),
+        transitions: makeFireTransitions(game.fireAtMs),
       });
       await until(() => resultMap.has(role + ':' + seq), 5000);
       return resultMap.get(role + ':' + seq);
@@ -186,7 +284,8 @@ test('two real Twinwire clients exchange snapshots, fire inputs, and receive ser
     assert.equal((await fire(peeker, 'peeker', 1, 600)).result, 'hit');
 
     // Client tries to hit the peeker in a past exposed position after retreat.
-    game.nowMs = 900; game.expectedViewTimeMs = 800; game.firedAtServerMs = 875;
+    game.nowMs = 900; game.expectedViewTimeMs = 800;
+    game.fireAtMs = 875; game.commandTickStartMs = tickStartFor(875);
     const forged = await fire(holder, 'holder', 2, 600);
     assert.equal(forged.source, 'server');
     assert.equal(forged.timeMs, 800);

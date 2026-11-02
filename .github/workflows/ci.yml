@@ -36,8 +36,17 @@ jobs:
       - name: Record deterministic FPS lab metrics
         if: matrix.node == 22
         run: |
+          set -euo pipefail
           mkdir -p artifacts/fps-lab
           node tools/fps-lab.mjs | tee artifacts/fps-lab/results.json
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const metrics = JSON.parse(readFileSync('artifacts/fps-lab/results.json', 'utf8'));
+          assert.equal(metrics.tickHz, 64);
+          assert.ok(Array.isArray(metrics.results) && metrics.results.length > 0);
+          for (const row of metrics.results) assert.ok(row.shots > 0);
+          NODE
       - uses: actions/upload-artifact@v7
         if: matrix.node == 22
         with:
