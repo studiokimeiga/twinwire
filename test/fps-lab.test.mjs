@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { cpSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { createGameServer } from '../dist/server/index.js';
 import { GameClient } from '../dist/client/index.js';
@@ -32,6 +37,28 @@ test('seeded network matrix is repeatable and peeker delay grows with downlink d
     assert.ok(p.hitRate >= 0 && p.hitRate <= 1);
     assert.ok(p.rejectRate >= 0 && p.rejectRate <= 1);
     assert.ok(p.fallbackRate >= 0 && p.fallbackRate <= 1);
+  }
+});
+
+test('CLI writes a valid metrics matrix when the checkout path contains spaces', () => {
+  // A URL pathname is percent-encoded; argv[1] is a filesystem path.
+  // Run the actual built lab from a separate checkout-shaped directory.
+  const checkout = mkdtempSync(join(tmpdir(), 'twinwire fps lab '));
+  try {
+    mkdirSync(join(checkout, 'tools'));
+    cpSync(fileURLToPath(new URL('../dist/', import.meta.url)), join(checkout, 'dist'),
+      { recursive: true });
+    copyFileSync(fileURLToPath(new URL('../tools/fps-lab.mjs', import.meta.url)),
+      join(checkout, 'tools', 'fps-lab.mjs'));
+    writeFileSync(join(checkout, 'package.json'), '{"type":"module"}\n');
+    const output = execFileSync(process.execPath, [join(checkout, 'tools', 'fps-lab.mjs')],
+      { encoding: 'utf8', timeout: 15_000 });
+    const metrics = JSON.parse(output);
+    assert.equal(metrics.tickHz, 64);
+    assert.equal(metrics.results.length, PROFILES.length);
+    assert.ok(metrics.results.every(row => row.shots > 0));
+  } finally {
+    rmSync(checkout, { recursive: true, force: true });
   }
 });
 
