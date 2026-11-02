@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { SubtickInputBuffer, replaySubtick, selectRewindTime } from '../dist/netcode/index.js';
 
 // Deterministic application/network model, not a measurement of internet latency.
@@ -218,7 +220,7 @@ export function runMatrix({ profiles = PROFILES, trials = 128, seed = 0x1a21f005
   });
 }
 
-if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const results = runMatrix();
   console.log(JSON.stringify({
     model: 'synthetic virtual-time FPS peek/hold; not measured real-world fairness',
