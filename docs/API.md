@@ -223,12 +223,13 @@ await server.listen();
 | `endpoint` | | Endpoint options for every session (below). |
 | `path` | `/connect` | The WebSocket path. |
 | `heartbeatTimeoutMs` / `handshakeTimeoutMs` | 15 000 / 5 000 | Drop a connection that goes silent, or that doesn't finish its hello in time. |
+| `probeMs` | 2 000 | How often the server probes each session's round trip (`session.rttMs`); 0 turns probes off. The Worker host takes the same option. |
 | `http` | 404 | `(req, res)` for every other HTTP request (`/health`, your pages). |
 | `onError`, `onSession`, `onDisconnect`, `onExpire` | | Callbacks, also settable as properties. |
 
 | Member | |
 |---|---|
-| `sessions` | Map of id to `GameSession`: `id`, `room`, `subject`, `ip`, `hello` (latest `auth`), `connected`, `transport`, `data` (yours), `sendEvent`, `sendState`, `flush()` (send now, not at the next 60 Hz pump), `onEvent`, `onState`, `onStateAck`, `endpoint`. |
+| `sessions` | Map of id to `GameSession`: `id`, `room`, `subject`, `ip`, `hello` (latest `auth`), `connected`, `transport`, `data` (yours), `sendEvent`, `sendState`, `flush()` (send now, not at the next 60 Hz pump), `onEvent`, `onState`, `onStateAck`, `endpoint`, `rttMs` (the server-measured round trip, smoothed; null until a probe is answered, and always with clients before 2.3) and `minRttMs` (the lowest on this connection). |
 | `on('session' \| 'disconnect' \| 'expire', fn)` | Listeners beside `onSession` / `onDisconnect` / `onExpire`. |
 | `endSession(session, reason)` | Kick: the client gets `onSessionLost(reason)`. |
 | `broadcast(room, json)` | To every session that said hello with that `room`. |
