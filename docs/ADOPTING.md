@@ -88,10 +88,19 @@ for every tick. Events are JSON up to 64 KiB each.
     handle that shot explicitly rather than treating a clamped timestamp as a hit. A client-reported
     ACK is not independently trustworthy. Use an application-chosen history cap and tolerance.
     The server's own estimate comes from `session.rttMs` (measured by server probes, not reported
-    by the client): `expected = now - session.rttMs / 2 - yourInterpolationDelayMs`, with a tolerance
-    that covers your interpolation buffer's range. A client can still slow its echoes to look laggier;
-    the history cap bounds what that buys. While `rttMs` is null (a client before 2.3), keep your
-    previous policy.
+    by the client). Count everything between the server's clock and the moment it applies the shot:
+    the client draws `AdaptivePlayback.delayMs` behind the server's clock, and that delay is the
+    interval plus the snapshots' lateness, which already holds the downstream half of the round trip
+    (lateness is measured on the synced server clock). The player reacts to a frame already on screen;
+    the command then travels the upstream half and waits in your input queue. So, with your playback's
+    `intervalMs`/`minMs`/`maxMs`, one send pump `pumpMs`, a frame `frameMs` and `queuedMs` of input queue:
+    `expected = now - (rttMs / 2 + clamp(rttMs / 2 + pumpMs + intervalMs, minMs, maxMs) + frameMs + queuedMs)`.
+    The server knows its queue; the client's playback delay it can only bound, so the tolerance covers
+    jitter, frame pacing and that bound. Calibrate both against honest clients under impairment: a
+    60 Hz shooter with 15 Hz snapshots measured honest claims within -45/+110 ms of this model (from
+    clean to 80 ms + 20 ms jitter + 2% loss) and uses 120 ms; Source's lag compensation uses 200 ms.
+    A client can still slow its echoes to look laggier; the history cap bounds what that buys. While
+    `rttMs` is null (a client before 2.3), keep your previous policy.
 - **Social and co-op worlds:** interest-filter what each player gets (`SpatialGrid` for "who is near"), send compact
   records at a modest rate (10-20 Hz), and acknowledged records (`ReplicaSender`) for things that change rarely.
 - **Strategy:** commands are events, applied by the server; snapshots at the simulation's own rate.
