@@ -1,4 +1,26 @@
-# Validation status: 2.2.0 (2026-10-26)
+# Validation status: 2.3.0 (2026-11-01)
+
+2.3.0 adds server-measured round trips (`session.rttMs`, `session.minRttMs`, the `probeMs` option on both hosts),
+`SubtickInputBuffer`/`replaySubtick` and `selectRewindTime`, Safari 15.0-15.3 clone compatibility and Windows test
+fixes. Wire generation 4 is unchanged. The probes are additive control messages: a published 2.2.0 client ran against
+this server probing every 50 ms for 3 s, ignored about 60 probes, stayed online with no reconnect or error and echoed
+30 of 30 events, its `rttMs` null as documented.
+
+The release tree's runtime is byte-identical to PR #11's head `f5dd928`, whose
+[networking-gates run 41388383707](https://github.com/studiokimeiga/twinwire/actions/runs/41388383707) passed: core on
+Node 22 and 24 (build, 184 tests, real workerd matrix, native RTC, 50-client bench), Chromium, Firefox and WebKit
+against a real server (normal, `IMPAIR=1`, `RTC=0`, and the party example on WebSocket and native RTC) and the
+10-minute lifecycle soaks with honest and hostile clients on Node 22 and 24. On Windows 11 with Node 24.18,
+`npm run check` (184/184) and `npm run test:native` pass; the browser suites were not repeated there (Playwright's
+pinned browsers are not installed on that machine).
+
+First adoption: Oak0 (a 60 Hz browser shooter, 15 Hz snapshots) validates each shot's claimed view with
+`selectRewindTime` against `session.rttMs`. Over its own impaired soak, honest claims sat within -45/+110 ms of the
+model in docs/ADOPTING.md and 99.4% were believed at a 120 ms tolerance, clean and at 80 ms + 20 ms jitter + 2% loss.
+
+The 2.2.0 record below is unchanged.
+
+## Validation status: 2.2.0 (2026-10-26)
 
 The release runtime passes154 local checks, native RTC, Chromium/Firefox/WebKit normal, impaired and WebSocket-only runs, and the party example on both paths. The final [Node22/24 sixty-minute run](https://github.com/studiokimeiga/twinwire/actions/runs/40365174817) at8e79d0f completed successfully. Both independent hours report no lost/duplicated/reordered echo in sessions that lived, every honest life online, bounded heap, event-loop p99 under50ms, no unexpected server errors and zero sessions/connections/rooms/timers/sockets after drain. Hostile garbage/forged/flood traffic produces expected protocol rejections.
 
