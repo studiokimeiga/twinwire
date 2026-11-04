@@ -25,13 +25,16 @@ export class BrowserWebTransportPeer {
       await deadline((async () => {
         await session.ready;
         if (!this.alive) return;
-        if (session.reliability !== 'supports-unreliable') throw new Error('WebTransport does not prove unreliable support');
+        if (session.reliability === 'reliable-only') throw new Error('WebTransport is reliable-only');
         const size = session.datagrams.maxDatagramSize;
         if (!Number.isSafeInteger(size) || size! < 1024 || !session.createBidirectionalStream) throw new Error('WebTransport capabilities unavailable');
         const stream = await session.createBidirectionalStream();
         await writeBinding(stream.writable, { v: bindingVersion, e: epoch, a: offer.a, ticket: offer.ticket, maxDatagramSize: size }, this.abort.signal);
         const reply = await readBinding(stream.readable, this.abort.signal);
-        if (reply.ok !== true || !Number.isSafeInteger(reply.maxDatagramSize) || (reply.maxDatagramSize as number) < 1024 || (reply.maxDatagramSize as number) > size!)
+        // Older native Chromium exposes datagrams but omits reliability. The host must explicitly confirm that
+        // its listener is HTTP/3-only; Endpoint still requires independent bidirectional datagram probes.
+        if (reply.ok !== true || reply.unreliableDatagrams !== true || !Number.isSafeInteger(reply.maxDatagramSize) ||
+            (reply.maxDatagramSize as number) < 1024 || (reply.maxDatagramSize as number) > size!)
           throw new Error('WebTransport binding rejected');
         if (!this.alive) return;
         const link = datagramConnection(session, reply.maxDatagramSize as number, this.callbacks);

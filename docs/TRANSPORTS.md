@@ -54,7 +54,10 @@ or Worker bundles. The HTTP/3 provider is optional and independent of Twinwire's
 Browsers establish the WebSocket session immediately. If WebTransport is offered and natively supported, a short,
 length-prefixed reliable binding stream authenticates it with a one-use, time-limited ticket issued on that live
 WebSocket. Tickets never appear in URLs. Both peers independently probe datagrams; connection readiness alone is
-insufficient. Reliable-only/unknown capabilities keep RTC/WS. An old epoch, consumed ticket or retired attempt
+insufficient. Explicit reliable-only connections keep RTC/WS. If a legacy browser omits its reliability property,
+the binding must confirm an HTTP/3-only listener before probing; unknown server capabilities cannot enable it.
+The low-level `acceptWebTransport` adapter therefore requires a verified `unreliableDatagrams: true` host capability.
+An old epoch, consumed ticket or retired attempt
 cannot attach to a new connection.
 
 The endpoint can retain proven RTC and WT paths, sending state on one. RTT margin and hold-time hysteresis avoid
@@ -64,7 +67,9 @@ state age and loss in your application. `endpoint.datagramPaths` reports current
 Reliable gameplay events and session control still use WebSocket, with event copies on the selected fast path.
 
 RTC messages can be SCTP-fragmented. QUIC datagrams cannot reuse that assumption: complete frames must fit the
-negotiated datagram size. Larger states use WS. `webtransport: false` disables browser attempts. Development-only
+negotiated datagram size. A larger state can still use proven RTC when it fits the configured datagram-state ceiling;
+otherwise it uses WS. The primary path label and each received state's `via` can therefore differ.
+`webtransport: false` disables browser attempts. Development-only
 short-lived certificate hashes can be supplied in client options; production uses normal certificate validation.
 
 ## Bulk resources use independent HTTP requests

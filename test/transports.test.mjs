@@ -66,3 +66,14 @@ test('dropping one fast path retains the other, while detach retires every path'
   assert.equal(n.a.fastTransport, 'rtc');
   n.a.detach(); assert.equal(n.a.fastActive, false); assert.equal(n.a.active, false);
 });
+
+test('large snapshots can still use proven RTC when the preferred QUIC path cannot fit them', () => {
+  const n = network(); n.attach('rtc'); n.attach('wt');
+  for (let i = 0; i < 7; i++) n.advance();
+  assert.equal(n.a.fastTransport, 'wt');
+  const received=[];n.b.onState=state=>received.push(state.via);
+  n.a.sendState(1,new Uint8Array(100),n.now);n.advance();
+  n.a.sendState(2,new Uint8Array(3000),n.now);n.advance();
+  n.a.sendState(3,new Uint8Array(9000),n.now);n.advance();
+  assert.deepEqual(received,['wt','rtc','ws']);
+});

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as clientApi from '../dist/client/index.js';
 import * as serverApi from '../dist/server/index.js';
-import { until } from './helpers.mjs';
+import { until, sleep } from './helpers.mjs';
 import { WebSocket } from 'ws';
 import { writeBinding, readBinding } from '../dist/core/webtransport.js';
 import { VERSION } from '../dist/core/protocol.js';
@@ -34,7 +34,7 @@ test('WebTransport adapter frames and authenticates the fast path against the li
     websocket: u => new WebSocket(u), syncPingMs: 10, endpoint: { probeIntervalMs: 20, probeTimeoutMs: 100 },
     webtransport: { create() {
       const pair = memorySessions();
-      offers.push(serverApi.acceptWebTransport(pair.b, claim, { origin: undefined })); return pair.a;
+      offers.push(serverApi.acceptWebTransport(pair.b, claim, { origin: undefined, unreliableDatagrams: true })); return pair.a;
     } } });
   t.after(async () => { client.close(); await server.close(); await Promise.all(offers); });
   const events = []; client.onEvent = d => events.push(d);
@@ -63,7 +63,7 @@ test('binding parser rejects trailing bytes in a separate stream write', async (
 test('a timed-out binding cannot later claim a session when its delayed stream finally supplies bytes', async () => {
   const pair = memorySessions(); let claims = 0;
   const stream = await pair.a.createBidirectionalStream();
-  await serverApi.acceptWebTransport(pair.b, () => { claims++; return null; }, { handshakeTimeoutMs: 15 });
+  await serverApi.acceptWebTransport(pair.b, () => { claims++; return null; }, { handshakeTimeoutMs: 15, unreliableDatagrams: true });
   try { await writeBinding(stream.writable, { v: VERSION, e: 1, a: 1, ticket: 't'.repeat(40), maxDatagramSize: 1200 }); } catch {}
   await new Promise(resolve => setTimeout(resolve, 10));
   assert.equal(claims, 0);
@@ -109,4 +109,55 @@ test('reliable-only WebTransport is rejected and the logical session remains usa
   client.connect(); await until(() => closes === 1);
   assert.equal(client.transport, 'ws'); client.sendEvent({ ok: true }); await until(() => events.length === 1);
   assert.equal(server.sessions.size, 1);
+});
+
+test('proven standby WT resets retry debt and duplicate resets cannot postpone its next attempt', async t => {
+  let claim,creates=0,session; const pending=[],offers=[];
+  const host={url:'https://game.test/twinwire',setAcceptor(fn){claim=fn;},async close(){}};
+  const server=await serverApi.createGameServer({origins:[],allowMissingOrigin:true,webtransport:host,
+    endpoint:{probeIntervalMs:20,probeTimeoutMs:100},onSession(s){session=s;}});
+  const client=new clientApi.GameClient({url:`ws://127.0.0.1:${await server.listen()}/connect`,room:'wt-backup',rtc:false,
+    endpoint:{probeIntervalMs:20,probeTimeoutMs:100,preferredDatagram:'rtc',pathSwitchMarginMs:1000,pathSwitchHoldMs:0},
+    websocket:url=>{const socket=new WebSocket(url);socket.addEventListener('message',event=>{
+      if(typeof event.data==='string'){const message=JSON.parse(event.data);if(message.wt)offers.push(message.wt);if(message.t==='wt-offer')offers.push(message.d);}
+    });return socket;},webtransport:{retryMs:100,create(){
+      if(++creates<=3)throw Error('synthetic unavailable provider');
+      const pair=memorySessions();pending.push(serverApi.acceptWebTransport(pair.b,claim,{unreliableDatagrams:true}));return pair.a;
+    }}});
+  t.after(async()=>{client.close();await server.close();await Promise.all(pending);});
+  client.connect();await until(()=>client.status==='online'&&session);
+  const link=(other)=>({open:true,bufferedAmount:0,close(){},send(bytes){const copy=bytes.slice();queueMicrotask(()=>other.receiveBinary(copy,'rtc'));return true;}});
+  client.endpoint.attachDatagram(link(session.endpoint),'rtc');session.endpoint.attachDatagram(link(client.endpoint),'rtc');
+  await until(()=>creates>=4&&client.endpoint.datagramProven('wt')&&session.endpoint.datagramProven('wt'),10000);
+  assert.equal(client.transport,'rtc','WT is a healthy standby while RTC remains preferred');
+  await sleep(1100); // the real server's one-second offer admission cooldown has elapsed
+  const previous=creates,at=performance.now(),attempt=offers.at(-1).a;
+  session.endpoint.dropDatagram(true,'wt');
+  await until(()=>!client.endpoint.datagramProven('wt'));
+  for(let n=0;n<2;n++)session.endpoint.sendControl({t:'wt-reset',e:session.epoch,a:attempt});
+  await until(()=>creates>previous,600);
+  assert.ok(performance.now()-at<600,'healthy backup proof must return retries to the 100ms base');
+  assert.equal(client.id,session.id);
+});
+
+test('legacy missing reliability property needs explicit HTTP/3 host capability confirmation and real datagram proof', async t => {
+  let claim;const pending=[];
+  const host={url:'https://game.test/twinwire',setAcceptor(fn){claim=fn;},async close(){}};
+  const server=await serverApi.createGameServer({origins:[],allowMissingOrigin:true,webtransport:host});
+  const client=new clientApi.GameClient({url:`ws://127.0.0.1:${await server.listen()}/connect`,room:'wt-legacy-capability',rtc:false,
+    websocket:url=>new WebSocket(url),webtransport:{create(){const pair=memorySessions();delete pair.a.reliability;
+      pending.push(serverApi.acceptWebTransport(pair.b,claim,{unreliableDatagrams:true}));return pair.a;}}});
+  t.after(async()=>{client.close();await server.close();await Promise.all(pending);});
+  const states=[];client.onState=state=>states.push(state);client.connect();
+  await until(()=>client.transport==='wt',2000);
+  const session=server.sessions.get(client.id);await until(()=>session.endpoint.datagramProven('wt'));
+  session.sendState(1,new Uint8Array([1]));session.flush();await until(()=>states.length===1);
+  assert.equal(states[0].via,'wt');
+});
+
+test('closing before the binding stream arrives cancels the pending handshake promptly', async () => {
+  const pair=memorySessions();
+  const accepted=serverApi.acceptWebTransport(pair.b,()=>assert.fail('closed connection cannot claim'),{unreliableDatagrams:true});
+  pair.a.close();
+  await Promise.race([accepted,sleep(150).then(()=>{throw Error('closed handshake still owns a reader/timer');})]);
 });

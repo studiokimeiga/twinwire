@@ -348,6 +348,9 @@ export class Endpoint {
     const ws = this.reliable;
     const via = this.fastTransport;
     if (preferFast && via && this.sendFast(b, via)) return via;
+    // RTC may fit a larger message than a QUIC datagram. Keep that useful path before falling back to TCP.
+    const other = via === 'wt' ? 'rtc' : 'wt';
+    if (preferFast && this.datagramProven(other) && this.sendFast(b, other)) return other;
     if (!ws?.open || ws.bufferedAmount > this.highWater) return null;
     try { if (!ws.send(b)) return null; } catch { return null; }
     this.stats.bytesSent += b.length; return 'ws';

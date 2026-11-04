@@ -252,10 +252,10 @@ export class GameClient {
     }
     // The server's round-trip probe (GameSession.rttMs): echo at once, ahead of the next pump.
     if (m.t === 'probe' && isUint(m.n)) { this.endpoint.sendControl({ t: 'probe-ack', e: this.epoch, n: m.n }); return; }
-    if (m.t === 'wt-offer' && validOffer(m.d)) {
-      this.stopWt(false); this.wtOffer = m.d; this.wtRetryAt = performance.now(); return;
+    if (m.t === 'wt-offer' && validOffer(m.d) && m.d.a > this.wtAttempt) {
+      this.stopWt(false, false); this.wtOffer = m.d; this.wtRetryAt = performance.now(); return;
     }
-    if (m.t === 'wt-reset' && m.a === this.wtAttempt) { this.stopWt(false); return; }
+    if (m.t === 'wt-reset' && m.a === this.wtAttempt && this.wtPeer) { this.stopWt(false); return; }
     if (m.t === 'signal' && m.a === this.rtcAttempt && validSignal(m.d)) { void this.peer?.signal(m.d); return; }
     if (m.t === 'rtc-reset' && m.a === this.rtcAttempt && this.peer) this.stopRtc(false);
   }
@@ -319,12 +319,13 @@ export class GameClient {
     });
     this.wtPeer = peer; void peer.connect(offer, epoch, options ?? {});
   }
-  private stopWt(notify: boolean): void {
+  private stopWt(notify: boolean, failed = true): void {
     ++this.wtGeneration;
     const peer = this.wtPeer; this.wtPeer = undefined; this.wtOffer = undefined;
     this.endpoint.dropDatagram(false, 'wt'); peer?.close();
     if (notify && peer) this.endpoint.sendControl({ t: 'wt-reset', e: this.epoch, a: this.wtAttempt });
-    this.wtRetryAt = performance.now() + Math.min(60000, (this.options.webtransport && this.options.webtransport.retryMs || 3000) * 2 ** Math.min(this.wtFailures++, 4));
+    this.wtRetryAt = performance.now() + Math.min(60000, (this.options.webtransport && this.options.webtransport.retryMs || 3000) * 2 ** Math.min(this.wtFailures, 4));
+    if (peer && failed) this.wtFailures++;
     this.noteTransport();
   }
   private stopRtc(notify: boolean): void {
@@ -354,6 +355,8 @@ export class GameClient {
       if (!this.peer && now >= this.rtcRetryAt) this.startRtc();
       if (!this.wtPeer && now >= this.wtRetryAt) this.startWt();
       this.endpoint.pump();
+      if (this.endpoint.datagramProven('wt')) this.wtFailures = 0;
+      if (this.endpoint.datagramProven('rtc')) this.rtcFailures = 0;
       this.noteTransport();
     } else if (this.socket && (now >= this.closingDeadline || now - this.openedAt > 10000)) { this.replaceSocket('handshake timeout'); }
   }

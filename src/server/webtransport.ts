@@ -4,16 +4,20 @@ import { bindingVersion, datagramConnection, deadline, readBinding, writeBinding
 export type { WebTransportHost, WebTransportClaim, WebTransportBinding, TransportSession } from '../core/webtransport.js';
 /** Host-adapter entry point. An accepted HTTP/3 session still needs a one-use, live WebSocket binding ticket. */
 export async function acceptWebTransport(session: TransportSession, claim: (request: WebTransportClaim) => WebTransportBinding | null,
-  options: { origin?: string; maxDatagramSize?: number; handshakeTimeoutMs?: number } = {}): Promise<void> {
+  options: { origin?: string; maxDatagramSize?: number; handshakeTimeoutMs?: number; unreliableDatagrams?: boolean } = {}): Promise<void> {
   const abort = new AbortController();
   void session.closed.then(() => abort.abort(), () => abort.abort());
   try {
     await deadline((async () => {
+      if (options.unreliableDatagrams !== true) throw new Error('Host must verify unreliable transport support');
       if (!session.incomingBidirectionalStreams) throw new Error('Missing binding stream');
       const incoming = session.incomingBidirectionalStreams.getReader();
+      const abortIncoming = () => { void incoming.cancel().catch(() => {}); };
+      abort.signal.addEventListener('abort', abortIncoming, { once: true });
+      if (abort.signal.aborted) abortIncoming();
       let stream;
       try { const result = await incoming.read(); if (result.done) throw new Error('Missing binding stream'); stream = result.value; }
-      finally { incoming.releaseLock(); }
+      finally { abort.signal.removeEventListener('abort', abortIncoming); incoming.releaseLock(); }
       const hello = await readBinding(stream.readable, abort.signal);
       if (abort.signal.aborted || hello.v !== bindingVersion || !Number.isInteger(hello.e) || (hello.e as number) < 1 || (hello.e as number) > 65535 ||
           !Number.isSafeInteger(hello.a) || (hello.a as number) < 1 ||
@@ -24,7 +28,7 @@ export async function acceptWebTransport(session: TransportSession, claim: (requ
       if (!binding) throw new Error('Binding rejected');
       const max = Math.min(options.maxDatagramSize ?? 1100, hello.maxDatagramSize as number);
       if (!Number.isSafeInteger(max) || max < 1024 || max > 65535) throw new Error('Invalid datagram limit');
-      await writeBinding(stream.writable, { ok: true, maxDatagramSize: max }, abort.signal);
+      await writeBinding(stream.writable, { ok: true, unreliableDatagrams: true, maxDatagramSize: max }, abort.signal);
       if (abort.signal.aborted) throw new Error('Retired WebTransport binding');
       binding.open(datagramConnection(session, max, binding));
     })(), options.handshakeTimeoutMs ?? 5000);
@@ -59,7 +63,7 @@ export async function createWebTransportHost(options: WebTransportHostOptions): 
         sessions.add(session);
         void session.closed.then(() => sessions.delete(session), () => sessions.delete(session));
         void acceptWebTransport(session, accept, { origin: session.header?.origin, maxDatagramSize: options.maxDatagramSize,
-          handshakeTimeoutMs: options.handshakeTimeoutMs });
+          handshakeTimeoutMs: options.handshakeTimeoutMs, unreliableDatagrams: true });
       }
     } catch { if (!stopped) for (const session of sessions) session.close(); }
   })();

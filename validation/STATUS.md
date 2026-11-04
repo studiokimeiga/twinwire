@@ -1,10 +1,16 @@
 # Validation status: 3.0.0 candidate (2026-11-03, not released)
 
-The candidate uses wire generation 5. Local build and 214 tests passed after diagnostics, bulk resources,
-multi-path capabilities, framing/cancellation, session-binding and the corrected scheduler borrowing policy.
+The candidate uses wire generation 5. Local build and 218 tests passed after diagnostics, bulk resources,
+multi-path capabilities, framing/cancellation, session-binding, corrected scheduler borrowing, standby retry debt
+and legacy missing-reliability capability negotiation.
 Actual HTTP/3 cannot load on this Ubuntu 22.04/glibc 2.35 machine: the optional
-prebuilt provider requires GLIBC_2.38. Memory-stream adapter tests are not QUIC evidence. Hosted Ubuntu24 real-browser
-WT/RTC/WS gates, longer soaks, broad release gates and production upgrades remain pending. Do not infer publication
+prebuilt provider requires GLIBC_2.38. Memory-stream adapter tests are not QUIC evidence. The first candidate's hosted
+Ubuntu24 gates pass core Node22/24, all existing browser matrices and both 10-minute lifecycle soaks. Firefox actually
+receives WT application states in normal/impaired runs; pinned Linux WebKit has no native WT and passes RTC/WS fallback.
+Chromium153 connects but omits `reliability`, motivating the explicit HTTP/3 host confirmation now being verified.
+The first candidate's alternating 3x50-client localhost comparison has delivery ratio1.000, CPU ratio1.02234,
+RSS ratio1.00873 and candidate loop p9919.759ms. Those results are attached to CI41767377314 at d7f126f, not a claim
+about later runtime changes. Final head gates, longer soaks and production upgrades remain pending. Do not infer publication
 or live game upgrades from the candidate version in package.json.
 
 The deterministic endpoint model compares the unchanged published 2.3.0 tarball with this candidate. An initial

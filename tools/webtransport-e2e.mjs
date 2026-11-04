@@ -33,6 +33,7 @@ try {
     const attempts=this.wtAttempts=[];
     const note=data=>{attempts.push(data);if(attempts.length>16)attempts.shift();};
     const c = this.client = new Twinwire.GameClient({ url: 'ws://' + location.host + '/connect', room: 'wt-real',
+      rtc: typeof WebTransport==='function'?false:{},
       syncPingMs: 20, webtransport: { serverCertificateHashes: [{algorithm:'sha-256',value:new Uint8Array(hash)}],create(url,options){
         const wt=new WebTransport(url,options);
         wt.ready.then(()=>note({stage:'ready',reliability:wt.reliability,maxDatagramSize:wt.datagrams.maxDatagramSize}),
@@ -86,8 +87,12 @@ try {
         row.phase='prove-wt-application-states';
         await wait(page,()=>T.client.transport==='wt'&&T.receipts.filter(s=>s.via==='wt').length>=30);
         row.webtransportStates=await page.evaluate(()=>T.receipts.filter(s=>s.via==='wt').length);
+        row.wtTiming=await page.evaluate(()=>T.trace.summary());
         assert.ok(server.sessions.get(id).endpoint.datagramProven('wt'));
       } else row.webtransportStates=0;
+      row.phase='prove-backup-rtc';
+      await page.evaluate(()=>{T.client.options.rtc={};});
+      await wait(page,()=>T.client.endpoint.datagramProven('rtc'));
       row.phase='move-and-render';await page.evaluate(()=>{T.move(12.5);T.client.sendEvent({fire:true});});
       await wait(page,()=>T.world?.position===12.5&&T.world.score===1&&T.rendered?.position===12.5&&T.events.length===1);
       row.initialPath=await page.evaluate(()=>T.client.transport);
