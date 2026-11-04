@@ -11,7 +11,7 @@ const BASE = `http://127.0.0.1:${PORT}/twinwire/`;
 mkdirSync(SHOTS, { recursive: true });
 const PAGES = ['', 'demos', 'guide/recovery', 'reference/verification', 'reference/api/channels', 'reference/api/worker', 'guide/getting-started', 'guide/party', 'how/sessions', 'how/two-wires', 'how/interpolation', 'how/prediction',
   'how/deltas', 'how/interest', 'how/lobby', 'reference/api/', 'reference/api/client', 'reference/api/server',
-  'reference/api/netcode', 'reference/api/browser', 'reference/operations', 'reference/adopting', 'reference/changelog'];
+  'reference/api/netcode', 'reference/api/browser', 'reference/api/transports', 'reference/operations', 'reference/adopting', 'reference/changelog'];
 
 const server = spawn('npx', ['vitepress', 'preview', '--port', String(PORT), '--host', '127.0.0.1'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
 await new Promise((resolve, reject) => {

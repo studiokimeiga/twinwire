@@ -200,6 +200,9 @@ jobs:
       - run: npx playwright install --with-deps "$ENGINES"
       - run: node tools/webtransport-e2e.mjs
       - run: IMPAIR=1 node tools/webtransport-e2e.mjs
+      - name: Measure bounded tracing overhead
+        if: matrix.engine == 'chromium'
+        run: node tools/compare-tracing.mjs
       - uses: actions/upload-artifact@v7
         if: always()
         with:

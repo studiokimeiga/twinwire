@@ -47,6 +47,7 @@ try {
       const data = new DataView(state.data.buffer,state.data.byteOffset,state.data.byteLength);
       const value = {position:data.getFloat32(0,true),score:data.getUint32(4,true),tick:data.getUint32(8,true)};
       this.world=value; this.receipts.push({seq:state.seq,via:state.via}); if(this.receipts.length>512)this.receipts.shift();
+      if(this.sample?.path===state.via)this.sample.received++;
       if(c.clock.synced) playback.track(timeline,{time:state.time,seq:state.seq,value},c.clock.serverTime(performance.now()));
       else timeline.insert({time:state.time,seq:state.seq,value}); return true;
     }});
@@ -83,11 +84,18 @@ try {
       await page.evaluate(([hash,impaired])=>T.start(hash,impaired),[certificateHash,impaired]);
       row.phase='session';await wait(page,()=>T.client.status==='online'&&T.client.clock.synced);
       const id=await page.evaluate(()=>T.client.id);
+      const measurePath=async path=>{
+        await page.evaluate(path=>{T.trace.clear();T.sample={path,received:0,started:performance.now()};},path);
+        await wait(page,()=>T.sample.received>=60);
+        return page.evaluate(()=>({path:T.sample.path,received:T.sample.received,elapsedMs:performance.now()-T.sample.started,
+          ...T.trace.summary(),maxClockUncertaintyMs:Math.max(0,...T.trace.snapshot().map(e=>e.clockUncertaintyMs??0))}));
+      };
+      row.phaseTiming={caveat:'Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.'};
       if(row.nativeWebTransport) {
         row.phase='prove-wt-application-states';
         await wait(page,()=>T.client.transport==='wt'&&T.receipts.filter(s=>s.via==='wt').length>=30);
         row.webtransportStates=await page.evaluate(()=>T.receipts.filter(s=>s.via==='wt').length);
-        row.wtTiming=await page.evaluate(()=>T.trace.summary());
+        row.phaseTiming.wt=await measurePath('wt');
         assert.ok(server.sessions.get(id).endpoint.datagramProven('wt'));
       } else row.webtransportStates=0;
       row.phase='prove-backup-rtc';
@@ -109,10 +117,12 @@ try {
       await page.evaluate(()=>{T.client.options.webtransport=false;T.client.endpoint.dropDatagram(true,'wt');});
       await wait(page,()=>T.client.transport==='rtc'&&T.receipts.slice(-5).every(s=>s.via==='rtc'));
       row.rtcFallback=true;
+      row.phaseTiming.rtc=await measurePath('rtc');
       row.phase='ws-fallback';
       await page.evaluate(()=>{T.client.options.rtc=false;T.client.endpoint.dropDatagram(true,'rtc');});
       await wait(page,()=>T.client.transport==='ws'&&T.receipts.slice(-5).every(s=>s.via==='ws'));
       row.websocketFallback=true;
+      row.phaseTiming.ws=await measurePath('ws');
       row.phase='same-session-queued-action-and-render';
       await page.evaluate(()=>{T.client.pause();T.client.sendEvent({fire:true});T.client.resume();});
       await wait(page,()=>T.client.status==='online'&&T.world?.score===3&&T.events.length===3&&T.receiver.ready&&T.rendered?.score===3&&T.rendered.position===12.5);

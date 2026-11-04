@@ -10,6 +10,8 @@ const features = [
   { wire: 'ink', title: 'A lobby', text: 'Private rooms with codes, quick play matched by mode and build, stable seats, host hand-off, ready-up with a countdown, kick, rate limits.', link: '/how/lobby' },
   { wire: 'ink', title: 'Netcode helpers', text: 'Clock sync, snapshot interpolation with adaptive delay, prediction and reconciliation, input redundancy, fixed steps, interest queries, binary codecs.', link: '/how/interpolation' },
   { wire: 'dg', title: 'STUN and TURN', text: 'ICE servers handed to each client by your server, so you can rotate them without a new build: coturn credentials or Cloudflare’s managed relay.', link: '/reference/operations' },
+  { wire: 'dg', title: 'An optional QUIC path', text: 'Add WebTransport beside WebRTC. Each path has its own proof, payload limit and RTT; path changes keep the same logical player.', link: '/reference/api/transports' },
+  { wire: 'ink', title: 'See where time goes', text: 'Bounded metadata separates send queues, receipt, world application, playback and render submission. Fetch large resources independently of ordered gameplay actions.', link: '/reference/api/transports' },
   { wire: 'ink', title: 'Browser first', text: 'Tested in Chromium, Firefox and WebKit against the real server, on a bad network and with UDP blocked. See the measured support and release checks.', link: '/reference/verification' },
 ];
 </script>
