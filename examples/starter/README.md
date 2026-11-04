@@ -13,4 +13,6 @@ WebSocket works without a native module. To test datagrams, install the optional
 
 server.mjs validates and applies movement at 60 Hz, sends self-contained snapshots at 20 Hz, and removes expired sessions. game.mjs passes snapshots through receiveState before playback. Reliable pings and replaceable input are different streams. The example has no authentication or persistence: add game-owned authority checks, accounts and saved worlds before extending it into a production service.
 
+Open State timing below the arena to enable the optional 512-sample metadata recorder (?trace=1). Toggling it reloads the same invite and resumes the same player. It reports state age at receipt and canvas draw submission with server-clock uncertainty. A draw submission is not GPU presentation; these measurements include browser and game scheduling. Recording is disabled by default and retains no state payloads.
+
 Production: HOST=0.0.0.0, PORT=8787, ORIGINS=https://your-game.example. Put HTTPS/WSS in front of TCP 8787 and, if RTC is enabled, open UDP 8788. Deploy both client and server from one SDK version. See the website Operations guide for limits and TURN.

@@ -12,7 +12,7 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
-    "twinwire": "2.2.0"
+    "twinwire": "3.0.0"
   },
   "devDependencies": {
     "miniflare": "4.20260317.0",

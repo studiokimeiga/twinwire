@@ -1,10 +1,12 @@
 
 import {SocketSessionServer} from 'twinwire/worker';
+import {VERSION} from 'twinwire';
+import sdk from 'twinwire/package.json' with {type:'json'};
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
-    if(url.pathname==='/health')return Response.json({ok:true,twinwire:'2.2.0',wire:4,transport:'ws',example:'starter-worker'});
+    if(url.pathname==='/health')return Response.json({ok:true,twinwire:sdk.version,wire:VERSION,transport:'ws',example:'starter-worker'});
     if(url.pathname!=='/connect')return env.ASSETS.fetch(request);
     const room=url.searchParams.get('room');
     if(!room||!/^[a-zA-Z0-9-]{8,40}$/.test(room))return new Response('Invalid room',{status:400});

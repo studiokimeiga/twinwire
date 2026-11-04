@@ -1,0 +1,273 @@
+{
+  "at": "2026-11-04T07:27:26.353Z",
+  "twinwire": "3.0.0",
+  "wire": 5,
+  "games": [
+    {
+      "game": "cs2",
+      "url": "http://140.82.43.143:8080/mp.html",
+      "source": "6ac797f0e07e359bf0699b20719fd1de9df4e3fc",
+      "mergedPR": "https://github.com/Kimeiga/cs2-ag2-browser/pull/9",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "nocturne",
+      "url": "https://nocturnekeep.com/",
+      "source": "25f5da4b9fbadb2e0137a6b5beb1c5ed82fef02b",
+      "mergedPR": "https://github.com/Kimeiga/nocturne-keep/pull/12",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "kimu",
+      "url": "https://kimu.nyc/",
+      "source": "c93b0f2b7485a782a56ebc336f0f94da5b7a9b1f",
+      "mergedPR": "https://github.com/Kimeiga/kimu-nyc/pull/8",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "superfighters",
+      "url": "https://hakanalpay.com/superfighters/",
+      "source": "3f205b47c820775d8d8afb3e494aeef104883222",
+      "mergedPR": "https://github.com/Kimeiga/superfighters/pull/3",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "mahjong",
+      "url": "https://emojimahjong.pages.dev/",
+      "source": "06b1ccc8113a011203b11356aebf1d7d9811f793",
+      "mergedPR": "https://github.com/Kimeiga/emoji-mahjong/pull/9",
+      "verified": true,
+      "transports": [
+        "ws"
+      ],
+      "checks": [
+        "private hands",
+        "same seats and hands after offline reload",
+        "desktop Chromium",
+        "phone-sized Chromium",
+        "phone-sized WebKit"
+      ]
+    },
+    {
+      "game": "gallax",
+      "url": "https://gallax.pages.dev/",
+      "source": "8e6bc6fefda2df5d7a087b525c0d1bb6858f05e6",
+      "mergedPR": "https://github.com/Kimeiga/gallax/pull/3",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "webstrike",
+      "url": "http://140.82.43.143/?online",
+      "source": "79f3a1e4ba62cf821be1a4be680e62dfccb45ddf",
+      "mergedPR": "https://github.com/Kimeiga/webstrike/pull/5",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "sipoga",
+      "url": "https://hakanalpay.com/sipoga/",
+      "source": "b882382268f57c9e3b5c0ab64cfa3cc143826ed7",
+      "mergedPR": "https://github.com/Kimeiga/nt-web/pull/2",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "wollo",
+      "url": "https://wollo.66-135-17-35.sslip.io/",
+      "source": "28f5b8b5a8a13b145719a577ca394e959f9b482f",
+      "mergedPR": "https://github.com/Kimeiga/wollosseum/pull/2",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "tdbr",
+      "url": "https://tdbr.66-135-17-35.sslip.io/",
+      "source": "d05bcb7e5504175e34d6b18198670f10a53eaca9",
+      "mergedPR": "https://github.com/Kimeiga/tdbr/pull/2",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    },
+    {
+      "game": "oak0",
+      "url": "https://oak0.com/",
+      "source": "dbdbe1e3d6cf98f3521bf7babc305725bc3e4b24",
+      "mergedPR": "https://github.com/Kimeiga/oak0/pull/6",
+      "verified": true,
+      "transports": [
+        "rtc",
+        "ws"
+      ],
+      "checks": [
+        "gameplay actions",
+        "same identity after interruption",
+        "current world after reconnect"
+      ]
+    }
+  ],
+  "health": [
+    {
+      "game": "nocturne",
+      "url": "https://play.nocturnekeep.com/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "kimu",
+      "url": "https://45-77-145-167.sslip.io/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "superfighters",
+      "url": "http://45.77.204.19:9208/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "gallax",
+      "url": "https://game.kimu.nyc/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "webstrike",
+      "url": "http://140.82.43.143/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "sipoga",
+      "url": "http://140.82.43.143:3000/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "wollo",
+      "url": "https://wollo.66-135-17-35.sslip.io/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "tdbr",
+      "url": "https://tdbr.66-135-17-35.sslip.io/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    },
+    {
+      "game": "oak0",
+      "url": "https://origin.oak0.com/health",
+      "twinwire": "3.0.0",
+      "wire": 5
+    }
+  ],
+  "starter": {
+    "url": "https://twinwire-demo.hak7alp.workers.dev/",
+    "movement": true,
+    "queuedPing": "once",
+    "checkpointReload": true,
+    "timingToggleRetainedIdentity": true,
+    "metadataCapacity": 512
+  },
+  "limits": [
+    "These are the listed production scenarios, not a claim of universal device, NAT, carrier or latency coverage.",
+    "Production Node games currently use native RTC and WebSocket; native QUIC is separately proven in SDK gates.",
+    "CS2 retains its existing public fallback asset policy; gameplay acceptance does not certify the private asset library.",
+    "Game-owned worlds and seats are separate from in-memory transport sessions.",
+    "A public TDBR check was corrected to identify its actual peer instead of assuming the match contained only its two browsers."
+  ],
+  "hostedGameRuns": [
+    {
+      "game": "cs2",
+      "url": "https://github.com/Kimeiga/cs2-ag2-browser/actions/runs/41785644434",
+      "requestedMinutes": 60
+    },
+    {
+      "game": "nocturne",
+      "url": "https://github.com/Kimeiga/nocturne-keep/actions/runs/41785647131",
+      "requestedMinutes": 60
+    },
+    {
+      "game": "kimu",
+      "url": "https://github.com/Kimeiga/kimu-nyc/actions/runs/41786723906",
+      "requestedMinutes": 60
+    }
+  ],
+  "sdkRelease": "https://github.com/studiokimeiga/twinwire/releases/tag/v3.0.0"
+}

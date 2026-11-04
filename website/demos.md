@@ -22,6 +22,10 @@ connection, or certify a device. [Run the starter](/guide/getting-started) for a
 
 [Run the Node version with optional native WebRTC](/guide/getting-started) · [Read the Worker source](https://github.com/studiokimeiga/twinwire/tree/main/examples/starter-worker)
 
+Open **State timing** in either starter to record at most 512 metadata samples. It shows state age at receipt
+and canvas draw submission, with clock uncertainty. Enabling or disabling it resumes the same player and invite;
+recording is off by default. [Understand those boundaries](/reference/api/transports#observe-the-actual-boundaries).
+
 ## A real multiplayer game
 
 The <a href="/twinwire/twinwire-starter.tgz" download>standalone starter</a> has actual sockets, authoritative movement, a touch/keyboard arena,
@@ -32,7 +36,7 @@ Both include their source. Keep the server and browser on the same Twinwire rele
 
 ## Live game integrations
 
-These games run Twinwire 2.2.0. Their deployed clients were checked with independent browsers,
+These eleven games run Twinwire 3.0.0, wire generation 5. Their deployed clients were checked with independent browsers,
 actual gameplay and a dropped connection. The games own their simulation, accounts, assets and persistence.
 
 | Game | Try it | Recovery exercised |
@@ -47,6 +51,7 @@ actual gameplay and a dropped connection. The games own their simulation, accoun
 | Sipoga / NT Web | [Multiplayer FPS](https://hakanalpay.com/sipoga/) | Movement, damage, respawn and retained player after an 8.5-second drop |
 | Wollosseum prototype | [Command arena](https://wollo.66-135-17-35.sslip.io/) | Commands and the same seat and world after reconnect |
 | TDBR prototype | [Top-down arena](https://tdbr.66-135-17-35.sslip.io/) | Movement, firing and the same player, inventory and world |
+| Oak0 | [Team shooter](https://oak0.com/) | Both teams deploy and move, RTC fallback, same identity after interruption and reload |
 
 The Node games were checked on both native WebRTC and forced WebSocket. Emoji Mahjong uses
 the Worker WebSocket host; its private-hand recovery was also checked in phone-sized WebKit.
