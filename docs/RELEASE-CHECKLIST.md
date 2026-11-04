@@ -6,10 +6,10 @@ For maintainers, before tagging `vX.Y.Z` (the tag publishes to npm: `.github/wor
 - [ ] `npm run test:native`: datagrams selected, fallback and recovery in the same session.
 - [ ] `npm run test:browser`, `IMPAIR=1 npm run test:browser`, `RTC=0 npm run test:browser`: Chromium, Firefox, WebKit.
 - [ ] `npm run test:example` and `RTC=1 npm run test:example`.
-- [ ] `npm audit` clean; `npm pack --dry-run` lists only `dist`, docs, README, LICENSE, CHANGELOG.
+- [ ] `npm audit` clean; `npm pack --dry-run` lists only `dist`, docs, README, CITATION.cff, LICENSE, CHANGELOG.
 - [ ] Wire change? `VERSION` bumped in `src/core/protocol.ts`, and the change called out in CHANGELOG.md.
 - [ ] `validation/STATUS.md` updated with what actually ran; `CHANGELOG.md` has the version's entry.
-- [ ] `version` in package.json matches the tag.
+- [ ] `version` in package.json matches the tag; `CITATION.cff` author, license and project URLs are current.
 
 # Before you ship a game on it
 
