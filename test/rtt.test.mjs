@@ -13,13 +13,28 @@ import { until, sleep } from './helpers.mjs';
 class DelayedSocket {
   constructor(url, { delayMs = 0, drop = () => false, origin } = {}) {
     this.delayMs = delayMs; this.drop = drop; this.closed = false;
+    this.queues = { up: [], down: [] };
     this.raw = new WebSocket(url, origin ? { origin } : undefined); this.raw.binaryType = 'arraybuffer';
     this.raw.onopen = e => this.onopen?.(e);
     this.raw.onclose = e => { this.closed = true; this.onclose?.(e); };
     this.raw.onerror = e => this.onerror?.(e);
-    this.raw.onmessage = e => { if (!this.drop(e.data)) this.later(() => this.onmessage?.({ data: e.data })); };
+    this.raw.onmessage = e => { if (!this.drop(e.data)) this.later(() => this.onmessage?.({ data: e.data }), 'down'); };
   }
-  later(f) { setTimeout(() => { if (!this.closed && this.raw.readyState === WebSocket.OPEN) f(); }, this.delayMs); }
+  later(f, direction = 'up') {
+    const queue = this.queues[direction];
+    queue.push({ at: performance.now() + this.delayMs, f });
+    if (queue.length > 1) return;
+    const deliver = () => {
+      if (this.closed || this.raw.readyState !== WebSocket.OPEN) { queue.length = 0; return; }
+      const remaining = queue[0].at - performance.now();
+      // A JS timeout may wake before its nominal duration. Honour the injected minimum, in order,
+      // instead of allowing an early timer to masquerade as an impossibly fast RTT measurement.
+      if (remaining > 0) { setTimeout(deliver, Math.ceil(remaining)); return; }
+      queue.shift().f();
+      if (queue.length) deliver();
+    };
+    setTimeout(deliver, this.delayMs);
+  }
   get readyState() { return this.raw.readyState; }
   get bufferedAmount() { return this.raw.bufferedAmount; }
   set binaryType(v) { this.raw.binaryType = v; }
