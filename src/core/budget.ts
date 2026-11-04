@@ -41,7 +41,11 @@ export class TrafficBudget {
     const surplus = Math.max(0, this.credit[other] - Math.min(this.capacity[other], protectedOtherBytes));
     const loan = Math.min(surplus, this.capacity[own] - this.credit[own]);
     this.credit[own] += loan; this.credit[other] -= loan;
-    if (this.credit[own] < Math.min(bytes, this.capacity[own])) return null;
+    // An oversized reliable event repays one bounded packet of debt before the next grant.
+    // Waiting for a full bucket instead clips refill overshoot on every pump,
+    // wasting earned bandwidth indefinitely under a backlogged oversized flow.
+    const threshold = kind === 'event' && bytes > this.capacity[own] ? 0 : Math.min(bytes, this.capacity[own]);
+    if (this.credit[own] < threshold) return null;
     this.credit[own] -= bytes;
     let refunded = false;
     return () => {

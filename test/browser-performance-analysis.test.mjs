@@ -31,3 +31,16 @@ test('a final RTC label cannot substitute for actual measured RTC application st
 test('aligned windows with the requested application path remain valid',()=>{
  assertCaptureWindow({elapsedMs:12001,receivedStates:235,paths:{rtc:235}},{elapsedMs:12007},'rtc');
 });
+test('lower latency cannot qualify as reliable-throughput parity when one trial delivers fewer events',()=>{
+ const before=run(150),after=run(100);before.client.receivedEvents=65;after.client.receivedEvents=65;
+ const trials=pairs(before,after);trials[4]={before,after:{...after,client:{...after.client,receivedEvents:64}}};
+ const r=comparePairedRuns(trials);
+ assert.equal(r.lowerLatencyDemonstrated,true);
+ assert.equal(r.lowerLatencyWithReliableParityDemonstrated,false);
+});
+test('reliable parity needs complete counts and five passing latency pairs',()=>{
+ const before=run(150),after=run(100);before.client.receivedEvents=65;after.client.receivedEvents=66;
+ assert.equal(comparePairedRuns(pairs(before,after)).lowerLatencyWithReliableParityDemonstrated,true);
+ assert.equal(comparePairedRuns(pairs(before,after,1)).lowerLatencyWithReliableParityDemonstrated,false);
+ assert.equal(comparePairedRuns(pairs(run(150),run(100))).lowerLatencyWithReliableParityDemonstrated,false);
+});
