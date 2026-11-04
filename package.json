@@ -29,7 +29,10 @@
   "bugs": {
     "url": "https://github.com/studiokimeiga/twinwire/issues"
   },
-  "author": "Hakan Alpay (Studio Kimeiga)",
+  "author": {
+    "name": "Hakan Alpay",
+    "url": "https://github.com/Kimeiga"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -67,6 +70,7 @@
     "dist",
     "README.md",
     "CITATION.cff",
+    "SUPPORT.md",
     "LICENSE",
     "CHANGELOG.md",
     "docs"
@@ -98,8 +102,12 @@
     "node-datachannel": ">=0.33.4 <0.34.0"
   },
   "peerDependenciesMeta": {
-    "@fails-components/webtransport": { "optional": true },
-    "@fails-components/webtransport-transport-http3-quiche": { "optional": true },
+    "@fails-components/webtransport": {
+      "optional": true
+    },
+    "@fails-components/webtransport-transport-http3-quiche": {
+      "optional": true
+    },
     "node-datachannel": {
       "optional": true
     }
