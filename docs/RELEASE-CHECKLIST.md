@@ -6,7 +6,7 @@ For maintainers, before tagging `vX.Y.Z` (the tag publishes to npm: `.github/wor
 - [ ] `npm run test:native`: datagrams selected, fallback and recovery in the same session.
 - [ ] `npm run test:browser`, `IMPAIR=1 npm run test:browser`, `RTC=0 npm run test:browser`: Chromium, Firefox, WebKit.
 - [ ] `npm run test:example` and `RTC=1 npm run test:example`.
-- [ ] `npm audit` clean; `npm pack --dry-run` includes `dist`, docs, README, CITATION.cff, LICENSE and CHANGELOG, with no unintended files.
+- [ ] `npm audit` clean; `npm pack --dry-run` includes `dist`, docs, README, CITATION.cff, SUPPORT.md, LICENSE and CHANGELOG, with no unintended files.
 - [ ] Wire change? `VERSION` bumped in `src/core/protocol.ts`, and the change called out in CHANGELOG.md.
 - [ ] `validation/STATUS.md` updated with what actually ran; `CHANGELOG.md` has the version's entry.
 - [ ] `version` in package.json matches the tag; `CITATION.cff` author, license and project URLs are current.
