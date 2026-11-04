@@ -1,8 +1,11 @@
-# Two wires
+# Two delivery modes
 
-<p class="lede">A WebSocket always gets there, but on a lossy network it gets there late. WebRTC datagrams get there
-fast or not at all. Twinwire uses both at once, each for what it is good at, and moves between them without the game
-noticing.</p>
+<p class="lede">Reliable events preserve ordered actions. Replaceable state keeps movement and snapshots fresh.
+Twinwire carries both in one session using WebSocket, WebRTC and optional WebTransport datagrams.</p>
+
+WebSocket establishes the session and carries reliable events. Replaceable state can move between proven WebRTC,
+WebTransport and WebSocket paths while the logical player stays the same. The name Twinwire describes the two
+delivery modes; it does not limit the number of supported transport protocols.
 
 ## Why a WebSocket alone stutters
 

@@ -48,7 +48,7 @@ Things to try:
    ICE servers for WebRTC.
 2. **Clock.** Pings estimate the server's clock. States aren't sent before the page has an estimate.
 3. **Datagrams.** The page offers a WebRTC data channel and both sides prove it works. That's the
-   [two wires](/how/two-wires) page.
+   [two delivery modes](/how/two-wires) page.
 4. **Trouble.** A lost WebSocket pauses the session. The page reconnects with its token, backing off from 200 ms, or
    at once when the browser reports it is back online or the page comes back to the foreground. The server checks
    authentication again, and that the token belongs to the same room and subject. Unacknowledged events are replayed

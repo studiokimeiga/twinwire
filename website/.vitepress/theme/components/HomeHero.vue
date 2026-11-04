@@ -10,13 +10,13 @@ const copy = async () => { try { await navigator.clipboard.writeText('npm instal
 <template>
   <section class="hero">
     <div class="text">
-      <h1>One session,<br />two wires.</h1>
+      <h1>One session.<br />Two delivery modes.</h1>
       <p class="lede">
-        Multiplayer networking for browser games. A <span class="ws">WebSocket</span> for what must arrive,
-        <span class="dg">WebRTC datagrams</span> for what must arrive fast, and a player session that survives dropped
-        connections, app switches and Wi-Fi hand-offs. Your server owns the game; Twinwire keeps the session.
+        Multiplayer networking for browser games. <span class="ws">Reliable, ordered events</span> for actions that
+        must arrive. <span class="dg">Fresh, replaceable state</span> for movement and snapshots. One player session
+        survives dropped connections, app switches and Wi-Fi hand-offs. Your server owns the game; Twinwire keeps the session.
       </p>
-      <p class="transport-note">Optional <a :href="withBase('/reference/api/transports')">WebTransport</a> adds a QUIC datagram path on supported hosts. Every fast path must prove itself; WebSocket stays available.</p>
+      <p class="transport-note">WebSocket carries the session and reliable events. State can use WebRTC or optional <a :href="withBase('/reference/api/transports#optional-webtransport-fast-path')">WebTransport over HTTP/3</a>, with WebSocket fallback. WebTransport requires a configured HTTP/3 host and browser support; every datagram path must prove itself.</p>
       <div class="cta">
         <button class="install" type="button" :aria-label="copied ? 'Copied' : 'Copy the install command'" @click="copy">
           <code>npm install twinwire</code><span class="hint">{{ copied ? 'Copied' : 'Copy' }}</span>

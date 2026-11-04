@@ -29,6 +29,25 @@ what is true.
 
 <FeatureGrid />
 
+## Two delivery modes, three transport options
+
+The modes describe how messages behave. The transport is the path carrying them.
+
+| Delivery mode | What it does | Where it travels |
+| --- | --- | --- |
+| Reliable events | Delivers actions in order, acknowledges them and replays unacknowledged events after reconnecting | WebSocket, with copies racing on the selected proven datagram path |
+| Replaceable state | Sends the latest movement or world snapshot, coalescing and expiring older updates | Proven WebRTC or WebTransport datagrams, with WebSocket fallback |
+
+**WebTransport support is optional and available in 3.0.** It adds an HTTP/3 QUIC datagram path alongside WebRTC.
+Configure a compatible Node host with a trusted TLS certificate and UDP routing. Each connection needs browser
+support and two-way probe replies before Twinwire selects that path. Browsers without it continue with WebRTC
+or WebSocket; the Worker host and live starter use WebSocket.
+
+The client still establishes its session over WebSocket. A transport change keeps the same logical player.
+Path selection uses measured probe RTT, payload limits and a hold time; performance depends on the workload
+and network. [Set up WebTransport](/reference/api/transports#optional-webtransport-fast-path) ·
+[Understand path selection](/how/two-wires#optional-webtransport)
+
 ## Start with a running game
 
 [Play the live arena](https://twinwire-demo.hak7alp.workers.dev/) in two tabs using the same invite URL. Move, send a reliable ping, and disconnect for two seconds. This is a real hosted WebSocket game, with a separate private arena per invite. The downloadable Node version also supports native WebRTC.
