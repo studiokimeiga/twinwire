@@ -161,3 +161,17 @@ test('closing before the binding stream arrives cancels the pending handshake pr
   pair.a.close();
   await Promise.race([accepted,sleep(150).then(()=>{throw Error('closed handshake still owns a reader/timer');})]);
 });
+
+test('a live QUIC payload-limit reduction routes an oversized outbound state onto WebSocket',async t=>{
+  let claim,pair;const pending=[];
+  const host={url:'https://game.test/twinwire',setAcceptor(fn){claim=fn;},async close(){}};
+  let session;const server=await serverApi.createGameServer({origins:[],allowMissingOrigin:true,webtransport:host,onSession(s){session=s;}});
+  const client=new clientApi.GameClient({url:`ws://127.0.0.1:${await server.listen()}/connect`,room:'wt-mtu',rtc:false,syncPingMs:10,
+    websocket:url=>new WebSocket(url),webtransport:{create(){pair=memorySessions();pending.push(serverApi.acceptWebTransport(pair.b,claim,{unreliableDatagrams:true}));return pair.a;}}});
+  t.after(async()=>{client.close();await server.close();await Promise.all(pending);});
+  const states=[];client.connect();await until(()=>client.transport==='wt'&&client.clock.synced&&session.endpoint.datagramProven('wt'));
+  session.onState=state=>states.push(state.via);
+  pair.a.datagrams.maxDatagramSize=1024;
+  client.sendState(1,new Uint8Array(1080));client.flush();await until(()=>states.length===1);
+  assert.deepEqual(states,['ws']);
+});

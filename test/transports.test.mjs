@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { Endpoint } from '../dist/core/endpoint.js';
 import { readControl } from '../dist/core/protocol.js';
 
-function network() {
+function network(settings={}) {
   let now = 0; const pending = [], writes = [], blocked = new Set();
-  const options = { now: () => now, probeIntervalMs: 20, probeTimeoutMs: 100, pathSwitchHoldMs: 100 };
+  const options = { now: () => now, probeIntervalMs: 20, probeTimeoutMs: 100, pathSwitchHoldMs: 100, ...settings };
   const a = new Endpoint(options), b = new Endpoint(options);
   for (const [from, to] of [[a,b], [b,a]]) from.attach(1, { open: true, bufferedAmount: 0, close() {},
     send(data) { pending.push({ to, data, via: 'ws' }); return true; } });
@@ -76,4 +76,12 @@ test('large snapshots can still use proven RTC when the preferred QUIC path cann
   n.a.sendState(2,new Uint8Array(3000),n.now);n.advance();
   n.a.sendState(3,new Uint8Array(9000),n.now);n.advance();
   assert.deepEqual(received,['wt','rtc','ws']);
+});
+
+test('applications can choose a payload ceiling smaller than the legacy RTC packet budget',()=>{
+  const n = network({datagramStateBytes:500}),received=[];n.attach('rtc');n.advance();
+  n.b.onState=state=>received.push(state.via);
+  n.a.sendState(1,new Uint8Array(400),n.now);n.advance();
+  n.a.sendState(2,new Uint8Array(600),n.now);n.advance();
+  assert.deepEqual(received,['rtc','ws']);
 });

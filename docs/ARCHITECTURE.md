@@ -5,7 +5,8 @@
 The unit is a **logical session**, not a socket. The server keeps a session's identity and event counters while its
 physical connections come and go. Every accepted WebSocket gets a new **epoch**; frames from an older epoch are
 ignored on either path. The WebSocket carries control, events and WebRTC signalling; state uses a WebRTC data
-channel when one is proven, else the WebSocket.
+channel or optional HTTP/3 WebTransport datagrams when proven, else the WebSocket. Each fast path has independent
+probe evidence, payload capabilities and generation fencing; a global primary path need not fit every frame.
 
 ```
  game: input, simulation, rendering                   game: rooms, authoritative simulation
@@ -40,9 +41,9 @@ only a usable, sufficiently recent current-connection snapshot releases playback
 on resume, not used as evidence of fresh world state. Applications provide their decoder and history reset, while
 the receiver centralizes the lifecycle. Reliable events and outbound input do not wait behind remote playback.
 
-## Wire protocol (version 4)
+## Wire protocol (version 5)
 
-Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (4) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
+Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (5) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
 
 | Kind | Path | Meaning |
 |---|---|---|
@@ -104,10 +105,20 @@ fingerprint verification on. `allowImpairment` is for development.
 
 Multi-region routing, durable session storage across server restarts, rollback netcode, voice.
 
-**WebTransport** is in every major browser since Safari 26.4 (March 2026), but not yet in Node: there is no built-in
-QUIC/HTTP/3 server, and the addon that provides one (`@fails-components/webtransport`, libquiche) calls itself a stopgap
-until Node has native support; its prebuilt binary needs glibc 2.38+, so it fails to load on Ubuntu 22.04 and on
-Debian 12 (the `node:22` Docker images). Players wouldn't feel it either: a session plays over the WebSocket at once and
-moves to datagrams in the background, so faster setup isn't visible, and where UDP is blocked TURN over TLS 443 and the
-WebSocket already carry the game. It will be another datagram path (preferred where available, the data channel and
-the WebSocket as fallbacks) once Node ships native WebTransport.
+## Optional HTTP/3 path and independent resources
+
+The Node host can add WebTransport through an optional native provider. A one-use, time-limited ticket issued by the
+live WebSocket binds the HTTP/3 session to its current epoch. One bounded, length-prefixed reliable stream carries
+only this binding; ordinary session control and ordered gameplay events remain on WebSocket. Binding confirmation
+advertises the verified HTTP/3 listener capability for older browsers missing `reliability`; explicit reliable-only
+connections are refused. Neither readiness nor confirmation substitutes for bidirectional datagram probes.
+
+Proven routes are selected with RTT margin/hold hysteresis and complete-message limits. A QUIC datagram cannot rely
+on RTC's SCTP fragmentation. A larger state uses another proven RTC path when eligible, then WS. These are measured
+selection policies, not a universal QUIC performance claim. Unsupported browser/host capabilities keep the existing
+deployment options; pinned Linux WebKit testing covers fallback, not physical Safari's WebTransport implementation.
+
+Bulk resources use separately cancellable HTTP requests with bounded concurrency, allocation and integrity options,
+outside ordered gameplay events. Resource versions, chunk subscriptions, durable commits and game authority remain
+application responsibilities. Optional diagnostics expose queue/application/playback boundaries with explicit clock
+uncertainty and render-submission limits. See [transport and resource controls](TRANSPORTS.md) for APIs and hosting.

@@ -12,7 +12,7 @@ export async function acceptWebTransport(session: TransportSession, claim: (requ
       if (options.unreliableDatagrams !== true) throw new Error('Host must verify unreliable transport support');
       if (!session.incomingBidirectionalStreams) throw new Error('Missing binding stream');
       const incoming = session.incomingBidirectionalStreams.getReader();
-      const abortIncoming = () => { void incoming.cancel().catch(() => {}); };
+      const abortIncoming = () => incoming.releaseLock();
       abort.signal.addEventListener('abort', abortIncoming, { once: true });
       if (abort.signal.aborted) abortIncoming();
       let stream;

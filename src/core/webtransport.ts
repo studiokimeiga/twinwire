@@ -82,9 +82,17 @@ export function datagramConnection(session: TransportSession, maxMessageBytes: n
   if (!writable) throw new Error('No WebTransport datagram writer');
   const writer = writable.getWriter(), reader = session.datagrams.readable.getReader();
   let alive = true, buffered = 0;
+  // Releasing a pending read rejects it without closing the provider-owned controller.
+  // Some native providers close those controllers themselves during physical session teardown.
+  const releaseReaders: (() => void)[] = [() => reader.releaseLock()];
+  const limit = () => {
+    const current = session.datagrams.maxDatagramSize;
+    return typeof current === 'number' && Number.isSafeInteger(current) && current >= 0 ? Math.min(maxMessageBytes, current) : maxMessageBytes;
+  };
   const close = () => {
     if (!alive) return; alive = false;
-    void reader.cancel().catch(() => {}); void writer.abort().catch(() => {}).finally(() => writer.releaseLock());
+    for (const release of releaseReaders) release();
+    void writer.abort().catch(() => {}).finally(() => writer.releaseLock());
     try { session.close(); } catch { /* already closed */ }
   };
   const failure = () => { if (alive) { close(); callbacks.closed(); } };
@@ -93,7 +101,7 @@ export function datagramConnection(session: TransportSession, maxMessageBytes: n
   const rejectStreams = <T>(streams: ReadableStream<T> | undefined, reject: (value: T) => void) => {
     if (!streams) return;
     const incoming = streams.getReader();
-    void session.closed.then(() => incoming.cancel().catch(() => {}), () => incoming.cancel().catch(() => {}));
+    releaseReaders.push(() => incoming.releaseLock());
     void (async () => {
       let count = 0;
       try {
@@ -109,9 +117,9 @@ export function datagramConnection(session: TransportSession, maxMessageBytes: n
   });
   rejectStreams(session.incomingUnidirectionalStreams, stream => { void stream.cancel().catch(() => {}); });
   const link: DatagramLink = {
-    get open() { return alive; }, get bufferedAmount() { return buffered; }, maxMessageBytes,
+    get open() { return alive; }, get bufferedAmount() { return buffered; }, get maxMessageBytes() { return limit(); },
     send(bytes) {
-      if (!alive || bytes.length > maxMessageBytes || buffered + bytes.length > maxBufferedBytes) return false;
+      if (!alive || bytes.length > limit() || buffered + bytes.length > maxBufferedBytes) return false;
       buffered += bytes.length;
       void writer.write(bytes.slice()).then(() => { buffered -= bytes.length; }, () => { buffered -= bytes.length; failure(); });
       return true;

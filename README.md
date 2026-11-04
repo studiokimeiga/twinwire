@@ -1,7 +1,7 @@
 # Twinwire
 
-**Multiplayer networking for browser games.** One player session, two wires: a WebSocket for what must arrive, and
-WebRTC datagrams (UDP-like: unordered, no retransmits) for what must arrive *fast*. Twinwire picks the fast wire when
+**Multiplayer networking for browser games.** One player session: WebSocket for what must arrive,
+WebRTC datagrams for replaceable realtime state, and an optional WebTransport fast path. Twinwire picks a proven path when
 the network allows it, falls back to the WebSocket the moment it doesn't, and keeps the player's session (and seat)
 through dropped connections, app switches and Wi-Fi-to-cellular hand-offs. It comes with a lobby (room codes, quick
 play, ready-up) and the netcode helpers an authoritative-server game needs.
@@ -25,8 +25,9 @@ interpolating other players, predicting your own.
 
 Twinwire does that part, so the game can be the game:
 
-- **Two wires, one session.** WebSocket for the session; a WebRTC data channel for state, used only while probes prove
-  it works *both ways*. Fallback within ~1.5 s, RTC retried with backoff, one UDP port on the server for every player.
+- **Proven paths, one session.** WebSocket for the session; WebRTC and optional HTTP/3 WebTransport datagrams for state,
+  used only while probes prove each path works *both ways*. Payload limits, path hysteresis and fallback keep the same
+  player. WebRTC uses one UDP port on the server for every player.
 - **Sessions that survive.** A dropped connection resumes the same session: same identity, same lobby seat, events
   replayed both ways. A page coming back from the background, or reloaded with a checkpoint, takes over cleanly.
 - **Events at UDP speed.** Ordered, acknowledged JSON events go on the WebSocket *and* are mirrored on the datagram
@@ -42,9 +43,16 @@ Twinwire does that part, so the game can be the game:
 - **STUN/TURN** handed to each client by the server (coturn shared-secret credentials or Cloudflare's managed relay).
 - **Browser coverage.** Tested in Chromium, Firefox and WebKit (Safari's engine) against the real server over WebRTC, on
   a bad network and with UDP blocked; see the release build for current bundle sizes.
+- **Timing you can inspect.** Optional bounded metadata traces separate send queues, receipt, application, playback
+  and render submission. Clock uncertainty stays visible; payloads and credentials are excluded.
+- **Independent resources.** Bounded cancellable HTTP downloads with optional integrity checks keep world chunks out
+  of the ordered gameplay-event sequence. Mixed-load scheduling protects state while preserving event order.
 
 Your game keeps its rules, physics and rendering. Twinwire carries the bytes and the session; your server decides what
 is true.
+
+**3.0 uses wire generation 5:** upgrade clients and servers together. See
+[transport, tracing and resource controls](docs/TRANSPORTS.md) for migration, optional HTTP/3 hosting and measured limits.
 
 ## Quick start
 
@@ -85,6 +93,7 @@ live demos that run the library in your browser), and the reference.
 - [Architecture](docs/ARCHITECTURE.md): the wire protocol and the guarantees.
 - [Adopting it in an existing game](docs/ADOPTING.md): a staged path, and what a real port looked like.
 - [Operations](docs/OPERATIONS.md): hosting, the UDP port, TURN, budgets, health.
+- [Transport and resource controls](docs/TRANSPORTS.md): WebTransport, timing traces, bulk requests and mixed traffic.
 - [Validation](validation/STATUS.md): what was tested, where, and with what results.
 
 ## Develop

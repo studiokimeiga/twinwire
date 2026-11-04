@@ -4,7 +4,7 @@
 export const VERSION = 5;
 /** The longest header (a stream of 16384 or more). */
 export const HEADER_BYTES = 14;
-/** A payload this size or smaller fits one datagram on any path we target (no SCTP/IP fragmentation). */
+/** Legacy conservative RTC payload budget. QUIC uses its negotiated, potentially smaller complete-frame limit. */
 export const MTU_STATE_BYTES = 1100 - HEADER_BYTES;
 /** Hard protocol ceiling for one frame. Endpoints choose a lower `maxStateBytes`. */
 export const MAX_FRAME_BYTES = 256 * 1024;

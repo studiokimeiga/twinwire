@@ -2,7 +2,7 @@ import { TrafficBudget } from './budget.js';
 import type { StateTrace, TraceSink } from './diagnostics.js';
 import { EventRejected, ReliableEvents, type ReliableOptions } from './reliable.js';
 import {
-  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MAX_TIME_SPAN_MS, MTU_STATE_BYTES, newer, stringify,
+  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MAX_TIME_SPAN_MS, newer, stringify,
   isUint, utf8, fromUtf8, utf8Length, type Frame, type Json, type JsonInput,
 } from './protocol.js';
 export interface ReliableLink {
@@ -129,7 +129,7 @@ export class Endpoint {
     if (!(this.highWater > 0) || !isUint(this.maxStreams, 65536) || this.maxStreams < 1 ||
         !(this.probeInterval >= 10) || !(this.probeTimeout >= this.probeInterval * 2) ||
         !isUint(this.maxStateBytes, MAX_STATE_BYTES) || this.maxStateBytes < 1 ||
-        !(this.datagramStateBytes >= MTU_STATE_BYTES) || !(this.stateAckInterval >= 0)) throw new RangeError('Invalid endpoint limits');
+        !isUint(this.datagramStateBytes, MAX_STATE_BYTES) || !(this.stateAckInterval >= 0)) throw new RangeError('Invalid endpoint limits');
     if (o.impair) this.setImpairment(o.impair);
   }
   get active() { return !!this.reliable?.open; }

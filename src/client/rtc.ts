@@ -15,6 +15,10 @@ export class BrowserRtcPeer implements RtcPeer {
     const pc = this.pc, dc = this.dc; dc.binaryType = 'arraybuffer';
     dc.onopen = () => { if (this.alive) cb.open({
       get open() { return dc.readyState === 'open'; }, get bufferedAmount() { return dc.bufferedAmount; },
+      get maxMessageBytes() {
+        const size = pc.sctp?.maxMessageSize;
+        return typeof size === 'number' && Number.isFinite(size) && size >= 1024 ? size : 64 * 1024 + 14;
+      },
       send(bytes) { if (dc.readyState !== 'open') return false; dc.send(bytes.slice().buffer); return true; },
       close: () => this.close(),
     }); };
