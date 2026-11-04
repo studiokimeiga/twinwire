@@ -40,7 +40,9 @@ jobs:
       - run: bash tools/prepare-browser-runner.sh
       - run: npx playwright install --with-deps ${{ matrix.engine }}
       - name: Five alternating pairs per workload with actual raster calls
-        run: node tools/browser-performance.mjs --baseline .performance-baseline/package --engine ${{ matrix.engine }} --transport ${{ matrix.transport }} --seconds 12 --repetitions 5 --out artifacts/browser-performance
+        env:
+          BENCH_PROFILES: ${{ matrix.transport == 'ws' && 'normal,mixed-budget,render-load' || 'normal,mixed-budget' }}
+        run: node tools/browser-performance.mjs --baseline .performance-baseline/package --engine ${{ matrix.engine }} --transport ${{ matrix.transport }} --profiles "$BENCH_PROFILES" --seconds 12 --repetitions 5 --out artifacts/browser-performance
       - name: Retain neutral results, regressions and reliable-event tradeoffs
         run: node tools/summarize-browser-performance.mjs artifacts/browser-performance/report-${{ matrix.engine }}-${{ matrix.transport }}.json --out artifacts/browser-performance/summary.json
       - uses: actions/upload-artifact@v7

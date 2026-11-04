@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {comparePairedRuns} from '../tools/browser-performance-analysis.mjs';
+import {comparePairedRuns,assertCaptureWindow} from '../tools/browser-performance-analysis.mjs';
 const run=(age,fps=60,uncertainty=1)=>({valid:true,client:{renderSubmissionAgeMs:{p95:age},clockUncertaintyMs:{max:uncertainty},averageFrameCallbacksPerSecond:fps}});
 const pairs=(before,after,n=5)=>Array.from({length:n},()=>({before,after}));
 test('an apparent latency gain inside clock uncertainty is retained but not advertised',()=>{
@@ -21,4 +21,13 @@ test('a single pilot sample cannot produce a demonstrated improvement claim',()=
 test('missing clock estimates and failed samples cannot enter a passing comparison',()=>{
  assert.throws(()=>comparePairedRuns(pairs(run(50),run(20,60,Infinity))));
  assert.throws(()=>comparePairedRuns(pairs(run(50),{...run(20),valid:false})));
+});
+test('the observed Chromium 34-second server and 12-second browser windows are invalid',()=>{
+ assert.throws(()=>assertCaptureWindow({elapsedMs:12217.2,receivedStates:396,paths:{ws:396}},{elapsedMs:33701.86},'ws'),/windows must align/);
+});
+test('a final RTC label cannot substitute for actual measured RTC application states',()=>{
+ assert.throws(()=>assertCaptureWindow({elapsedMs:12217.5,receivedStates:376,paths:{rtc:177,ws:199}},{elapsedMs:12220},'rtc'),/Requested path/);
+});
+test('aligned windows with the requested application path remain valid',()=>{
+ assertCaptureWindow({elapsedMs:12001,receivedStates:235,paths:{rtc:235}},{elapsedMs:12007},'rtc');
 });

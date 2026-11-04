@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
 const median=values=>{const a=[...values].sort((x,y)=>x-y),i=Math.floor(a.length/2);return a.length%2?a[i]:(a[i-1]+a[i])/2;};
+export function assertCaptureWindow(client,server,transport){
+ assert.ok(Number.isFinite(client.elapsedMs)&&client.elapsedMs>0&&Number.isFinite(server.elapsedMs)&&server.elapsedMs>0);
+ assert.ok(Math.abs(server.elapsedMs-client.elapsedMs)<=Math.max(250,client.elapsedMs*.02),'Browser/server measurement windows must align');
+ assert.ok(client.receivedStates>0&&(client.paths[transport]??0)/client.receivedStates>=.9,'Requested path must carry at least 90% of measured application states');
+}
 // Predeclared engineering thresholds, not a statistical significance or universal-performance claim.
 export function comparePairedRuns(pairs){
  assert.ok(Array.isArray(pairs)&&pairs.length>0);

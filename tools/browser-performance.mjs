@@ -7,6 +7,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {fork} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {monitorEventLoopDelay} from 'node:perf_hooks';
+import {assertCaptureWindow} from './browser-performance-analysis.mjs';
 const ownFile=fileURLToPath(import.meta.url);
 const option=(name,fallback)=>{const i=process.argv.indexOf(name);return i<0?fallback:process.argv[i+1];};
 const profiles={
@@ -29,7 +30,7 @@ window.B={errors:[],start(pathName,entities){
   const v=new DataView(s.data.buffer,s.data.byteOffset,s.data.byteLength);this.latest={at:v.getFloat64(0,true),tick:v.getUint32(8,true),x:v.getFloat32(12,true),y:v.getFloat32(16,true)};
   if(this.measuring){this.received++;this.paths[s.via]=(this.paths[s.via]||0)+1;this.receipts.push(c.clock.serverTime(performance.now())-this.latest.at);}
  };
- let prior=null,priorSourceTime=null;
+ let prior=null,priorSourceTime=null,animation;
  const draw=now=>{
   if(this.measuring&&priorSourceTime!==null)this.heldAges.push(c.clock.serverTime(performance.now())-priorSourceTime);
   g.fillStyle='#10172a';g.fillRect(0,0,640,360);
@@ -45,15 +46,15 @@ window.B={errors:[],start(pathName,entities){
    if(prior!==null)this.frameIntervals.push(now-prior);
    if(this.latest){this.renderAges.push(c.clock.serverTime(performance.now())-this.latest.at);this.uncertainties.push(c.clock.uncertaintyMs);}
   }
-  prior=now;if(this.latest)priorSourceTime=this.latest.at;requestAnimationFrame(draw);
+  prior=now;if(this.latest)priorSourceTime=this.latest.at;animation=requestAnimationFrame(draw);
  };
- requestAnimationFrame(draw);c.connect();
-},begin(){this.measuring=true;this.started=performance.now();this.receipts=[];this.renderAges=[];this.heldAges=[];this.eventAges=[];this.frameIntervals=[];this.uncertainties=[];this.events=0;this.received=0;this.draws=0;this.paths={};this.firstImage=document.getElementById('scene').toDataURL();},
-finish(){this.measuring=false;const elapsedMs=performance.now()-this.started;
+ this.freeze=()=>cancelAnimationFrame(animation);animation=requestAnimationFrame(draw);c.connect();
+},begin(){this.measuring=true;this.started=performance.now();this.receipts=[];this.renderAges=[];this.heldAges=[];this.eventAges=[];this.frameIntervals=[];this.uncertainties=[];this.events=0;this.received=0;this.draws=0;this.paths={};void fetch('/measure',{method:'POST'});},
+finish(){this.measuring=false;this.freeze();const elapsedMs=performance.now()-this.started;
  const metric=a=>{if(!a.length)return null;const b=[...a].sort((x,y)=>x-y),p=q=>b[Math.max(0,Math.ceil(b.length*q)-1)];return{n:b.length,min:b[0],p50:p(.5),p95:p(.95),p99:p(.99),max:b.at(-1)};};
  const result={elapsedMs,status:this.client.status,transport:this.client.transport,receivedStates:this.received,receivedEvents:this.events,paths:this.paths,
   receiptAgeMs:metric(this.receipts),renderSubmissionAgeMs:metric(this.renderAges),previousSubmissionAgeAtNextFrameMs:metric(this.heldAges),reliableEventAgeMs:metric(this.eventAges),frameIntervalMs:metric(this.frameIntervals),clockUncertaintyMs:metric(this.uncertainties),
-  averageFrameCallbacksPerSecond:this.frameIntervals.length/(elapsedMs/1000),drawCalls:this.draws,canvasChanged:this.firstImage!==document.getElementById('scene').toDataURL(),errors:this.errors};
+  averageFrameCallbacksPerSecond:this.frameIntervals.length/(elapsedMs/1000),drawCalls:this.draws,errors:[...this.errors]};
  this.client.close();return result;}};
 </script>`;
 
@@ -63,10 +64,11 @@ async function serverProcess(){
  const bundle=fs.readFileSync(sdk+'/dist/browser/twinwire.js');
  const errors=[];let server,timer,session,cpuStart,begin,lag,startStats;
  let counters={statesRequested:0,eventsQueued:0,eventsRejected:0};
+ const measure=()=>{assert.ok(!cpuStart,'Only one measurement window per sample');counters={statesRequested:0,eventsQueued:0,eventsRejected:0};startStats={...session.endpoint.stats};cpuStart=process.cpuUsage();begin=performance.now();lag=monitorEventLoopDelay({resolution:10});lag.enable();process.send({type:'measuring'});};
  const rtc=transport==='rtc'?await createNativeRtcFactory({port:20000+Math.floor(Math.random()*30000)}):undefined;
  server=await createGameServer({host:'127.0.0.1',port:0,origins:[],rtc,pumpHz:60,endpoint:{bytesPerSecond:profile.rate,burstBytes:profile.burst},
   onError:e=>errors.push(e.message),onSession:s=>{session=s;},
-  http(req,res){res.writeHead(200,{'content-type':req.url==='/sdk.js'?'text/javascript':'text/html','cache-control':'no-store'});res.end(req.url==='/sdk.js'?bundle:browserHTML);}});
+  http(req,res){if(req.url==='/measure'&&req.method==='POST'){measure();res.writeHead(200);res.end('ok');return;}res.writeHead(200,{'content-type':req.url==='/sdk.js'?'text/javascript':'text/html','cache-control':'no-store'});res.end(req.url==='/sdk.js'?bundle:browserHTML);}});
  const port=await server.listen();server.options.origins.push('http://127.0.0.1:'+port);process.send({type:'ready',port});
  process.on('message',async message=>{
   try{
@@ -76,8 +78,6 @@ async function serverProcess(){
      if(now>=nextState){nextState=now+50;const b=new Uint8Array(20),v=new DataView(b.buffer);v.setFloat64(0,now,true);v.setUint32(8,++tick,true);v.setFloat32(12,40+(tick*3)%540,true);v.setFloat32(16,160+Math.sin(tick/20)*90,true);session.sendState(1,b,{ttlMs:40});counters.statesRequested++;}
      if(profile.eventHz&&now>=nextEvent){nextEvent=now+1000/profile.eventHz;try{session.sendEvent({n:event+1,at:now,text:'x'.repeat(profile.eventBytes)});event++;counters.eventsQueued++;}catch(error){if(!/outbox|pending|full|limit|queue/i.test(error.message))throw error;counters.eventsRejected++;}}
     },5);process.send({type:'started'});
-   }else if(message.type==='measure'){
-    counters={statesRequested:0,eventsQueued:0,eventsRejected:0};startStats={...session.endpoint.stats};cpuStart=process.cpuUsage();begin=performance.now();lag=monitorEventLoopDelay({resolution:10});lag.enable();process.send({type:'measuring'});
    }else if(message.type==='stop'){
     clearInterval(timer);const used=process.cpuUsage(cpuStart);lag.disable();
     const delta=key=>session.endpoint.stats[key]-startStats[key];
@@ -91,15 +91,15 @@ async function serverProcess(){
 async function benchmark(){
  const root=path.resolve(option('--candidate',fileURLToPath(new URL('../',import.meta.url)))),baseline=path.resolve(option('--baseline',''));
  const seconds=Number(option('--seconds',12)),repetitions=Number(option('--repetitions',5)),engine=option('--engine','chromium'),transport=option('--transport','ws'),out=path.resolve(option('--out','artifacts/browser-performance'));
- const selected=option('--profiles','normal,mixed-budget,render-load').split(',');
+ const selected=option('--profiles',transport==='ws'?'normal,mixed-budget,render-load':'normal,mixed-budget').split(',');
  assert.ok(seconds>=3&&seconds<=60&&repetitions>=1&&repetitions<=10);assert.ok(['chromium','firefox'].includes(engine));assert.ok(['ws','rtc'].includes(transport));assert.ok(selected.every(p=>Object.hasOwn(profiles,p)));
  fs.mkdirSync(out,{recursive:true});
  const {chromium,firefox}=await import(pathToFileURL(root+'/node_modules/playwright/index.mjs'));
  const version=sdk=>JSON.parse(fs.readFileSync(sdk+'/package.json')).version;
  assert.equal(version(baseline),'2.3.0');assert.equal(version(root),'3.0.0');
  const hashes=sdk=>Object.fromEntries(['dist/browser/twinwire.js','dist/core/endpoint.js','dist/core/budget.js'].map(file=>[file,hash(fs.readFileSync(sdk+'/'+file))]));
- const report={kind:'actual-browser-canvas-sdk-comparison',at:new Date().toISOString(),source:process.env.GITHUB_SHA??null,harnessSHA256:hash(fs.readFileSync(ownFile)),seconds,repetitions,engine,transport,
-  protocol:{snapshotHz:20,statePayloadBytes:20,stateTTLms:40,pumpHz:60,warmupMs:2000,profiles,pairedOrder:'alternate baseline/candidate by repetition; fresh browser and server per sample',metrics:'JavaScript receipt age and canvas draw-submission age use synchronized server time with uncertainty. Previous submitted snapshot age is sampled before the next draw to retain frame gaps. Frame callbacks include real identical raster calls; no physical display/GPU presentation or full-game FPS claim.'},
+ const report={kind:'actual-browser-canvas-sdk-comparison',captureProtocol:2,selectedProfiles:selected,at:new Date().toISOString(),source:process.env.GITHUB_SHA??null,harnessSHA256:hash(fs.readFileSync(ownFile)),seconds,repetitions,engine,transport,
+  protocol:{snapshotHz:20,statePayloadBytes:20,stateTTLms:40,pumpHz:60,warmupMs:2000,profiles,capture:'Canvas pixel captures happen before rendering starts and after rendering freezes; no readbacks occur inside the timed window. Browser starts the server measurement through HTTP; window durations must agree within 250ms or 2%.',pairedOrder:'alternate baseline/candidate by repetition; fresh browser and server per sample',metrics:'JavaScript receipt age and canvas draw-submission age use synchronized server time with uncertainty. Previous submitted snapshot age is sampled before the next draw to retain frame gaps. Frame callbacks include real identical raster calls; no physical display/GPU presentation or full-game FPS claim.'},
   environment:{node:process.version,platform:process.platform,arch:process.arch,cpu:os.cpus()[0]?.model,parallelism:os.availableParallelism(),totalMemoryBytes:os.totalmem()},
   sdks:[{version:version(baseline),files:hashes(baseline)},{version:version(root),files:hashes(root)}],runs:[],limits:['Localhost sockets with an application byte budget, not OS-level packet loss, cellular or shared TCP congestion emulation.','Mixed-budget intentionally exceeds the event budget; outbox rejection and event throughput are reported.','Canvas scene frame cadence is not physical presentation or production-game FPS.','All trials, including neutral results and regressions, remain in this report.']};
  async function sample(sdk,profile,repetition){
@@ -114,18 +114,20 @@ async function benchmark(){
    const ready=await wait('ready');
    browser=await({chromium,firefox}[engine]).launch({headless:true,args:engine==='chromium'?['--use-angle=swiftshader','--enable-unsafe-swiftshader']:[]});row.browserVersion=browser.version();
    page=await browser.newPage({viewport:{width:800,height:600},deviceScaleFactor:1});const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
-   await page.goto('http://127.0.0.1:'+ready.port);await page.evaluate(({transport,entities})=>B.start(transport,entities),{transport,entities:profiles[profile].entities});
+   await page.goto('http://127.0.0.1:'+ready.port);const initialPixels=await page.locator('#scene').screenshot();await page.evaluate(({transport,entities})=>B.start(transport,entities),{transport,entities:profiles[profile].entities});
    await page.waitForFunction(t=>B.client.status==='online'&&B.client.clock.synced&&B.client.clock.sampleCount>=3&&B.client.transport===t,transport,{timeout:30000});
    let pending=wait('started');child.send({type:'start'});await pending;
    await page.waitForFunction(()=>B.latest!==null);await page.waitForTimeout(2000);
-   pending=wait('measuring');child.send({type:'measure'});await pending;await page.evaluate(()=>B.begin());
+   pending=wait('measuring');await page.evaluate(()=>B.begin());await pending;
    await page.waitForTimeout(seconds*1000);row.client=await page.evaluate(()=>B.finish());
    pending=wait('stopped');stopped=true;child.send({type:'stop'});row.server=(await pending).result;
+   const finalPixels=await page.locator('#scene').screenshot();row.client.canvasChanged=hash(initialPixels)!==hash(finalPixels);
    assert.equal(row.client.status,'online');assert.equal(row.client.transport,transport);assert.ok(row.client.receivedStates>10);assert.ok(row.client.frameIntervalMs?.n>30);assert.ok(row.client.canvasChanged);assert.ok(row.client.drawCalls>10000);assert.ok(row.client.clockUncertaintyMs&&Number.isFinite(row.client.clockUncertaintyMs.max));
+   assertCaptureWindow(row.client,row.server,transport);
    assert.ok(row.server.statesRequested>=seconds*15,'Runner must sustain at least 75% of the offered snapshot rate');
    if(profile!=='mixed-budget')assert.ok(row.client.receivedStates/row.server.statesRequested>=.9,'Uncongested control must receive at least 90% of offered states');
    assert.deepEqual(row.client.errors,[]);assert.deepEqual(pageErrors,[]);assert.deepEqual(row.server.errors,[]);assert.ok(!fatal,fatal?.message);row.valid=true;
-   await page.screenshot({path:path.join(out,engine+'-'+transport+'-'+profile+'-'+row.version+'-'+repetition+'.png')});
+   fs.writeFileSync(path.join(out,engine+'-'+transport+'-'+profile+'-'+row.version+'-'+repetition+'.png'),finalPixels);
    return row;
   }catch(error){row.valid=false;row.error=error.stack;fs.writeFileSync(path.join(out,'failed-'+engine+'-'+transport+'-'+profile+'-'+row.version+'-'+repetition+'.json'),JSON.stringify({...row,serverLog:stdout.join('')},null,2));throw error;}
   finally{await browser?.close();if(child&&child.exitCode===null)child.kill();}

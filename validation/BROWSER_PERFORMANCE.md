@@ -6,7 +6,9 @@ latency, physical display latency, production-game GPU FPS, or performance on un
 
 ## Fixed conditions
 
-- Chromium and Firefox, each tested independently over WebSocket and actual native WebRTC.
+- Chromium and Firefox, each tested independently over WebSocket and actual native WebRTC for the normal and
+  budget-overload workloads. The heavy rendering comparison uses forced WebSocket to keep rendering stalls
+  separate from datagram-proof expiry and recovery.
 - Five paired 12-second trials per workload, alternating version order. Every sample starts a new browser and
   server process, proves the requested path and synchronizes its clock, then warms up for two seconds.
 - The same 20-byte self-contained state at 20 Hz, 40 ms TTL, and default 60 Hz endpoint pump for both SDKs.
@@ -36,6 +38,20 @@ The comparison only labels a repeated latency benefit when all five pairs improv
 at least 10% and the difference exceeds both reported clock-uncertainty estimates. A repeated scene-cadence gain
 requires at least 5% in every pair. These are predeclared engineering thresholds, not statistical population
 confidence intervals. Raw values and tradeoffs remain available even when a threshold is not met.
+
+Pixel comparisons happen before rendering begins and after the animation freezes. They never read back a Canvas
+inside the timed section. The browser starts the server's measurement through a local HTTP request, and both
+window durations must agree within 250 ms or 2%. At least 90% of received application states must use the requested
+path; an RTC label alone cannot validate an RTC sample.
+
+The [first hosted attempt](https://github.com/studiokimeiga/twinwire/actions/runs/41908205757) exposed a capture
+bug in the heavy Chromium workload: its server counted about 34 seconds while the browser counted 12 seconds,
+and a Canvas readback occurred during measurement startup. Those failure artifacts remain available. Protocol
+revision 2 removes the timed readback, aligns the windows and adds regressions for that exact mismatch and for
+an RTC label with mostly WebSocket application traffic. A local strict-RTC heavy-render probe still lost proof
+and used WebSocket for much of its traffic; it is not eligible as a stable RTC comparison. The heavy scene stays
+at 12,000 actual rectangles and is compared over forced WebSocket. Normal and budget-overload RTC trials retain
+the strict native-path requirement. Comparative claims require fresh complete trials; the old attempt is not pooled.
 
 ## Reproduce
 
