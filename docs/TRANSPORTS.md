@@ -29,6 +29,9 @@ logging outside callbacks; observer exceptions are counted without stopping deli
 
 ## Optional WebTransport fast path
 
+`rtc: false` disables only WebRTC. To force WebSocket for a control or a deployment policy, set both
+`rtc: false` and `webtransport: false`. An offered WebTransport path can otherwise upgrade independently.
+
 Install both optional server peers on a platform supported by their native HTTP/3 binary:
 
 ```sh

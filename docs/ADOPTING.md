@@ -33,8 +33,8 @@ and retain same-session entity histories. Omit `stream` for grouped player strea
 packet family in `apply`; those streams cannot release player replay just by being active. Fresh snapshot headers
 can describe unchanged idle entities. Teleport flags, game speed limits and recovery of missing delta bases still
 belong to the game's codec/model. Merely installing a new library cannot discover and rewrite an existing game's
-private buffers; migrating the adapter once puts subsequent lifecycle fixes in the library. The live games' 2.0.0
-adapters retain their existing tested recovery code until this unreleased API is adopted.
+private buffers; migrating the adapter once puts subsequent lifecycle fixes in the library. The migration records in
+validation/STATUS.md identify the adapter versions and production scenarios that were actually verified.
 
 ## Defaults to check
 
