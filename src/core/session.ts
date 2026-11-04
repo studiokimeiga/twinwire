@@ -23,7 +23,8 @@ export class GameSession {
   private probeSentAt = -Infinity;
   private probePending = false;
   constructor(readonly id: string, readonly room: string, readonly subject: string | null, options: EndpointOptions = {}) {
-    this.endpoint = new Endpoint(options);
+    this.endpoint = new Endpoint({ ...options, traceClock: options.traceClock ?? (() =>
+      ({ serverTimeMs: (options.now ?? (() => performance.now()))(), uncertaintyMs: 0 })) });
   }
   sendEvent(data: JsonInput) { return this.endpoint.sendEvent(data); }
   /** Send what is queued now instead of at the next 60 Hz pump (latency-sensitive streams). */
@@ -34,7 +35,7 @@ export class GameSession {
   set onState(cb: (state: StateMessage) => void) { this.endpoint.onState = cb; }
   set onEvent(cb: (data: Json, seq: number) => void) { this.endpoint.onEvent = cb; }
   set onStateAck(cb: (stream: number, seq: number) => void) { this.endpoint.onStateAck = cb; }
-  get transport(): 'rtc' | 'ws' | 'none' { return !this.connected ? 'none' : this.endpoint.fastActive ? 'rtc' : 'ws'; }
+  get transport(): 'wt' | 'rtc' | 'ws' | 'none' { return !this.connected ? 'none' : this.endpoint.fastTransport ?? 'ws'; }
   /** @internal The number of the probe to send now, or null when none is due (one outstanding at a time). */
   nextProbe(now: number, intervalMs: number): number | null {
     if (!(intervalMs > 0) || now - this.probeSentAt < intervalMs) return null;

@@ -5,8 +5,10 @@ import { validIceServers, validSignal, type IceServer } from '../core/rtc.js';
 import { NetworkClock } from '../netcode/clock.js';
 import { BrowserRtcPeer } from './rtc.js';
 import { StateReceiver, type StateReceiverOptions } from './state.js';
+import { BrowserWebTransportPeer, type BrowserWebTransportOptions } from './webtransport.js';
+import { validOffer, type WebTransportOffer } from '../core/webtransport.js';
 export type ClientStatus = 'idle' | 'connecting' | 'online' | 'paused' | 'closed' | 'lost';
-export type Transport = 'rtc' | 'ws' | 'none';
+export type Transport = 'wt' | 'rtc' | 'ws' | 'none';
 export interface ClientCheckpoint { url: string; room: string; token: string; id: string; events: ReliableCheckpoint }
 export interface LifecycleOptions {
   /** Pause after the page has been hidden this long (default 20 s). A page kept in the back/forward cache pauses at once. */
@@ -23,6 +25,7 @@ export interface ClientOptions {
   url: string; room: string; auth?: Json;
   /** false: WebSocket only. An RTCConfiguration with iceServers overrides the servers the room server suggests. */
   rtc?: false | RTCConfiguration;
+  webtransport?: false | BrowserWebTransportOptions;
   endpoint?: EndpointOptions; websocket?: (url: string) => WebSocket;
   reconnectBaseMs?: number; reconnectMaxMs?: number; heartbeatTimeoutMs?: number;
   rtcRetryMs?: number; rtcConnectTimeoutMs?: number; pumpHz?: number; checkpoint?: ClientCheckpoint;
@@ -53,6 +56,13 @@ export class GameClient {
   private generation = 0;
   private epoch = 0;
   private peer?: BrowserRtcPeer;
+  private wtPeer?: BrowserWebTransportPeer;
+  private wtOffer?: WebTransportOffer;
+  private wtAttempt = 0;
+  private wtGeneration = 0;
+  private wtRetryAt = Infinity;
+  private wtFailures = 0;
+  private serverWt = false;
   private rtcAttempt = 0;
   private rtcStartedAt = 0;
   private rtcRetryAt = Infinity;
@@ -88,7 +98,8 @@ export class GameClient {
     }
   }
   private makeEndpoint(): Endpoint {
-    const e = new Endpoint({ ...this.options.endpoint, impair: this.options.impair ?? this.options.endpoint?.impair });
+    const e = new Endpoint({ ...this.options.endpoint, impair: this.options.impair ?? this.options.endpoint?.impair,
+      traceClock: () => this.clock.synced ? { serverTimeMs: this.clock.serverTime(performance.now()), uncertaintyMs: this.clock.uncertaintyMs } : null });
     e.onState = s => {
       const receiver = this.stateReceivers.get(s.stream);
       if (receiver) try { receiver.receive(s); } catch (error) { this.report(error); }
@@ -99,7 +110,7 @@ export class GameClient {
     e.onEvent = (d, s) => { for (const f of this.interceptors) if (f(d, s)) return; this.onEvent(d, s); };
     e.onStateAck = (stream, seq) => this.onStateAck(stream, seq);
     e.onCallbackError = error => this.report(error);
-    e.onFastDown = () => this.stopRtc(true);
+    e.onFastDown = via => via === 'wt' ? this.stopWt(true) : this.stopRtc(true);
     e.onFastChange = () => this.noteTransport();
     return e;
   }
@@ -120,6 +131,7 @@ export class GameClient {
       now: () => this.clock.synced ? this.clock.serverTime(performance.now()) : null,
       tolerance: () => Math.max(1, this.clock.uncertaintyMs),
       remove: () => { if (this.stateReceivers.get(stream) === receiver) this.stateReceivers.delete(stream); },
+      trace: this.options.endpoint?.trace ? (stage, state, details) => this.endpoint.traceState(stage, state, details) : undefined,
     }, options);
     this.stateReceivers.set(stream, receiver);
     if (this.status === 'online') try { receiver.session(false); } catch (error) { this.report(error); }
@@ -135,10 +147,11 @@ export class GameClient {
     this.onSessionLost(info);
   }
   /** Which path state messages take right now. */
-  get transport(): Transport { return this.status !== 'online' ? 'none' : this.endpoint.fastActive ? 'rtc' : 'ws'; }
+  get transport(): Transport { return this.status !== 'online' ? 'none' : this.endpoint.fastTransport ?? 'ws'; }
   private noteTransport() {
     const t = this.transport;
     if (t === 'rtc') this.rtcFailures = 0; // bidirectional proof recovered: the next outage starts at the base retry
+    if (t === 'wt') this.wtFailures = 0;
     if (t !== this.lastTransport) { this.lastTransport = t; try { this.onTransport(t); } catch (e) { this.report(e); } }
   }
   private report(error: unknown) { this.onError(error instanceof Error ? error : new Error(String(error))); }
@@ -189,7 +202,7 @@ export class GameClient {
     ws.onclose = ev => {
       if (generation !== this.generation) return;
       // (the clock is kept: a resumed session talks to the same server process, so the same clock; see the welcome)
-      this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.pendingPings.clear();
+      this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.stopWt(false); this.pendingPings.clear();
       if (!this.stopped) {
         if ([1002, 1008, 4001, 4002, 4004].includes(ev.code)) {
           this.stopped = true; clearInterval(this.pumpTimer); clearTimeout(this.retryTimer); this.setStatus('lost');
@@ -203,7 +216,7 @@ export class GameClient {
     const m = readControl(raw); if (!m) throw new Error('Invalid control message');
     if (m.t === 'reset') {
       this.stopped = true; clearInterval(this.pumpTimer); clearTimeout(this.retryTimer);
-      this.stopRtc(false); this.endpoint.detach(); ws.close(); this.setStatus('lost');
+      this.stopRtc(false); this.stopWt(false); this.endpoint.detach(); ws.close(); this.setStatus('lost');
       this.lost({ pendingEvents: this.endpoint.events.size, reason: typeof m.reason === 'string' ? m.reason : 'expired' }); return;
     }
     if (m.t === 'welcome') {
@@ -212,6 +225,8 @@ export class GameClient {
         throw new Error('Invalid welcome');
       const generation = this.generation;
       this.token = m.token; this.id = m.id; this.epoch = m.e; this.reconnects = 0; this.serverRtc = m.rtc === true;
+      this.wtOffer = validOffer(m.wt) ? m.wt : undefined; this.serverWt = !!this.wtOffer;
+      this.wtFailures = 0; this.wtRetryAt = performance.now();
       this.iceServers = validIceServers(m.ice) ? m.ice : [];
       this.endpoint.attach(this.epoch, {
         get open() { return ws.readyState === 1; }, get bufferedAmount() { return ws.bufferedAmount; },
@@ -237,13 +252,17 @@ export class GameClient {
     }
     // The server's round-trip probe (GameSession.rttMs): echo at once, ahead of the next pump.
     if (m.t === 'probe' && isUint(m.n)) { this.endpoint.sendControl({ t: 'probe-ack', e: this.epoch, n: m.n }); return; }
+    if (m.t === 'wt-offer' && validOffer(m.d) && m.d.a > this.wtAttempt) {
+      this.stopWt(false, false); this.wtOffer = m.d; this.wtRetryAt = performance.now(); return;
+    }
+    if (m.t === 'wt-reset' && m.a === this.wtAttempt && this.wtPeer) { this.stopWt(false); return; }
     if (m.t === 'signal' && m.a === this.rtcAttempt && validSignal(m.d)) { void this.peer?.signal(m.d); return; }
     if (m.t === 'rtc-reset' && m.a === this.rtcAttempt && this.peer) this.stopRtc(false);
   }
   /** Retire locally before close(): browsers can wait indefinitely for an offline close handshake. */
   private replaceSocket(reason: string): void {
     const socket = this.socket, generation = ++this.generation;
-    this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.pendingPings.clear();
+    this.socket = undefined; this.endpoint.detach(); this.stopRtc(false); this.stopWt(false); this.pendingPings.clear();
     this.closingDeadline = this.wakeDeadline = Infinity;
     try { socket?.close(4000, reason); } catch { /* the old socket is already fenced */ }
     this.setStatus('connecting');
@@ -282,10 +301,37 @@ export class GameClient {
       void peer.offer().catch(error => { if (this.peer === peer) { this.report(error); this.stopRtc(true); } });
     } catch (error) { this.report(error); this.stopRtc(true); }
   }
+  private startWt(): void {
+    const options = this.options.webtransport;
+    if (options === false || !this.serverWt || this.wtPeer || this.status !== 'online' || !BrowserWebTransportPeer.supported(options ?? {})) return;
+    const offer = this.wtOffer; this.wtOffer = undefined;
+    if (!offer) {
+      this.endpoint.sendControl({ t: 'wt-request', e: this.epoch });
+      this.wtRetryAt = performance.now() + (options?.retryMs ?? 3000); return;
+    }
+    const generation = ++this.wtGeneration, epoch = this.epoch; this.wtAttempt = offer.a; this.wtRetryAt = Infinity;
+    const current = () => generation === this.wtGeneration && epoch === this.epoch && this.status === 'online' && !this.stopped;
+    const peer = new BrowserWebTransportPeer({
+      open: link => { if (current()) this.endpoint.attachDatagram(link, 'wt'); else link.close(); },
+      data: data => { if (current()) this.endpoint.receiveBinary(data, 'wt'); },
+      closed: () => { if (current()) this.stopWt(true); },
+      error: () => { if (current()) this.stopWt(true); },
+    });
+    this.wtPeer = peer; void peer.connect(offer, epoch, options ?? {});
+  }
+  private stopWt(notify: boolean, failed = true): void {
+    ++this.wtGeneration;
+    const peer = this.wtPeer; this.wtPeer = undefined; this.wtOffer = undefined;
+    this.endpoint.dropDatagram(false, 'wt'); peer?.close();
+    if (notify && peer) this.endpoint.sendControl({ t: 'wt-reset', e: this.epoch, a: this.wtAttempt });
+    this.wtRetryAt = performance.now() + Math.min(60000, (this.options.webtransport && this.options.webtransport.retryMs || 3000) * 2 ** Math.min(this.wtFailures, 4));
+    if (peer && failed) this.wtFailures++;
+    this.noteTransport();
+  }
   private stopRtc(notify: boolean): void {
     const a = this.rtcAttempt, peer = this.peer; this.peer = undefined;
     if (notify && peer) this.endpoint.sendControl({ t: 'rtc-reset', e: this.epoch, a });
-    this.endpoint.dropDatagram(false); peer?.close();
+    this.endpoint.dropDatagram(false, 'rtc'); peer?.close();
     this.rtcRetryAt = performance.now() + Math.min(60000, (this.options.rtcRetryMs ?? 3000) * 2 ** Math.min(this.rtcFailures++, 4));
     this.noteTransport();
   }
@@ -298,16 +344,19 @@ export class GameClient {
       }
       if (this.socket && this.socket.readyState !== 1) {
         // Announce the interruption immediately, but allow a normal terminal close event to report its reason.
-        this.endpoint.detach(); this.stopRtc(false); this.pendingPings.clear();
+        this.endpoint.detach(); this.stopRtc(false); this.stopWt(false); this.pendingPings.clear();
         this.closingDeadline = now + Math.min(1000, this.options.heartbeatTimeoutMs ?? 8000);
         this.setStatus('connecting'); return;
       }
       // a burst of pings after each connect so the clock settles in about two seconds, then one a second
       const o = this.options, burst = this.burstLeft > 0 && this.pendingPings.size < 8;
       if (now - this.lastPing >= (burst ? o.syncPingMs ?? 250 : o.pingMs ?? 1000)) { this.ping(now); if (burst) this.burstLeft--; }
-      if (this.peer && now - this.rtcStartedAt > (this.options.rtcConnectTimeoutMs ?? 8000) && !this.endpoint.fastActive) this.stopRtc(true);
+      if (this.peer && now - this.rtcStartedAt > (this.options.rtcConnectTimeoutMs ?? 8000) && !this.endpoint.datagramProven('rtc')) this.stopRtc(true);
       if (!this.peer && now >= this.rtcRetryAt) this.startRtc();
+      if (!this.wtPeer && now >= this.wtRetryAt) this.startWt();
       this.endpoint.pump();
+      if (this.endpoint.datagramProven('wt')) this.wtFailures = 0;
+      if (this.endpoint.datagramProven('rtc')) this.rtcFailures = 0;
       this.noteTransport();
     } else if (this.socket && (now >= this.closingDeadline || now - this.openedAt > 10000)) { this.replaceSocket('handshake timeout'); }
   }
@@ -326,7 +375,7 @@ export class GameClient {
   /** Stop the physical connection, retaining event counters and resume credentials in this instance. */
   pause(): void {
     this.stopped = true; ++this.generation; clearTimeout(this.retryTimer); clearInterval(this.pumpTimer);
-    this.stopRtc(false); this.endpoint.detach(); this.socket?.close(4003, 'paused'); this.socket = undefined; this.setStatus('paused');
+    this.stopRtc(false); this.stopWt(false); this.endpoint.detach(); this.socket?.close(4003, 'paused'); this.socket = undefined; this.setStatus('paused');
   }
   resume(): void { if (this.status === 'paused') this.connect(); }
   /** Explicitly discard the old logical session after expiry. Pending actions are NOT replayed into a new session. */

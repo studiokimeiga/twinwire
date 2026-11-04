@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.0.0 (2026-11-04)
+
+- Wire generation 5 adds optional authenticated WebTransport datagrams. Bind each physical HTTP/3 path to the live
+  WebSocket session using a short-lived, one-use ticket and epoch; prove both directions before selecting it. Keep
+  independently proven RTC and WS fallback, path-size limits and hysteresis. Reliable session/events remain on WS.
+  Respect changing datagram limits and provider-owned stream teardown; standby proof clears retry debt too.
+  This protocol change requires paired client/server deployment; 2.x clients cannot connect to 3.0 hosts.
+- Add optional bounded metadata tracing for state enqueue, send, receipt, accepted application, playback and explicit
+  render submission. Report clock uncertainty and separate queue time from playback age; never retain payloads/secrets.
+- Add bounded cancellable HTTP bulk resources with browser admission/memory limits, optional SHA-256 integrity and a
+  Node handler with authorization, origin checks, ETags and backpressure. Bulk bytes stay outside ordered game events.
+  Stalled downloads time out, older AbortSignals work, malformed targets return400 and source buffers are snapshotted.
+- Protect state and reliable-event bandwidth under mixed load while lending surplus positive credit. Refund failed
+  writes and allow useful smaller states past unsendable large candidates. Preserve ordered event delivery.
+- Add regressions, deterministic comparison with published 2.3.0 and hosted real QUIC/browser and alternating-process
+  localhost benchmark gates. Candidate/release evidence is recorded in validation/STATUS.md; no universal speedup claim.
+- Fix mutable Node Buffer views at state/frame/replica ownership boundaries: later caller mutations cannot change
+  an already queued or decoded snapshot. Require patched ws8.22+ and patch the pinned local Worker tool's dependencies.
+
 ## 2.3.0 (2026-11-01)
 
 - The server now measures each client's round trip itself: every `probeMs` (2000 by default, 0 turns it off) it sends a small probe that clients echo at once, and keeps a smoothed `session.rttMs` and the connection's `session.minRttMs`. This is the independent observation `selectRewindTime` asks for: expect a shooter's view half the round trip, its playback delay (which already includes the other half), a frame and its input-queue wait behind `now` (docs/ADOPTING.md has the model and a calibration). Both hosts (Node and Worker) probe; clients before this release never answer and leave `rttMs` null, so keep a fallback. Measurements restart on each connection. Wire protocol 4 is unchanged: a 2.2 client ignores probes, and a 2.2 server never sends them.

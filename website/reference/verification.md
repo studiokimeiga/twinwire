@@ -1,21 +1,37 @@
 # Compatibility and verification
 
-Twinwire 2.2.0 uses **wire protocol 4** and requires **Node 22+** on a Node server. Native datagrams use
-**node-datachannel >=0.33.4 <0.34.0**. Without it, the same session uses WebSocket. Browser entries do not
-import Node or native modules.
+Twinwire 3.0.0 uses **wire protocol 5** and requires **Node 22+** on a Node server. Deploy matching browser and
+server versions together; 2.x clients are not wire-compatible. Native RTC uses **node-datachannel >=0.33.4 <0.34.0**.
+Optional WebTransport uses a separately configured HTTP/3 provider and listener. Both paths need two-way proof;
+the session retains WebSocket fallback. Browser and Worker entries do not import Node or native modules.
 
 ## What was exercised
 
-The published 2.2.0 release passes 154 local checks, native RTC, and real-server Chromium, Firefox and WebKit tests with normal traffic, impairments and WebSocket-only controls. The party example passes on both paths. Two independent one-hour lifecycle soaks ran on GitHub runners using Node 22 and 24, with 48 honest and six hostile clients per process. Both drained to zero sessions, connections, rooms, timers and sockets, with no unexpected server errors.
+The 3.0 runtime passes 232 local checks, native RTC and real-server Chromium, Firefox and WebKit tests with normal
+traffic, impairments and WebSocket-only controls. The party example passes on both paths. Actual Chromium and
+Firefox WebTransport exercises require received application states, RTC/WS fallback, concurrent HTTP resources
+and game commands, and same-session recovery. Pinned Linux WebKit covers fallback, not native QUIC.
+
+Publication requires all jobs in the [final runtime run](https://github.com/studiokimeiga/twinwire/actions/runs/41777183172)
+and final PR gates to succeed. The run includes independent one-hour Node22/24 WebSocket lifecycle soaks and
+Chromium/Firefox native QUIC lifecycle soaks. The [validation record](https://github.com/studiokimeiga/twinwire/blob/main/validation/STATUS.md)
+and [raw measurements](https://github.com/studiokimeiga/twinwire/blob/main/validation/transport-3.0.0.json) identify
+the exact tested runtime, distributed-file hashes, controlled 2.3 comparison, tracing overhead and clock uncertainty.
 
 The Worker compatibility matrix runs real workerd Durable Objects at both 2025-01-01 and 2026-03-17 compatibility dates: binary state, ordered replay, same-session recovery, takeover fencing, origin rejection and close handshakes. The hosted arena verifies actual movement, a queued ping exactly once, same-player reconnect and checkpoint reload. The complete Node starter also verifies application snapshots over native RTC.
 
-Ten paired game deployments now run the published 2.2.0 package. Actual public-browser checks cover movement/actions, same-session reconnects and current-world presentation on native RTC and forced WebSocket for the Node games. Emoji Mahjong's WebSocket deployment preserves private hands and seats through disconnect and reload in desktop Chromium, phone-sized Chromium and phone-sized WebKit. Sipoga additionally exercises damage, respawn, mobile controls and an 8.5-second outage. [Try the live integrations](/demos#live-game-integrations).
+Production acceptance is separate from SDK validation. The previous 2.2 rollout verified ten paired games through
+their public URLs: movement/actions, same-session reconnects and current-world presentation on native RTC and forced
+WebSocket for the Node games. Emoji Mahjong preserves private hands and seats through disconnect and reload in
+desktop Chromium, phone-sized Chromium and phone-sized WebKit. Each newer rollout needs its own matching client,
+server and acceptance receipt. [Try the live integrations](/demos#live-game-integrations).
 
-The downloadable public starter archive was fetched again after publication: all six extracted files match the clean-installed, browser-tested 2.2.0 starter. The live phone layout has no horizontal overflow or page exceptions. The release record separates SDK lifecycle soaks, game replays and these production acceptance checks.
+The starter checks use real movement, an offline queued ping exactly once, same-player reconnect and checkpoint
+reload. Public-download verification compares its files with the clean-installed tested project. The release record
+separates SDK lifecycle soaks, game replay measurements and production acceptance.
 
-[Release and source](https://github.com/studiokimeiga/twinwire/releases/tag/v2.2.0) ·
-[One-hour verification](https://github.com/studiokimeiga/twinwire/actions/runs/40365174817) ·
+[Release and source](https://github.com/studiokimeiga/twinwire/releases/tag/v3.0.0) ·
+[One-hour verification](https://github.com/studiokimeiga/twinwire/actions/runs/41777183172) ·
 [Detailed validation record](https://github.com/studiokimeiga/twinwire/blob/main/validation/STATUS.md) ·
 [CI runs](https://github.com/studiokimeiga/twinwire/actions)
 

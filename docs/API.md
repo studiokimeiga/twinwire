@@ -4,14 +4,18 @@ All modules are ESM with TypeScript declarations.
 
 | Import | For |
 |---|---|
-| `twinwire/client` | Browser: `GameClient`, `EventClient`, `createEventClient`, `LobbyClient`, `StateReceiver`, `BrowserRtcPeer` |
-| `twinwire/server` | Node: `createGameServer`, `createEventServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `turnCredentials`, `cloudflareTurn` |
+| `twinwire/client` | Browser: `GameClient`, `EventClient`, `createEventClient`, `LobbyClient`, `StateReceiver`, `StateTraceBuffer`, `BulkClient`, `BrowserRtcPeer`, `BrowserWebTransportPeer` |
+| `twinwire/server` | Node: `createGameServer`, `createEventServer`, `GameServer`, `GameSession`, `Lobby`, `Room`, `createNativeRtcFactory`, `createWebTransportHost`, `acceptWebTransport`, `createBulkHandler`, `StateTraceBuffer`, `turnCredentials`, `cloudflareTurn` |
 | `twinwire/worker` | Standard WebSocket host: `SocketSessionServer`, `GameSession`; no Node/native dependencies |
 | `twinwire/netcode` | Both: clock, interpolation, prediction, timing, snapshots, replication, codecs, spatial |
 | `twinwire` | Both: the wire protocol and `Endpoint` |
 | `twinwire/browser` | `dist/browser/twinwire.js` (also `.min.js`; ESM `.mjs` for `import`): client + lobby + netcode as `window.Twinwire` |
 
 Browser code never imports the server entry. Node needs `ws`; WebRTC on the server needs `node-datachannel@0.33.x`.
+
+3.0 uses wire generation5 and requires matching clients/servers. [Transport and resource controls](TRANSPORTS.md)
+documents the optional HTTP/3 provider, `BulkClient` limits/timeout/integrity, `createBulkHandler` authorization and
+`StateTraceBuffer` timing boundaries. Workers remain standard-WebSocket hosts and do not load native transport code.
 
 
 ## Named channels
@@ -129,7 +133,8 @@ const client = new GameClient({
   url: 'wss://game.example.com/connect',
   room: 'mygame',                 // a namespace the server sees; rooms with codes come from the lobby
   auth: { name: 'WREN', build },  // any JSON, checked by the server's authenticate hook; also session.hello
-  rtc: {},                        // default. false = WebSocket only. { iceServers } overrides the server's list
+  rtc: {},                        // default. false disables RTC; { iceServers } overrides the server's list
+  webtransport: {},               // default: try a server-offered native path. false disables it
   endpoint: { bytesPerSecond: 32 * 1024 },
 });
 ```
@@ -139,7 +144,7 @@ const client = new GameClient({
 | `connect()` | Starts join/resume and pumping. |
 | `whenOnline()` | Promise: resolves when online (at once if already), rejects if the session is lost or closed first. |
 | `status`, `onStatus(s)` | `idle`, `connecting`, `online`, `paused`, `closed`, `lost`. |
-| `transport`, `onTransport(t)` | `rtc` (datagrams proven both ways), `ws`, `none`. |
+| `transport`, `onTransport(t)` | Primary proven fast path: `wt` or `rtc`; otherwise `ws` or `none`. A particular state's `via` can differ because of payload limits. |
 | `onSession({id,resumed})` | Identity is available. `resumed: false` means a brand-new session: reset game state. |
 | `onSessionLost({pendingEvents,reason})` | Expiry, kick, takeover by another tab, authentication or protocol rejection. Retrying stops; call `newSession()`. |
 | `sendEvent(json)` | Ordered, acknowledged, deduplicated; replayed after reconnects. Returns its seq; throws when the outbox is full (512 events / 1 MiB) or the event is over 64 KiB. |
@@ -158,6 +163,7 @@ const client = new GameClient({
 | `bindPageLifecycle({hiddenPauseMs, wakeCheckMs, unload})` | Pause after 20 s hidden, or when the page goes into the back/forward cache; when the page is back, resume, or replace a socket that stays silent for 1.5 s; reconnect at once on `online`. When the page really unloads: `unload: 'leave'` ends the session at once (no frozen player for the resume grace), `'pause'` keeps it for a checkpointed reload, `'auto'` (default) pauses only if the client checkpoints. Say `'pause'` if you call `checkpoint()` in your own `pagehide` handler. |
 | `intercept(fn)`, `on('session' \| 'lost', fn)` | Extra listeners for helpers such as `LobbyClient`. |
 | `endpoint.stats` | Traffic, stale/expired/coalesced states, `eventsViaDatagram`, `datagramRttMs`, and more. |
+| `endpoint.datagramPaths` | Per-path proof, measured RTT, buffered bytes and maximum complete-message size. No secrets. |
 | `options.impair` | `{lagMs, jitterMs, loss, duplicate, stallMs}` on this client's sends, and asked of the server (which honours it only with `allowImpairment`). `lagMs` is one way. `loss` drops datagrams; with `stallMs`, it also stalls the WebSocket (a lost TCP segment holds up everything behind it while it is resent). |
 | `onError(e)`, `flush()` | Errors that don't end the session; send what's queued now instead of at the next pump. |
 | `simulateDrop()` | Close the socket as a network drop would (testing): the client reconnects and resumes. |
@@ -168,6 +174,7 @@ const client = new GameClient({
 | `heartbeatTimeoutMs` | 8000 | A socket silent this long is replaced. |
 | `rtcRetryMs` | 3000 | Wait before retrying a data channel that failed; doubles per consecutive failure up to 16×, at most 60 s. Bidirectional RTC proof clears the failure count. Duplicate resets for an already-stopped attempt are ignored. |
 | `rtcConnectTimeoutMs` | 8000 | Give up on a data channel that hasn't proven itself by then. |
+| `webtransport` | enabled if offered and supported | `false` or `{connectTimeoutMs, retryMs, serverCertificateHashes?, create?}`. Binding timeout5000ms and retry3000ms by default. Production normally uses public TLS trust. |
 | `pumpHz` | 60 | How often queued states and events are scheduled onto the wires. |
 | `syncPings` / `syncPingMs` / `pingMs` | 8 / 250 / 1000 | Clock sync: a burst of pings after each connect, then one a second. |
 | `websocket` | `u => new WebSocket(u)` | Socket factory (tests, Node clients, proxies). |
@@ -211,14 +218,15 @@ await server.listen();
 | Option | Default | |
 |---|---|---|
 | `origins` | required | Exact page origins. `allowMissingOrigin` lets non-browser clients in. |
-| `rtc` | none | `createNativeRtcFactory({port, publicIp?, bindAddress?, iceServers?, maxMessageSize?})`. Without it: WebSocket only. |
+| `rtc` | none | `createNativeRtcFactory({port, publicIp?, bindAddress?, iceServers?, maxMessageSize?})`. Optional RTC path. |
+| `webtransport` | none | A host from `await createWebTransportHost({url,port,host,cert,privKey})`; optional native HTTP/3 peers required only when creating this host. |
 | `iceServers` | `[]` | Array or `(session) => array \| Promise`. Sent in each welcome. |
 | `trustProxy` | false | Read the client address from the last `X-Forwarded-For` hop when the peer is a local proxy. |
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits. |
 | `pumpHz` | 60 | How often queued states and events go out. A game ticking faster sets its tick rate (10 to 250), or calls `session.flush()` after each snapshot. |
 | `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. |
 | `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table. |
-| `rateLimit` | 300 msg/s, 256 KiB/s | Per connection, both transports together. |
+| `rateLimit` | 300 msg/s, 256 KiB/s | Per logical connection, all physical paths together. |
 | `allowImpairment` | false | Honour a client's `impair`. Development only. |
 | `endpoint` | | Endpoint options for every session (below). |
 | `path` | `/connect` | The WebSocket path. |
@@ -233,7 +241,7 @@ await server.listen();
 | `on('session' \| 'disconnect' \| 'expire', fn)` | Listeners beside `onSession` / `onDisconnect` / `onExpire`. |
 | `endSession(session, reason)` | Kick: the client gets `onSessionLost(reason)`. |
 | `broadcast(room, json)` | To every session that said hello with that `room`. |
-| `metrics()` | Sessions, connections, rtc/ws counts, bytes, pending events, protocol errors. For `/health`. |
+| `metrics()` | Sessions, connections, wt/rtc/ws counts, bytes, pending events, protocol errors. For `/health`. |
 | `addressOf(req)` | The address the limits use. |
 
 ## Lobby
@@ -272,6 +280,12 @@ a join, a leave or a drop cancels it, but name and meta changes don't. `LobbyCli
 (its second constructor argument).
 
 ## Endpoint options
+
+`trace` optionally observes bounded metadata through a `StateTraceBuffer`; GameClient supplies its synchronized
+trace clock automatically. `StateReceiver.markRendered(sourceTimeMs?)` marks frame submission after sampling.
+`stateBudgetShare` defaults to0.5 and protects state credit under reliable-event load, lending surplus credit.
+`preferredDatagram` (`wt`), `pathSwitchHoldMs` (1000), `pathSwitchMarginMs` (5) govern proven-path selection; the
+actual frame must fit its link's capability and may use proven RTC or WS when the primary QUIC path cannot fit it.
 
 `bytesPerSecond` (32 KiB) and `burstBytes`: scheduling budget for states and events (a message bigger than the burst
 goes once the bucket is full). `maxBufferedBytes` (64 KiB): socket backpressure. `maxStateBytes` (64 KiB, at most

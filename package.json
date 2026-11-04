@@ -1,7 +1,7 @@
 {
   "name": "twinwire",
-  "version": "2.3.0",
-  "description": "Multiplayer networking for browser games: one resumable session on two wires (WebSocket + WebRTC datagrams), reliable events at UDP latency, delta snapshots, a lobby with codes, quick play and ready-up, and netcode helpers. Works in every browser, iPhone Safari included.",
+  "version": "3.0.0",
+  "description": "Browser multiplayer with resumable sessions, WebSocket/WebRTC and optional WebTransport, ordered events, latest state, latency tracing, independent resources, lobbies and netcode helpers.",
   "keywords": [
     "multiplayer",
     "netcode",
@@ -9,6 +9,7 @@
     "gamedev",
     "webrtc",
     "websocket",
+    "webtransport",
     "datachannel",
     "udp",
     "lobby",
@@ -88,17 +89,30 @@
     "test:worker": "node tools/worker-e2e.mjs"
   },
   "dependencies": {
-    "ws": "^8.18.3"
+    "ws": "^8.22.0"
   },
   "peerDependencies": {
+    "@fails-components/webtransport": ">=1.6.11 <2",
+    "@fails-components/webtransport-transport-http3-quiche": ">=1.6.11 <2",
     "node-datachannel": ">=0.33.4 <0.34.0"
   },
   "peerDependenciesMeta": {
+    "@fails-components/webtransport": { "optional": true },
+    "@fails-components/webtransport-transport-http3-quiche": { "optional": true },
     "node-datachannel": {
       "optional": true
     }
   },
+  "overrides": {
+    "ws": "$ws",
+    "miniflare": {
+      "sharp": "0.35.5",
+      "undici": "7.30.1"
+    }
+  },
   "devDependencies": {
+    "@fails-components/webtransport": "1.6.11",
+    "@fails-components/webtransport-transport-http3-quiche": "1.6.11",
     "@types/node": "^22.15.0",
     "esbuild": "^0.28.2",
     "miniflare": "4.20260317.0",

@@ -20,6 +20,7 @@ retransmits. Twinwire's server answers those data channels itself, from one UDP 
 
 Two real Twinwire endpoints, a browser's and a server's, exchange snapshots (20 a second), inputs (30 a second) and
 the occasional event over a simulated network. The chart underneath shows how long each one took to arrive.
+This lesson models the default WebRTC/WebSocket pair; it does not open or benchmark a QUIC connection.
 
 <WiresDemo />
 
@@ -44,7 +45,7 @@ pass without a reply, that side drops the path and everything rides the WebSocke
 noticed by a person.
 
 The browser then retries WebRTC with backoff (from 3 s, doubling up to 48 s, never more than a minute apart), so a
-network that recovers gets its fast path back. The game sees one thing throughout: `transport` is `'rtc'` or `'ws'`,
+network that recovers gets its fast path back. The game sees one thing throughout: `transport` is `'rtc'`, `'wt'` or `'ws'`,
 and `onTransport` says when it changes.
 
 ## Events at UDP speed
@@ -61,39 +62,48 @@ isn't. Events of up to about 1 KB take part in the race; bigger ones go on the W
 
 `sendState(stream, bytes)` keeps only the newest unsent payload for each stream. If a newer one is queued before the
 old one goes out, the old one is dropped. If it waits longer than its `ttlMs` (100 ms by default), it expires. Queued
-states are sent by priority and age within a per-player byte budget, so a slow link gets fewer, fresher snapshots
+states are sent by priority and age within a per-player byte budget. State and events have protected shares while
+both are busy, with idle credit available to the other class. A slow link gets fewer, fresher snapshots
 rather than a growing backlog. Receivers drop anything not newer than what they already have on that stream, whichever
 path it came by.
 
 | Size of a state | Where it goes while datagrams are up |
 |---|---|
-| Up to 1086 bytes | One datagram |
-| Up to 8 KiB (`datagramStateBytes`) | Datagrams, fragmented by the data channel |
+| Up to the current path's payload limit | One datagram; QUIC limits are negotiated and can change |
+| Up to 8 KiB (`datagramStateBytes`) | Proven RTC if its message limit permits SCTP fragmentation; otherwise WebSocket |
 | Larger, up to 64 KiB (`maxStateBytes`) | The WebSocket, so a big snapshot can't be lost piecewise |
 
 Sending is not delivering. Make each state self-contained, or a delta against one the receiver has acknowledged
 ([delta snapshots](/how/deltas)).
 
-## Why not WebTransport (yet)?
+## Optional WebTransport
 
-WebTransport is the newer browser API for UDP-like datagrams, and since Safari 26.4 (March 2026) it is in every major
-browser. Twinwire doesn't use it yet, for three reasons:
+Twinwire 3.0 can add a WebTransport datagram path beside WebRTC. A separately configured HTTP/3 listener needs
+TLS, UDP routing and a supported native server provider. Browsers without the native API keep RTC/WebSocket.
+The WebSocket still establishes the logical session and carries reliable gameplay events.
 
-- **The server side isn't ready in Node.** Node 22 has no built-in QUIC or HTTP/3. The main add-on
-  (`@fails-components/webtransport`, built on libquiche) describes itself as a stopgap until Node has native support,
-  and its prebuilt binary needs glibc 2.38 or newer, so it fails on Ubuntu 22.04 and Debian 12, the base of the
-  `node:22` Docker images.
-- **Players wouldn't feel the difference.** Twinwire plays over the WebSocket immediately and upgrades to WebRTC
-  datagrams in the background, so WebTransport's faster setup isn't visible.
-- **Blocked UDP is already covered.** On networks that block UDP, TURN over TLS on port 443 and the WebSocket already
-  get players through.
+A one-use ticket binds QUIC to the current connection epoch; each direction then needs its own probe replies.
+RTT margin and a minimum hold time keep comparable paths from constantly switching. The primary `transport` label
+describes the selected path, while each received state's `via` identifies how that state arrived. A large snapshot
+can use proven RTC even when the primary QUIC path cannot fit it. QUIC datagrams are never fragmented by Twinwire.
 
-Once Node ships native WebTransport, Twinwire will add it as another datagram path: preferred where it is available,
-with WebRTC and the WebSocket as fallbacks.
+QUIC is an option, not a promise of lower latency on every network. The native provider's current Linux binary
+needs glibc 2.38; Ubuntu 22.04 cannot load it. The optional dependency is absent from browser and Worker bundles.
+[Configure WebTransport and inspect path capabilities](/reference/api/transports#optional-webtransport-fast-path).
+
+## Measure and separate the delays
+
+`StateTraceBuffer` records bounded metadata at queue, send, receipt, application, playback and explicit render
+submission. Clock uncertainty travels with snapshot-age estimates. This separates a send backlog from a browser
+callback stall or a deliberately delayed playback cursor. Render submission does not measure when a GPU presented
+the frame. [Add tracing and independent bulk resources](/reference/api/transports).
+
+Large terrain, maps and assets belong in independently cancellable HTTP resource requests. They do not occupy
+the ordered gameplay event sequence. The game still owns resource authorization, revisions and cache eviction.
 
 ## The wire protocol
 
-Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (4) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
+Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (5) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
 
 | Kind | Path | Meaning |
 |---|---|---|

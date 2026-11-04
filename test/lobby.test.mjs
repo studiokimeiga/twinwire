@@ -61,10 +61,13 @@ test('ready-up counts down when every connected member is ready, and an unready 
   t.lobby.onStart = () => started++;
   try {
     const a = await t.player('A'), b = await t.player('B');
+    await until(() => a.client.clock.synced && b.client.clock.synced);
     const room = await a.create(); await b.join(room.code);
     await a.setReady(true); await sleep(30); assert.equal(a.room.countdownEndsAt, null, 'one of two is not enough');
     await b.setReady(true); await until(() => a.room.countdownEndsAt !== null);
-    assert.ok(a.countdownMs() > 0 && a.countdownMs() <= 150);
+    const remaining = a.countdownMs();
+    assert.ok(remaining > 0 && remaining <= 150 + a.client.clock.uncertaintyMs,
+      `countdown ${remaining}ms, clock uncertainty ${a.client.clock.uncertaintyMs}ms`);
     await b.setReady(false); await until(() => a.room.countdownEndsAt === null);
     await sleep(200); assert.equal(started, 0);
     await b.setReady(true); await until(() => a.room.phase === 'playing' && b.room.phase === 'playing');

@@ -62,6 +62,7 @@ export function nativeRtcFactory(native: NativeModule, options: NativeRtcOptions
             const channel = dc;
             channel.onOpen(() => { if (alive) cb.open({
               get open() { return alive && channel.isOpen(); }, get bufferedAmount() { return channel.bufferedAmount(); },
+              maxMessageBytes: maxMessage,
               send: b => {
                 if (!alive || !channel.isOpen()) return false;
                 // libdatachannel returns false when a connected SCTP send was queued.

@@ -5,6 +5,18 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      webtransport_soak:
+        description: Also run real browser QUIC lifecycle soaks
+        type: boolean
+        default: false
+      wt_soak_seconds:
+        description: Short validation override (0 uses soak_minutes)
+        type: number
+        default: 0
+      webtransport_only:
+        description: Run only native WebTransport browser gates
+        type: boolean
+        default: false
       soak_minutes:
         description: Duration of each independent lifecycle soak
         type: choice
@@ -18,9 +30,11 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
+    if: ${{ !inputs.webtransport_only }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         node: [22, 24]
     steps:
@@ -56,7 +70,30 @@ jobs:
       - run: npm run test:worker
       - run: npm run test:native
       - run: npm run bench -- --clients 50 --seconds 5
+      - name: Compare against immutable published 2.3.0
+        if: matrix.node == 22
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .benchmark-baseline artifacts/transport
+          npm pack twinwire@2.3.0 --ignore-scripts --silent --pack-destination .benchmark-baseline
+          sha256sum .benchmark-baseline/twinwire-2.3.0.tgz > artifacts/transport/baseline-SHA256SUMS
+          tar -xzf .benchmark-baseline/twinwire-2.3.0.tgz -C .benchmark-baseline
+          ln -s ../../node_modules .benchmark-baseline/package/node_modules
+          node tools/compare-transport.mjs --baseline .benchmark-baseline/package > artifacts/transport/endpoint-model.json
+          for n in 1 2 3; do
+            TWINWIRE_SDK_ROOT=.benchmark-baseline/package node tools/bench.mjs --clients 50 --seconds 5 > "artifacts/transport/baseline-$n.json"
+            node tools/bench.mjs --clients 50 --seconds 5 > "artifacts/transport/candidate-$n.json"
+          done
+          node tools/assert-transport-comparison.mjs artifacts/transport
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.node == 22
+        with:
+          name: transport-comparison-node22
+          path: artifacts/transport/
+          retention-days: 7
   browsers:
+    if: ${{ !inputs.webtransport_only }}
     name: browsers (${{ matrix.engine }})
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -89,6 +126,7 @@ jobs:
           path: validation/browsers*.json
           retention-days: 3
   lifecycle-soak:
+    if: ${{ !inputs.webtransport_only }}
     name: lifecycle soak (Node ${{ matrix.node }})
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ inputs.soak_minutes == '60' && 80 || inputs.soak_minutes == '30' && 50 || 30 }}
@@ -139,3 +177,68 @@ jobs:
           name: lifecycle-soak-node-${{ matrix.node }}
           path: artifacts/soak/
           retention-days: 3
+  webtransport:
+    name: WebTransport (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    env:
+      ENGINES: ${{ matrix.engine }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/check-wt-native.mjs
+      - run: bash tools/prepare-browser-runner.sh
+      - run: npx playwright install --with-deps "$ENGINES"
+      - run: node tools/webtransport-e2e.mjs
+      - run: IMPAIR=1 node tools/webtransport-e2e.mjs
+      - name: Measure bounded tracing overhead
+        if: matrix.engine == 'chromium'
+        run: node tools/compare-tracing.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: webtransport-${{ matrix.engine }}
+          path: validation/webtransport*.json
+          retention-days: 7
+  webtransport-soak:
+    if: ${{ inputs.webtransport_soak }}
+    name: WT lifecycle soak (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ inputs.soak_minutes == '60' && 80 || inputs.soak_minutes == '30' && 50 || 30 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox]
+    env:
+      ENGINES: ${{ matrix.engine }}
+      SOAK_MINUTES: ${{ inputs.soak_minutes || '10' }}
+      WT_SOAK_SECONDS: ${{ inputs.wt_soak_seconds || '0' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/check-wt-native.mjs
+      - run: bash tools/prepare-browser-runner.sh
+      - run: npx playwright install --with-deps "$ENGINES"
+      - run: node --expose-gc tools/webtransport-soak.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: webtransport-soak-${{ matrix.engine }}
+          path: validation/webtransport-soak-*.json
+          retention-days: 7

@@ -16,6 +16,40 @@ export class TokenBucket {
     this.tokens -= bytes; return true;
   }
 }
+/** Two delivery classes share a rate, borrowing only idle positive credit. Oversized event debt cannot eat state's share. */
+export class TrafficBudget {
+  private credit: [number, number];
+  private capacity: [number, number];
+  private rates: [number, number];
+  private at: number;
+  constructor(rate: number, burst: number, stateShare: number, now: number) {
+    if (![rate, burst, stateShare, now].every(Number.isFinite) || rate <= 0 || burst <= 0 || stateShare <= 0 || stateShare >= 1)
+      throw new RangeError('Invalid traffic budget');
+    this.capacity = [burst * stateShare, burst * (1 - stateShare)];
+    this.rates = [rate * stateShare, rate * (1 - stateShare)];
+    this.credit = [...this.capacity]; this.at = now;
+  }
+  /** Returns a one-use refund when reserved, or null. A rejected transport write must refund its exact debits. */
+  reserve(kind: 'state' | 'event', bytes: number, now: number, protectedOtherBytes: number): (() => void) | null {
+    if (!Number.isFinite(bytes) || bytes < 0 || !Number.isFinite(now)) throw new RangeError('Invalid traffic reservation');
+    const dt = Math.max(0, now - this.at) / 1000; this.at = Math.max(this.at, now);
+    this.credit[0] = Math.min(this.capacity[0], this.credit[0] + dt * this.rates[0]);
+    this.credit[1] = Math.min(this.capacity[1], this.credit[1] + dt * this.rates[1]);
+    const own = kind === 'state' ? 0 : 1, other = own === 0 ? 1 : 0;
+    // Repay this class's debt from surplus positive credit, even while it cannot yet fund its next large packet.
+    // Otherwise a quiet state stream leaves its share permanently stranded beside an event's negative balance.
+    const surplus = Math.max(0, this.credit[other] - Math.min(this.capacity[other], protectedOtherBytes));
+    const loan = Math.min(surplus, this.capacity[own] - this.credit[own]);
+    this.credit[own] += loan; this.credit[other] -= loan;
+    if (this.credit[own] < Math.min(bytes, this.capacity[own])) return null;
+    this.credit[own] -= bytes;
+    let refunded = false;
+    return () => {
+      if (refunded) return; refunded = true;
+      this.credit[own] = Math.min(this.capacity[own], this.credit[own] + bytes);
+    };
+  }
+}
 export interface EgressEstimate { payloadGB: number; plannedGB: number; bill: number; withinBudget: boolean }
 /** Planning estimate, not a bill or a hard cap. Provider prices/allowances are supplied by the caller. */
 export function estimateEgress(o: {

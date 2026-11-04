@@ -1,10 +1,10 @@
 /** Versioned binary frames. Integers are little-endian.
  * [version << 4 | kind: 1] [connection epoch: 2] [stream: varint, 1 to 3] [seq: 4] [time: 4, signed, in 1/4 ms since the
  * connection's time base] [payload]. 12 bytes for streams under 128. */
-export const VERSION = 4;
+export const VERSION = 5;
 /** The longest header (a stream of 16384 or more). */
 export const HEADER_BYTES = 14;
-/** A payload this size or smaller fits one datagram on any path we target (no SCTP/IP fragmentation). */
+/** Legacy conservative RTC payload budget. QUIC uses its negotiated, potentially smaller complete-frame limit. */
 export const MTU_STATE_BYTES = 1100 - HEADER_BYTES;
 /** Hard protocol ceiling for one frame. Endpoints choose a lower `maxStateBytes`. */
 export const MAX_FRAME_BYTES = 256 * 1024;
@@ -58,7 +58,7 @@ export function decodeFrame(b: Uint8Array, maxBytes = MAX_FRAME_BYTES, base = 0)
   }
   if (!KINDS.has(kind) || !epoch || stream > 0xffff || at + 8 > b.byteLength ||
       (empty(kind) && b.byteLength !== at + 8) || (!streamed(kind) && stream !== 0)) return null;
-  return { kind: kind as FrameKind, epoch, stream, seq: v.getUint32(at, true), time: base + v.getInt32(at + 4, true) / TIME_UNITS, payload: b.slice(at + 8) };
+  return { kind: kind as FrameKind, epoch, stream, seq: v.getUint32(at, true), time: base + v.getInt32(at + 4, true) / TIME_UNITS, payload: new Uint8Array(b.subarray(at + 8)) };
 }
 /** RFC-1982-style comparison. Live windows must be smaller than half the sequence space. */
 export function newer(a: number, b: number): boolean { return a !== b && ((a - b) >>> 0) < 0x80000000; }

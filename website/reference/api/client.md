@@ -26,6 +26,7 @@ const client = new GameClient({
 | `room` | required | 1 to 64 characters of `A-Z a-z 0-9 _ : . -` |
 | `auth` | `null` | Any JSON. Sent with every hello, so the server sees it again on resume |
 | `rtc` | `{}` | `false` for WebSocket only, or an `RTCConfiguration`. With `iceServers`, those replace the server's |
+| `webtransport` | `{}` | Attempt an offered native WebTransport path. `false` disables it. [Provider, retry and development certificate options](/reference/api/transports#optional-webtransport-fast-path) |
 | `endpoint` | | [Endpoint options](/reference/api/server#endpoint-options) for this client |
 | `checkpoint` | | Resume a session saved by `checkpoint()` (see below) |
 | `impair` | | `{ lagMs, jitterMs, loss, duplicate, stallMs }` on this client's sends, and asked of the server (honoured only with `allowImpairment`). `lagMs` is one way; `loss` drops datagrams, and with `stallMs` also stalls the WebSocket like a resent TCP segment. For testing |
@@ -44,7 +45,7 @@ const client = new GameClient({
 | `connect()` | Start joining (or resuming) and sending. Throws after session loss: call `newSession()` |
 | `whenOnline()` | Resolves when online (at once if already), rejects if the session is lost or closed first |
 | `status`, `onStatus(s)` | `idle`, `connecting`, `online`, `paused`, `closed`, `lost` |
-| `transport`, `onTransport(t)` | `rtc` (datagrams proven both ways), `ws`, `none` |
+| `transport`, `onTransport(t)` | `rtc` or `wt` (datagrams proven both ways), `ws`, `none`. A larger state's own `via` may use a different proven path |
 | `id`, `onSession({ id, resumed })` | The session's identity. `resumed: false` means a brand-new session: reset game state |
 | `onSessionLost({ pendingEvents, reason })` | Expiry, kick, takeover by another tab, authentication or protocol rejection. Retrying stops |
 | `sendEvent(json)` | Ordered, acknowledged; returns its seq. Throws when the outbox is full (512 events or 1 MiB) or the event is over 64 KiB |

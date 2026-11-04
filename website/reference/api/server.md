@@ -26,6 +26,7 @@ await server.listen();   // resolves with the port
 | `allowMissingOrigin` | false | Let clients without an `Origin` header in (non-browser clients) |
 | `port`, `host`, `path` | 0, `127.0.0.1`, `/connect` | Where to listen, and the WebSocket path |
 | `rtc` | none | A WebRTC factory, usually `createNativeRtcFactory(...)`. Without it: WebSocket only |
+| `webtransport` | none | Optional authenticated HTTP/3 host from `createWebTransportHost(...)`; [deployment requirements](/reference/api/transports#optional-webtransport-fast-path) |
 | `iceServers` | `[]` | An array, or `(session) => array \| Promise`, sent in each welcome |
 | `authenticate` | | `({ room, auth, resuming, ip }) => subject \| null`. Return a stable account subject, or null to refuse. Checked again on resume, and a resumed session must have the same subject |
 | `trustProxy` | false | Take the client address from the last `X-Forwarded-For` hop when the peer is a local proxy |
@@ -51,7 +52,7 @@ await server.listen();   // resolves with the port
 | `on('session' \| 'disconnect' \| 'expire', fn)` | Extra listeners; each returns a function that removes it |
 | `endSession(session, reason)` | Kick: the client gets `onSessionLost(reason)` and doesn't reconnect into it |
 | `broadcast(room, json)` | An event to every session that said hello with that `room`. Returns `{ queued, rejected }` |
-| `metrics()` | Sessions, connections, how many on rtc and ws, bytes each way, pending events, protocol errors, resumes, expiries. For `/health` |
+| `metrics()` | Sessions, connections, how many on rtc, wt and ws, bytes each way, pending events, protocol errors, resumes, expiries. For `/health` |
 | `addressOf(req)` | The address the per-address limits use |
 | `close()` | Close every connection and stop |
 
@@ -60,7 +61,7 @@ await server.listen();   // resolves with the port
 | Member | |
 |---|---|
 | `id`, `room`, `subject` | Identity: the hello's room namespace, and your `authenticate` result |
-| `connected`, `transport`, `epoch` | Whether a connection is up, on `rtc` or `ws`, and which connection it is |
+| `connected`, `transport`, `epoch` | Whether a connection is up, on `rtc`, `wt` or `ws`, and which connection it is |
 | `ip` | The address of the current (or last) connection |
 | `hello` | The client's latest `auth` JSON (names, build ids). Validate before use |
 | `data` | Yours |
@@ -148,6 +149,7 @@ on `maxStateBytes`.
 | Option | Default | |
 |---|---|---|
 | `bytesPerSecond`, `burstBytes` | 32 KiB, max(rate / 2, 16 KiB) | Budget for states and events. A message bigger than the burst goes once the bucket is full |
+| `stateBudgetShare` | 0.5 | Protected state share while both classes are busy; idle credit is borrowed. Strictly between 0 and 1 |
 | `maxBufferedBytes` | 64 KiB | Socket backpressure |
 | `maxStateBytes` | 64 KiB | Largest state (at most 256 KiB) |
 | `datagramStateBytes` | 8 KiB | Bigger states use the WebSocket even when datagrams are up |
@@ -155,6 +157,8 @@ on `maxStateBytes`.
 | `stateAckIntervalMs` | 50 | How often state acknowledgements go back |
 | `lateStates` | 'drop' | 'deliver': a state overtaken by a newer one on its stream still arrives once (within the last 32), with `late: true` |
 | `probeIntervalMs`, `probeTimeoutMs` | 250, 1500 | Datagram proof: how often to probe, and how long without a reply before giving the path up |
+| `preferredDatagram`, `pathSwitchMarginMs`, `pathSwitchHoldMs` | `wt`, 5, 1000 | Preferred comparable path, RTT advantage to switch, and minimum hold time |
+| `trace`, `traceClock` | disabled | Optional metadata observer and clock estimate. [StateTraceBuffer and render marks](/reference/api/transports#observe-the-actual-boundaries) |
 | `maxStreams` | 1024 | |
 | `events` | `{ maxEvents: 512, maxBytes: 1 MiB, maxEventBytes: 64 KiB, maxEarly: 256, maxEarlyBytes: 256 KiB }` | The event outbox, and events waiting for an earlier one |
 | `impair` | | Simulated trouble on this endpoint's sends, for testing |

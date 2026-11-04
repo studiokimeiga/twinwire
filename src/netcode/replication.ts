@@ -10,7 +10,7 @@ export class ReplicaSender {
   constructor(readonly maxEntities = 1024, readonly retryMs = 100) {}
   publish(id: number, generation: number, data: Uint8Array | null): Version {
     if (!isUint(id, 65535) || !isUint(generation) || generation < 1 || (data?.length ?? 0) > 1067) throw new RangeError('Invalid entity');
-    const old = this.records.get(id), deleted = data === null, bytes = data?.slice() ?? new Uint8Array();
+    const old = this.records.get(id), deleted = data === null, bytes = data === null ? new Uint8Array() : new Uint8Array(data);
     if (!old && this.records.size >= this.maxEntities) throw new Error('Replica entity limit');
     if (old && generation < old.update.generation) throw new Error('Entity generation regressed');
     if (old && generation === old.update.generation && old.update.deleted === deleted && sameBytes(old.update.data, bytes)) return { id, generation, revision: old.update.revision };
@@ -44,7 +44,7 @@ export class ReplicaReceiver {
     const old = this.records.get(u.id);
     if (!old && this.records.size >= this.maxEntities) throw new Error('Replica receiver full');
     const changed = !old || u.generation > old.generation || u.generation === old.generation && u.revision > old.revision;
-    if (changed) this.records.set(u.id, { ...u, data: u.data.slice() });
+    if (changed) this.records.set(u.id, { ...u, data: new Uint8Array(u.data) });
     return { changed, ack: { id: u.id, generation: u.generation, revision: u.revision } };
   }
   get(id: number): Uint8Array | null { const r = this.records.get(id); return r && !r.deleted ? r.data.slice() : null; }
@@ -61,5 +61,5 @@ export function decodeReplica(b: Uint8Array): ReplicaUpdate | null {
   if (b.length < 11 || b.length > 1078) return null;
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength), flag = v.getUint8(10), generation = v.getUint32(2, true), revision = v.getUint32(6, true);
   if (flag > 1 || !generation || !revision || flag && b.length !== 11) return null;
-  return { id: v.getUint16(0, true), generation, revision, deleted: !!flag, data: b.slice(11) };
+  return { id: v.getUint16(0, true), generation, revision, deleted: !!flag, data: new Uint8Array(b.subarray(11)) };
 }

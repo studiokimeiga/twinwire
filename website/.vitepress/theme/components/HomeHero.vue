@@ -16,6 +16,7 @@ const copy = async () => { try { await navigator.clipboard.writeText('npm instal
         <span class="dg">WebRTC datagrams</span> for what must arrive fast, and a player session that survives dropped
         connections, app switches and Wi-Fi hand-offs. Your server owns the game; Twinwire keeps the session.
       </p>
+      <p class="transport-note">Optional <a :href="withBase('/reference/api/transports')">WebTransport</a> adds a QUIC datagram path on supported hosts. Every fast path must prove itself; WebSocket stays available.</p>
       <div class="cta">
         <button class="install" type="button" :aria-label="copied ? 'Copied' : 'Copy the install command'" @click="copy">
           <code>npm install twinwire</code><span class="hint">{{ copied ? 'Copied' : 'Copy' }}</span>
@@ -55,6 +56,8 @@ h1 { font-family: var(--tw-font-display); font-weight: 800; font-size: clamp(54p
 .go.primary:hover { background: var(--tw-ws-strong); color: var(--tw-panel); }
 .install:focus-visible, .go:focus-visible { outline: 2px solid var(--tw-ws); outline-offset: 2px; }
 .release-note { font-size: 13px; color: var(--tw-ink-3); margin: 18px 0 0; }
+.transport-note { font-size: 15px; line-height: 1.55; color: var(--tw-ink-2); margin: -10px 0 24px; max-width: 38em; }
+.transport-note a { color: var(--tw-ws); text-decoration: underline; text-underline-offset: 3px; }
 .note { font-size: 13.5px; line-height: 1.55; color: var(--tw-ink-3); margin: 10px 2px 0; }
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; padding-top: 36px; gap: 28px; }

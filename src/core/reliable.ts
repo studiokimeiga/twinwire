@@ -42,6 +42,7 @@ export class ReliableEvents {
   get size() { return this.pending.size; }
   get queuedBytes() { return this.bytes; }
   get sentThrough() { return this.highestSent; }
+  get queuedThrough() { return this.next - 1; }
   entries(): IterableIterator<PendingEvent> { return this.pending.values(); }
   sent(seq: number) { this.highestSent = Math.max(this.highestSent, seq); }
   ack(seq: number): boolean {

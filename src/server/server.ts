@@ -6,6 +6,7 @@ import { TokenBucket } from '../core/budget.js';
 import { readControl, record as isRecord, stringify, VERSION, MAX_CONTROL_BYTES, isUint, type Json, type JsonInput } from '../core/protocol.js';
 import { validIceServers, validSignal, type IceServer, type RtcPeer } from '../core/rtc.js';
 import type { RtcFactory } from './rtc.js';
+import type { WebTransportBinding, WebTransportClaim, WebTransportHost, WebTransportOffer } from '../core/webtransport.js';
 interface Ws {
   readyState: number; bufferedAmount: number;
   send(data: string | Uint8Array): void; close(code?: number, reason?: string): void; terminate(): void;
@@ -29,6 +30,7 @@ export interface GameServerOptions {
    * its tick rate here, or calls session.flush() after each snapshot; otherwise ticks between pumps are coalesced. */
   pumpHz?: number;
   endpoint?: EndpointOptions; rtc?: RtcFactory;
+  webtransport?: WebTransportHost;
   /** STUN/TURN servers handed to each client in its welcome (a function can mint per-session TURN credentials). */
   iceServers?: IceServer[] | ((session: GameSession) => IceServer[] | Promise<IceServer[]>);
   /** Behind one reverse proxy (Caddy, nginx) on this machine: take the client address from X-Forwarded-For. */
@@ -51,6 +53,7 @@ interface Connection {
   ws: Ws; ip: string; started: number; lastSeen: number; authenticating: boolean;
   record?: SessionRecord; epoch: number; rtc?: RtcPeer; attempt: number; rtcStarted: number;
   messages: TokenBucket; bytes: TokenBucket;
+  wtTicket?: string; wtAttempt: number; wtOfferAt: number; wtClose?: () => void;
 }
 type Hook = 'session' | 'disconnect' | 'expire';
 type HookFn<H extends Hook> = H extends 'session' ? (s: GameSession, resumed: boolean) => void : (s: GameSession) => void;
@@ -78,6 +81,7 @@ export class GameServer {
     this.wsServer = new ws.WebSocketServer({ server: this.httpServer, path: options.path ?? '/connect',
       maxPayload: Math.max(MAX_CONTROL_BYTES, this.maxFrame), perMessageDeflate: false });
     this.wsServer.on('connection', (socket, req) => this.connect(socket, req));
+    options.webtransport?.setAcceptor(claim => this.claimWebTransport(claim));
   }
   /** Add a listener next to the options' callbacks (used by Lobby). */
   on<H extends Hook>(hook: H, fn: HookFn<H>): () => void {
@@ -122,7 +126,7 @@ export class GameServer {
     }
     const now = performance.now(), rate = this.options.rateLimit ?? {};
     const msgs = rate.messages ?? 300, bytes = rate.bytes ?? 256 * 1024;
-    const c: Connection = { ws, ip, started: now, lastSeen: now, authenticating: false, epoch: 0, attempt: 0, rtcStarted: 0,
+    const c: Connection = { ws, ip, started: now, lastSeen: now, authenticating: false, epoch: 0, attempt: 0, rtcStarted: 0, wtAttempt: 0, wtOfferAt: -Infinity,
       messages: new TokenBucket(msgs, msgs * 2, now), bytes: new TokenBucket(bytes, Math.max(bytes * 2, this.maxFrame * 2), now) };
     this.connections.add(c); this.stats.connectionsAccepted++;
     ws.on('error', () => {});
@@ -184,7 +188,7 @@ export class GameServer {
     } catch (e) { this.report(e); }
     if (!this.connections.has(c) || c.ws.readyState !== 1 || this.shuttingDown) return;
     const old = record.connection;
-    if (old && old !== c) { this.stopRtc(old, false); old.record = undefined; old.ws.close(4002, 'session resumed elsewhere'); }
+    if (old && old !== c) { this.stopRtc(old, false); this.stopWt(old, false); old.record = undefined; old.ws.close(4002, 'session resumed elsewhere'); }
     record.connection = c; c.record = record; c.authenticating = false;
     c.epoch = this.epoch = (this.epoch + 1) & 0xffff || 1; s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth; s.resetRtt();
     try { s.endpoint.setImpairment(this.options.allowImpairment && isRecord(m.impair) ? m.impair as Impairment : null); }
@@ -194,8 +198,10 @@ export class GameServer {
       get open() { return socket.readyState === 1; }, get bufferedAmount() { return socket.bufferedAmount; },
       send(data) { if (socket.readyState !== 1) return false; socket.send(data); return true; }, close() { socket.close(); },
     }, base);
-    s.endpoint.onFastDown = () => this.stopRtc(c, true);
-    s.endpoint.sendControl({ t: 'welcome', v: VERSION, e: c.epoch, b: base, id: s.id, token: record.token, resumed, rtc: !!this.options.rtc, ice: ice as unknown as Json });
+    s.endpoint.onFastDown = via => via === 'wt' ? this.stopWt(c, true) : this.stopRtc(c, true);
+    const wt = this.offerWt(c);
+    s.endpoint.sendControl({ t: 'welcome', v: VERSION, e: c.epoch, b: base, id: s.id, token: record.token, resumed, rtc: !!this.options.rtc, ice: ice as unknown as Json,
+      ...(wt ? { wt } : {}) });
     this.emit('session', s, resumed); s.endpoint.flush();
   }
   private message(c: Connection, m: Record<string, unknown>): void {
@@ -206,6 +212,10 @@ export class GameServer {
     if (m.t === 'ping' && isUint(m.n)) { endpoint.sendControl({ t: 'pong', e: c.epoch, n: m.n, s: performance.now() }); return; }
     if (m.t === 'probe-ack') { r.session.probeAnswered(m.n, performance.now()); return; }
     if (m.t === 'leave') { this.expire(r); return; }
+    if (m.t === 'wt-request' && this.options.webtransport && performance.now() - c.wtOfferAt >= 1000) {
+      endpoint.sendControl({ t: 'wt-offer', e: c.epoch, d: this.offerWt(c) }); return;
+    }
+    if (m.t === 'wt-reset' && m.a === c.wtAttempt) { this.stopWt(c, false); return; }
     if (m.t === 'rtc-reset' && m.a === c.attempt) { this.stopRtc(c, false); return; }
     if (m.t === 'signal' && isUint(m.a) && m.a > 0 && validSignal(m.d)) {
       if (!this.options.rtc) { endpoint.sendControl({ t: 'rtc-reset', e: c.epoch, a: m.a }); return; }
@@ -238,11 +248,42 @@ export class GameServer {
   private stopRtc(c: Connection, notify: boolean): void {
     const rtc = c.rtc; c.rtc = undefined;
     if (notify && rtc) c.record?.session.endpoint.sendControl({ t: 'rtc-reset', e: c.epoch, a: c.attempt });
-    if (c.record?.connection === c) c.record.session.endpoint.dropDatagram(false);
+    if (c.record?.connection === c) c.record.session.endpoint.dropDatagram(false, 'rtc');
     rtc?.close();
   }
+  private offerWt(c: Connection): WebTransportOffer | undefined {
+    if (!this.options.webtransport) return undefined;
+    this.stopWt(c, false); c.wtTicket = randomBytes(32).toString('base64url'); c.wtAttempt++; c.wtOfferAt = performance.now();
+    return { url: this.options.webtransport.url, ticket: c.wtTicket, a: c.wtAttempt };
+  }
+  private claimWebTransport(claim: WebTransportClaim): WebTransportBinding | null {
+    if (this.shuttingDown || claim.origin && !(typeof this.options.origins === 'function' ? this.options.origins(claim.origin) : this.options.origins.includes(claim.origin))) return null;
+    const c = [...this.connections].find(c => c.wtTicket === claim.ticket && c.wtAttempt === claim.attempt && c.epoch === claim.epoch &&
+      c.ws.readyState === 1 && c.record?.connection === c && performance.now() - c.wtOfferAt <= 15000);
+    if (!c?.record) return null;
+    c.wtTicket = undefined; // single use; a retry obtains a fresh ticket over the already authenticated WebSocket
+    const record = c.record, endpoint = record.session.endpoint;
+    const current = () => record.connection === c && c.wtAttempt === claim.attempt && c.epoch === claim.epoch && this.connections.has(c);
+    return {
+      open: link => { if (!current()) { link.close(); return; } c.wtClose = () => link.close(); endpoint.attachDatagram(link, 'wt'); },
+      data: bytes => {
+        if (!current() || !c.wtClose) return;
+        const now = performance.now();
+        if (!c.messages.take(1, now) || !c.bytes.take(bytes.length, now)) { this.stats.rateLimited++; c.ws.close(1008, 'rate'); return; }
+        try { endpoint.receiveBinary(bytes, 'wt'); } catch { this.stopWt(c, true); }
+      },
+      closed: () => { if (current()) this.stopWt(c, true); },
+      error: () => { if (current()) this.stopWt(c, true); },
+    };
+  }
+  private stopWt(c: Connection, notify: boolean): void {
+    const close = c.wtClose; c.wtClose = undefined; c.wtTicket = undefined;
+    if (c.record?.connection === c) c.record.session.endpoint.dropDatagram(false, 'wt');
+    close?.();
+    if (notify && close) c.record?.session.endpoint.sendControl({ t: 'wt-reset', e: c.epoch, a: c.wtAttempt });
+  }
   private disconnect(c: Connection): void {
-    this.connections.delete(c); this.stopRtc(c, false);
+    this.connections.delete(c); this.stopRtc(c, false); this.stopWt(c, false);
     const r = c.record;
     if (!r || r.connection !== c) return;
     r.connection = undefined; r.session.connected = false; r.session.disconnectedAt = performance.now();
@@ -253,7 +294,7 @@ export class GameServer {
     if (!this.tokens.has(r.token)) return;
     this.tokens.delete(r.token); this.sessions.delete(r.session.id); this.stats.expiredSessions++;
     const c = r.connection;
-    if (c) { this.stopRtc(c, false); c.record = undefined; c.ws.close(1000, 'left'); }
+    if (c) { this.stopRtc(c, false); this.stopWt(c, false); c.record = undefined; c.ws.close(1000, 'left'); }
     r.connection = undefined; r.session.connected = false; r.session.endpoint.detach();
     this.emit('expire', r.session);
   }
@@ -272,7 +313,7 @@ export class GameServer {
           c.record && now - c.lastSeen > (this.options.heartbeatTimeoutMs ?? 15000)) { c.ws.terminate(); continue; }
       // frame times reach about six days from the connection's base: well before that, reconnect (it resumes, with a new base)
       if (c.record && now - c.started > 4 * 86400000) { c.ws.close(4000, 'reconnect'); continue; }
-      if (c.rtc && now - c.rtcStarted > 10000 && !c.record?.session.endpoint.fastActive) this.stopRtc(c, true);
+      if (c.rtc && now - c.rtcStarted > 10000 && !c.record?.session.endpoint.datagramProven('rtc')) this.stopRtc(c, true);
       const probe = c.record?.connection === c ? c.record.session.nextProbe(now, this.options.probeMs ?? 2000) : null;
       if (probe !== null) c.record!.session.endpoint.sendControl({ t: 'probe', e: c.epoch, n: probe });
     }
@@ -295,16 +336,17 @@ export class GameServer {
   }
   /** Totals for a health endpoint: sessions, connections, transports and traffic. */
   metrics() {
-    let rtc = 0, ws = 0, bytesSent = 0, bytesReceived = 0, pendingEvents = 0;
+    let rtc = 0, wt = 0, ws = 0, bytesSent = 0, bytesReceived = 0, pendingEvents = 0;
     for (const s of this.sessions.values()) {
-      const t = s.transport; if (t === 'rtc') rtc++; else if (t === 'ws') ws++;
+      const t = s.transport; if (t === 'rtc') rtc++; else if (t === 'wt') wt++; else if (t === 'ws') ws++;
       bytesSent += s.endpoint.stats.bytesSent; bytesReceived += s.endpoint.stats.bytesReceived; pendingEvents += s.endpoint.events.size;
     }
-    return { sessions: this.sessions.size, connections: this.connections.size, rtc, ws, bytesSent, bytesReceived, pendingEvents, ...this.stats };
+    return { sessions: this.sessions.size, connections: this.connections.size, rtc, wt, ws, bytesSent, bytesReceived, pendingEvents, ...this.stats };
   }
   async close(): Promise<void> {
     this.shuttingDown = true; clearInterval(this.timer); this.timer = undefined;
-    for (const c of this.connections) { this.stopRtc(c, false); c.ws.terminate(); }
+    for (const c of this.connections) { this.stopRtc(c, false); this.stopWt(c, false); c.ws.terminate(); }
+    await this.options.webtransport?.close();
     this.wsServer.close();
     await new Promise<void>(resolve => this.httpServer.close(() => resolve()));
     this.connections.clear(); this.tokens.clear(); this.sessions.clear();

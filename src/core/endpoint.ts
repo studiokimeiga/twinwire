@@ -1,7 +1,8 @@
-import { TokenBucket } from './budget.js';
+import { TrafficBudget } from './budget.js';
+import type { StateTrace, TraceSink } from './diagnostics.js';
 import { EventRejected, ReliableEvents, type ReliableOptions } from './reliable.js';
 import {
-  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MAX_TIME_SPAN_MS, MTU_STATE_BYTES, newer, stringify,
+  decodeFrame, encodeFrame, FrameKind, DEFAULT_STATE_BYTES, HEADER_BYTES, MAX_STATE_BYTES, MAX_TIME_SPAN_MS, newer, stringify,
   isUint, utf8, fromUtf8, utf8Length, type Frame, type Json, type JsonInput,
 } from './protocol.js';
 export interface ReliableLink {
@@ -10,18 +11,34 @@ export interface ReliableLink {
 }
 export interface DatagramLink {
   readonly open: boolean; readonly bufferedAmount: number;
+  /** Maximum complete encoded message. RTC may fragment; a QUIC datagram must fit this limit. */
+  readonly maxMessageBytes?: number;
   send(data: Uint8Array): boolean; close(): void;
 }
+export type FastTransport = 'rtc' | 'wt';
+interface FastPath {
+  link: DatagramLink; attachedAt: number; lastProbe: number; proofAt: number; proven: boolean; rttMs: number;
+  probes: Map<number, number>;
+}
 /** `late`: older than the newest state seen on its stream but not seen before (only with `lateStates: 'deliver'`). */
-export interface StateMessage { stream: number; seq: number; time: number; data: Uint8Array; via: 'ws' | 'rtc'; late?: boolean }
+export interface StateMessage { stream: number; seq: number; time: number; data: Uint8Array; via: 'ws' | FastTransport; late?: boolean }
 /** Simulated network trouble on this endpoint's outgoing traffic (tests and tuning). lagMs is one way.
  * `loss` drops datagrams. On the WebSocket nothing is lost, but with `stallMs` a lost segment is retransmitted: with
  * probability `loss` a send (and everything queued behind it, in order) waits `stallMs` longer, as TCP's head-of-line
  * blocking does. Without `stallMs` the WebSocket is only delayed. */
 export interface Impairment { lagMs?: number; jitterMs?: number; loss?: number; duplicate?: number; stallMs?: number }
 export interface StateOptions { ttlMs?: number; priority?: number; ack?: boolean }
-interface QueuedState { frame: Frame; deadline: number; first: number; priority: number }
+interface QueuedState { frame: Frame; deadline: number; first: number; enqueued: number; priority: number }
 export interface EndpointOptions {
+  /** Optional metadata observer; exceptions are counted and cannot interrupt networking. */
+  trace?: TraceSink;
+  /** Clock in the state timestamp's domain. GameClient supplies its synchronized estimate automatically. */
+  traceClock?: () => { serverTimeMs: number; uncertaintyMs: number } | null;
+  /** State's protected share when both classes are busy (default .5). Idle positive credit can be borrowed. */
+  stateBudgetShare?: number;
+  preferredDatagram?: FastTransport;
+  pathSwitchHoldMs?: number;
+  pathSwitchMarginMs?: number;
   now?: () => number; bytesPerSecond?: number; burstBytes?: number; maxBufferedBytes?: number;
   maxStreams?: number; probeIntervalMs?: number; probeTimeoutMs?: number;
   /** Largest state payload accepted (default 64 KiB, at most 256 KiB). */
@@ -44,20 +61,25 @@ export class Endpoint {
   readonly stats = { bytesSent: 0, bytesReceived: 0, statesSent: 0, statesReceived: 0,
     stale: 0, expired: 0, coalesced: 0, congested: 0, invalid: 0, fastTransitions: 0, datagramRttMs: 0,
     eventsViaDatagram: 0, datagramEventFrames: 0, stateAcksSent: 0, stateAcksReceived: 0, impairedDrops: 0,
-    impairedStalls: 0, eventsRejected: 0, callbackErrors: 0 };
+    impairedStalls: 0, eventsRejected: 0, callbackErrors: 0, traceErrors: 0 };
   onState: (state: StateMessage) => void = () => {};
   /** A throw means "not accepted": the event is offered again (in order) shortly after, not dropped. */
   onEvent: (data: Json, seq: number) => void = () => {};
   /** An application callback threw (onEvent, onState, onStateAck). The connection carries on. */
   onCallbackError: (error: unknown) => void = () => {};
   private eventRetryAt = 0;
-  onFastDown: () => void = () => {};
+  onFastDown: (via: FastTransport) => void = () => {};
   onFastChange: (fast: boolean) => void = () => {};
   onEventAck: (seq: number) => void = () => {};
   /** The peer has seen state `seq` on `stream` (only for states sent with `ack: true`). */
   onStateAck: (stream: number, seq: number) => void = () => {};
   private reliable?: ReliableLink;
-  private datagram?: DatagramLink;
+  private paths = new Map<FastTransport, FastPath>();
+  private selected?: FastTransport;
+  private switchedAt = -Infinity;
+  private preferred: FastTransport;
+  private switchHold: number;
+  private switchMargin: number;
   private epoch = 0;
   /** The connection's time base (from the welcome): frame times travel relative to it. */
   private timeBase = 0;
@@ -73,14 +95,11 @@ export class Endpoint {
   private lastEventSent = 0;
   private datagramAcked = 0;
   private ackDue = false;
-  private lastProbe = -Infinity;
-  private proofAt = -Infinity;
-  private attachedAt = 0;
-  private probes = new Map<number, number>();
   private probeSeq = 0;
-  private fast = false;
   readonly now: () => number;
-  private budget: TokenBucket;
+  private budget: TrafficBudget;
+  private lastStateAt = -Infinity;
+  private lastStateBytes = 0;
   private highWater: number;
   private maxStreams: number;
   private probeInterval: number;
@@ -90,10 +109,16 @@ export class Endpoint {
   private datagramEvents: boolean;
   private stateAckInterval: number;
   private impairment?: Impairment;
+  private trace?: TraceSink;
+  private traceClock?: EndpointOptions['traceClock'];
   constructor(o: EndpointOptions = {}) {
+    this.trace = o.trace; this.traceClock = o.traceClock;
+    this.preferred = o.preferredDatagram ?? 'wt'; this.switchHold = o.pathSwitchHoldMs ?? 1000; this.switchMargin = o.pathSwitchMarginMs ?? 5;
+    if (!['rtc', 'wt'].includes(this.preferred) || !Number.isFinite(this.switchHold) || this.switchHold < 0 ||
+        !Number.isFinite(this.switchMargin) || this.switchMargin < 0) throw new RangeError('Invalid path selection policy');
     this.now = o.now ?? (() => performance.now());
     const rate = o.bytesPerSecond ?? 32 * 1024;
-    this.budget = new TokenBucket(rate, o.burstBytes ?? Math.max(rate / 2, 16 * 1024), this.now());
+    this.budget = new TrafficBudget(rate, o.burstBytes ?? Math.max(rate / 2, 16 * 1024), o.stateBudgetShare ?? .5, this.now());
     this.highWater = o.maxBufferedBytes ?? 64 * 1024; this.maxStreams = o.maxStreams ?? 1024;
     this.probeInterval = o.probeIntervalMs ?? 250; this.probeTimeout = o.probeTimeoutMs ?? 1500;
     this.maxStateBytes = o.maxStateBytes ?? DEFAULT_STATE_BYTES;
@@ -104,14 +129,54 @@ export class Endpoint {
     if (!(this.highWater > 0) || !isUint(this.maxStreams, 65536) || this.maxStreams < 1 ||
         !(this.probeInterval >= 10) || !(this.probeTimeout >= this.probeInterval * 2) ||
         !isUint(this.maxStateBytes, MAX_STATE_BYTES) || this.maxStateBytes < 1 ||
-        !(this.datagramStateBytes >= MTU_STATE_BYTES) || !(this.stateAckInterval >= 0)) throw new RangeError('Invalid endpoint limits');
+        !isUint(this.datagramStateBytes, MAX_STATE_BYTES) || !(this.stateAckInterval >= 0)) throw new RangeError('Invalid endpoint limits');
     if (o.impair) this.setImpairment(o.impair);
   }
   get active() { return !!this.reliable?.open; }
-  get fastActive() { return this.fast && !!this.datagram?.open && this.now() - this.proofAt <= this.probeTimeout; }
+  get fastActive() { return this.fastTransport !== undefined; }
+  datagramProven(via: FastTransport): boolean {
+    const path = this.paths.get(via);
+    return !!path?.link.open && path.proven && this.now() - path.proofAt <= this.probeTimeout;
+  }
+  /** Proven paths only. Hysteresis avoids oscillating between comparable RTT measurements. */
+  get fastTransport(): FastTransport | undefined {
+    if (!this.paths.size) {
+      if (this.selected !== undefined) { this.selected = undefined; this.switchedAt = this.now(); this.stats.fastTransitions++; this.onFastChange(false); }
+      return undefined;
+    }
+    const now = this.now(), candidates = [...this.paths.keys()].filter(v => this.datagramProven(v));
+    let next = this.selected && this.datagramProven(this.selected) ? this.selected : undefined;
+    const better = (a: FastTransport, b: FastTransport) => {
+      const ar = this.paths.get(a)!.rttMs, br = this.paths.get(b)!.rttMs;
+      return ar < br - this.switchMargin || a === this.preferred && b !== this.preferred && ar <= br + this.switchMargin;
+    };
+    for (const candidate of candidates)
+      if (!next || ((now - this.switchedAt >= this.switchHold || !this.selected || !this.datagramProven(this.selected)) && better(candidate, next))) next = candidate;
+    if (next !== this.selected) {
+      this.selected = next; this.switchedAt = now; this.stats.fastTransitions++; this.onFastChange(next !== undefined);
+    }
+    if (next) this.stats.datagramRttMs = this.paths.get(next)!.rttMs;
+    return next;
+  }
+  get datagramPaths() {
+    return [...this.paths].map(([via, p]) => ({ via, proven: this.datagramProven(via), rttMs: p.proven ? p.rttMs : null,
+      maxMessageBytes: p.link.maxMessageBytes ?? null, bufferedAmount: p.link.bufferedAmount }));
+  }
   get pendingStates() { return this.queued.size; }
   get connectionEpoch() { return this.epoch; }
   get maxFrameBytes() { return this.maxStateBytes + HEADER_BYTES; }
+  /** Mark application/playback/render boundaries with the same correlation metadata as transport traces. */
+  traceState(stage: StateTrace['stage'], state: Pick<StateMessage, 'stream' | 'seq' | 'time'> & { data?: Uint8Array; via?: StateMessage['via'] },
+    details: Pick<StateTrace, 'queueMs' | 'playbackTimeMs' | 'playbackDelayMs' | 'reason'> = {}): void {
+    if (!this.trace) return;
+    try {
+      const clock = this.traceClock?.();
+      this.trace({ stage, epoch: this.epoch, stream: state.stream, seq: state.seq, localTimeMs: this.now(),
+        sourceTimeMs: state.time, bytes: state.data?.length ?? 0, via: state.via, ...details,
+        ...(clock && Number.isFinite(clock.serverTimeMs) && Number.isFinite(clock.uncertaintyMs) ?
+          { snapshotAgeMs: clock.serverTimeMs - state.time, clockUncertaintyMs: clock.uncertaintyMs } : {}) });
+    } catch { this.stats.traceErrors++; }
+  }
   /** Newest seq the peer reported for an acknowledged stream in this connection epoch. */
   stateAck(stream: number): number | undefined { return this.acksIn.get(stream); }
   setImpairment(i: Impairment | null): void {
@@ -132,18 +197,21 @@ export class Endpoint {
   detach(): void {
     this.dropDatagram(false); this.reliable = undefined; this.queued.clear();
   }
-  attachDatagram(link: DatagramLink): void {
-    this.dropDatagram(false); this.datagram = this.impairDatagram(link); this.attachedAt = this.now();
-    this.lastProbe = -Infinity; this.proofAt = -Infinity; this.probes.clear();
+  attachDatagram(link: DatagramLink, via: FastTransport = 'rtc'): void {
+    if (!['rtc', 'wt'].includes(via) || link.maxMessageBytes !== undefined &&
+        (!Number.isSafeInteger(link.maxMessageBytes) || link.maxMessageBytes < 1024)) throw new RangeError('Invalid datagram capabilities');
+    this.dropDatagram(false, via);
+    this.paths.set(via, { link: this.impairDatagram(link), attachedAt: this.now(), lastProbe: -Infinity,
+      proofAt: -Infinity, proven: false, rttMs: 0, probes: new Map() });
   }
-  dropDatagram(notify = true): void {
-    const d = this.datagram; this.datagram = undefined;
-    this.proofAt = -Infinity; this.probes.clear(); this.setFast(false);
-    try { d?.close(); } catch { /* already closed */ }
-    if (d && notify) this.onFastDown();
-  }
-  private setFast(next: boolean) {
-    if (next !== this.fast) { this.fast = next; this.stats.fastTransitions++; this.onFastChange(next); }
+  dropDatagram(notify = true, via?: FastTransport): void {
+    for (const kind of via ? [via] : [...this.paths.keys()]) {
+      const path = this.paths.get(kind); if (!path) continue;
+      this.paths.delete(kind);
+      try { path.link.close(); } catch { /* already closed */ }
+      if (notify) this.onFastDown(kind);
+    }
+    void this.fastTransport;
   }
   sendControl(m: unknown): boolean {
     const data = stringify(m), ws = this.reliable;
@@ -162,10 +230,14 @@ export class Endpoint {
         !(o.priority === undefined || Number.isFinite(o.priority) && o.priority >= 0)) throw new RangeError('Invalid state');
     if (!this.sequence.has(stream) && this.sequence.size >= this.maxStreams) throw new Error('State stream limit');
     const seq = ((this.sequence.get(stream) ?? 0) + 1) >>> 0 || 1; this.sequence.set(stream, seq);
-    const old = this.queued.get(stream); if (old) this.stats.coalesced++;
+    const old = this.queued.get(stream);
+    if (old) { this.stats.coalesced++; if (this.trace) this.traceState('discarded', { ...old.frame, data: old.frame.payload }, { reason: 'coalesced' }); }
     const now = this.now();
-    this.queued.set(stream, { frame: { kind: o.ack ? FrameKind.stateAcked : FrameKind.state, epoch: this.epoch, stream, seq, time, payload: data.slice() },
-      first: old?.first ?? now, deadline: now + (o.ttlMs ?? 100), priority: o.priority ?? 1 });
+    this.lastStateAt = now;
+    this.lastStateBytes = data.length + HEADER_BYTES;
+    this.queued.set(stream, { frame: { kind: o.ack ? FrameKind.stateAcked : FrameKind.state, epoch: this.epoch, stream, seq, time, payload: new Uint8Array(data) },
+      first: old?.first ?? now, enqueued: now, deadline: now + (o.ttlMs ?? 100), priority: o.priority ?? 1 });
+    if (this.trace) this.traceState('queued', { stream, seq, time, data });
     return seq;
   }
   receiveControl(m: Record<string, unknown>): boolean {
@@ -182,24 +254,26 @@ export class Endpoint {
     }
     return false;
   }
-  receiveBinary(bytes: Uint8Array, via: 'ws' | 'rtc'): void {
+  receiveBinary(bytes: Uint8Array, via: StateMessage['via']): void {
     this.stats.bytesReceived += bytes.length;
     if (!this.active) return;
     const f = decodeFrame(bytes, this.maxFrameBytes, this.timeBase);
     if (!f) { this.stats.invalid++; return; }
-    if (f.epoch !== this.epoch || (via === 'rtc' && !this.datagram)) { this.stats.stale++; return; }
+    if (f.epoch !== this.epoch || (via !== 'ws' && !this.paths.has(via))) { this.stats.stale++; return; }
     switch (f.kind) {
       case FrameKind.probe:
-        if (via === 'rtc') this.sendFast(encodeFrame({ ...f, kind: FrameKind.reply }, this.timeBase));
+        if (via !== 'ws') this.sendFast(encodeFrame({ ...f, kind: FrameKind.reply }, this.timeBase), via);
         return;
       case FrameKind.reply: {
-        if (via !== 'rtc') return;
-        const sent = this.probes.get(f.seq);
+        if (via === 'ws') return;
+        const path = this.paths.get(via)!;
+        const sent = path.probes.get(f.seq);
         if (sent === undefined) return;   // (matched by seq; the time is ours, kept here)
-        this.probes.delete(f.seq);
+        path.probes.delete(f.seq);
         const rtt = this.now() - sent;
         if (rtt < 0 || rtt > this.probeTimeout) return;
-        this.proofAt = this.now(); this.stats.datagramRttMs = rtt; this.setFast(true); return;
+        path.proofAt = this.now(); path.rttMs = path.proven ? path.rttMs + .25 * (rtt - path.rttMs) : rtt;
+        path.proven = true; void this.fastTransport; return;
       }
       case FrameKind.events: return this.receiveDatagramEvents(f);
       case FrameKind.sack: return this.receiveStateAcks(f);
@@ -221,6 +295,7 @@ export class Endpoint {
       if (f.kind === FrameKind.stateAcked) this.acksOut.set(f.stream, f.seq);
     }
     this.stats.statesReceived++;
+    if (this.trace) this.traceState('received', { stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via });
     try { this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via, late }); }
     catch (e) { this.callbackError(e); }
   }
@@ -262,38 +337,42 @@ export class Endpoint {
       try { this.onStateAck(stream, seq); } catch (e) { this.callbackError(e); }
     }
   }
-  private sendFast(b: Uint8Array): boolean {
-    const d = this.datagram;
-    if (!d?.open || d.bufferedAmount > this.highWater) return false;
+  private sendFast(b: Uint8Array, via = this.fastTransport): boolean {
+    const d = via && this.paths.get(via)?.link;
+    if (!d || !d.open || d.bufferedAmount > this.highWater || b.length > (d.maxMessageBytes ?? Infinity)) return false;
     try { if (!d.send(b)) return false; } catch { return false; }
     this.stats.bytesSent += b.length; return true;
   }
   /** Binary on the datagram path when it is proven, else the WebSocket. */
-  private sendBinary(b: Uint8Array, preferFast: boolean): boolean {
+  private sendBinary(b: Uint8Array, preferFast: boolean): StateMessage['via'] | null {
     const ws = this.reliable;
-    if (preferFast && this.fastActive && this.datagram && this.datagram.bufferedAmount <= this.highWater) return this.sendFast(b);
-    if (!ws?.open || ws.bufferedAmount > this.highWater) return false;
-    try { if (!ws.send(b)) return false; } catch { return false; }
-    this.stats.bytesSent += b.length; return true;
+    const via = this.fastTransport;
+    if (preferFast && via && this.sendFast(b, via)) return via;
+    // RTC may fit a larger message than a QUIC datagram. Keep that useful path before falling back to TCP.
+    const other = via === 'wt' ? 'rtc' : 'wt';
+    if (preferFast && this.datagramProven(other) && this.sendFast(b, other)) return other;
+    if (!ws?.open || ws.bufferedAmount > this.highWater) return null;
+    try { if (!ws.send(b)) return null; } catch { return null; }
+    this.stats.bytesSent += b.length; return 'ws';
   }
   pump(): void {
-    const now = this.now(), d = this.datagram;
+    const now = this.now();
     if (this.events.waiting && now >= this.eventRetryAt) {
       // an event the application rejected (or early copies that caught up): offer it again, in order
       const before = this.events.received;
       try { this.events.drain(this.onEvent); } catch (e) { if (e instanceof EventRejected) this.rejected(e); else throw e; }
       if (this.events.received > before) this.ackDue = true;
     }
-    if (d) {
-      if ((!d.open && now - this.attachedAt > this.probeTimeout) ||
-          (this.fast && now - this.proofAt > this.probeTimeout) ||
-          (!this.fast && now - this.attachedAt > this.probeTimeout * 2)) this.dropDatagram();
-      else if (d.open && now - this.lastProbe >= this.probeInterval) {
-        this.lastProbe = now;
+    for (const [via, path] of this.paths) {
+      if ((!path.link.open && now - path.attachedAt > this.probeTimeout) ||
+          (path.proven && now - path.proofAt > this.probeTimeout) ||
+          (!path.proven && now - path.attachedAt > this.probeTimeout * 2)) this.dropDatagram(true, via);
+      else if (path.link.open && now - path.lastProbe >= this.probeInterval) {
+        path.lastProbe = now;
         const seq = this.probeSeq = (this.probeSeq + 1) >>> 0;
-        this.probes.set(seq, now);
-        for (const [s, at] of this.probes) if (now - at > this.probeTimeout) this.probes.delete(s);
-        this.sendFast(encodeFrame({ kind: FrameKind.probe, epoch: this.epoch, stream: 0, seq, time: this.timeBase, payload: new Uint8Array() }, this.timeBase));
+        path.probes.set(seq, now);
+        for (const [s, at] of path.probes) if (now - at > this.probeTimeout) path.probes.delete(s);
+        this.sendFast(encodeFrame({ kind: FrameKind.probe, epoch: this.epoch, stream: 0, seq, time: this.timeBase, payload: new Uint8Array() }, this.timeBase), via);
       }
     }
     this.flush();
@@ -302,26 +381,36 @@ export class Endpoint {
     const ws = this.reliable, now = this.now();
     if (!ws?.open) return;
     if (this.ackDue) this.ackDue = !this.sendControl({ t: 'ack', e: this.epoch, s: this.events.received });
+    let protectedState = now - this.lastStateAt <= 250 ? this.lastStateBytes : 0;
+    if (this.queued.size) protectedState = [...this.queued.values()].reduce((total, q) => total + q.frame.payload.length + HEADER_BYTES, 0);
     for (const e of this.events.entries()) {
       if (e.seq <= this.lastEventSent) continue;
       const encoded = `{"t":"event","e":${this.epoch},"s":${e.seq},"d":${e.text}}`;
       const size = utf8Length(encoded);
-      if (ws.bufferedAmount > this.highWater || !this.budget.take(size, now)) break;
-      try { if (!ws.send(encoded)) break; } catch { break; }
+      if (ws.bufferedAmount > this.highWater) break;
+      const refund = this.budget.reserve('event', size, now, protectedState);
+      if (!refund) break;
+      try { if (!ws.send(encoded)) { refund(); break; } } catch { refund(); break; }
       this.events.sent(e.seq); this.lastEventSent = e.seq; this.stats.bytesSent += size;
     }
     if (this.fastActive) this.flushDatagramEvents(now);
     if (this.acksOut.size && now - this.lastAckSentAt >= this.stateAckInterval) this.flushStateAcks(now);
-    for (const [id, q] of this.queued) if (q.deadline <= now) { this.queued.delete(id); this.stats.expired++; }
+    for (const [id, q] of this.queued) if (q.deadline <= now) {
+      this.queued.delete(id); this.stats.expired++; if (this.trace) this.traceState('discarded', { ...q.frame, data: q.frame.payload }, { reason: 'expired' });
+    }
     if (!this.queued.size) return;
     const queue = [...this.queued.values()].sort((a, b) =>
       (b.priority + (now - b.first) / 100) - (a.priority + (now - a.first) / 100));
     let count = 0;
     for (const q of queue) {
-      if (count++ >= maxPackets) break;
+      if (count >= maxPackets) break;
       const b = encodeFrame(q.frame, this.timeBase);
-      if (!this.budget.take(b.length, now)) break;
-      if (!this.sendBinary(b, q.frame.payload.length <= this.datagramStateBytes)) { this.stats.congested++; break; }
+      const refund = this.budget.reserve('state', b.length, now, this.events.queuedThrough <= this.lastEventSent ? 0 : Infinity);
+      if (!refund) continue;
+      const via = this.sendBinary(b, q.frame.payload.length <= this.datagramStateBytes);
+      if (!via) { refund(); this.stats.congested++; continue; }
+      count++;
+      if (this.trace) this.traceState('sent', { ...q.frame, data: q.frame.payload, via }, { queueMs: now - q.enqueued });
       this.stats.statesSent++; this.queued.delete(q.frame.stream);
     }
   }
@@ -384,7 +473,8 @@ export class Endpoint {
   private impairDatagram(link: DatagramLink): DatagramLink {
     const self = this;
     return {
-      get open() { return link.open; }, get bufferedAmount() { return link.bufferedAmount; }, close: () => link.close(),
+      get open() { return link.open; }, get bufferedAmount() { return link.bufferedAmount; },
+      get maxMessageBytes() { return link.maxMessageBytes; }, close: () => link.close(),
       send(data) {
         const i = self.impairment;
         if (!i) return link.send(data);

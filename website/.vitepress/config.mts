@@ -13,7 +13,7 @@ export default defineConfig({
   base,
   lang: 'en',
   title: 'Twinwire',
-  description: 'Multiplayer networking for browser games: one resumable session on two wires (WebSocket and WebRTC datagrams), a lobby, and the netcode an authoritative server needs.',
+  description: 'Multiplayer networking for browser games: resumable sessions, WebSocket, WebRTC and optional WebTransport, with a lobby and netcode helpers.',
   cleanUrls: true,
   appearance: true,
   head: [
@@ -60,7 +60,8 @@ export default defineConfig({
     resolve: {
       alias: [
         { find: /^twinwire\/browser$/, replacement: dist('browser/twinwire.mjs') },
-        { find: /^twinwire\/(client|server|netcode)$/, replacement: dist('$1/index.js') },
+        { find: /^twinwire\/server$/, replacement: shim('teaching-server.ts') },
+        { find: /^twinwire\/(client|netcode)$/, replacement: dist('$1/index.js') },
         { find: /^twinwire$/, replacement: dist('index.js') },
         { find: /^node:crypto$/, replacement: shim('node-crypto.ts') },
         { find: /^node:http$/, replacement: shim('node-http.ts') },
@@ -92,6 +93,7 @@ function sidebar() {
       { text: 'Entry points', link: '/reference/api/' },
       { text: 'twinwire/client', link: '/reference/api/client' },
       { text: 'twinwire/server', link: '/reference/api/server' },
+      { text: 'Transport, tracing & resources', link: '/reference/api/transports' },
       { text: 'Named channels', link: '/reference/api/channels' },
       { text: 'Worker / Durable Object', link: '/reference/api/worker' },
       { text: 'twinwire/netcode', link: '/reference/api/netcode' },
