@@ -29,7 +29,7 @@
   "bugs": {
     "url": "https://github.com/studiokimeiga/twinwire/issues"
   },
-  "author": "Studio Kimeiga",
+  "author": "Hakan Alpay (Studio Kimeiga)",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -66,6 +66,7 @@
   "files": [
     "dist",
     "README.md",
+    "CITATION.cff",
     "LICENSE",
     "CHANGELOG.md",
     "docs"
