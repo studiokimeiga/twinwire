@@ -24,12 +24,21 @@ try {
   const resource = new Uint8Array(512 * 1024).map((_, i) => i % 251);
   const resourceHash = createHash('sha256').update(resource).digest('hex');
   const bulkOrigins=[];
-  const bulk = createBulkHandler({ origins: bulkOrigins, resolve: async () => ({ bytes: resource }) });
+  const bulk = createBulkHandler({ origins: bulkOrigins, resolve: async () => {
+    await new Promise(resolve=>setTimeout(resolve,500));return {bytes:resource};
+  } });
   const html = `<!doctype html><meta charset="utf-8"><script src="/twinwire.js"></script><script>
   window.T = { receipts: [], events: [], rendered: null, start(hash, impaired) {
     const trace = this.trace = new Twinwire.StateTraceBuffer(4096);
+    const attempts=this.wtAttempts=[];
+    const note=data=>{attempts.push(data);if(attempts.length>16)attempts.shift();};
     const c = this.client = new Twinwire.GameClient({ url: 'ws://' + location.host + '/connect', room: 'wt-real',
-      syncPingMs: 20, webtransport: { serverCertificateHashes: [{algorithm:'sha-256',value:new Uint8Array(hash)}] },
+      syncPingMs: 20, webtransport: { serverCertificateHashes: [{algorithm:'sha-256',value:new Uint8Array(hash)}],create(url,options){
+        const wt=new WebTransport(url,options);
+        wt.ready.then(()=>note({stage:'ready',reliability:wt.reliability,maxDatagramSize:wt.datagrams.maxDatagramSize}),
+          error=>note({stage:'ready-failed',name:error.name,message:error.message}));
+        wt.closed.then(()=>note({stage:'closed'}),error=>note({stage:'closed-error',name:error.name,message:error.message}));return wt;
+      } },
       endpoint: { trace: e => trace.record(e) }, impair: impaired ? {lagMs:30,jitterMs:10,loss:.03} : undefined });
     const timeline = new Twinwire.Timeline(), playback = new Twinwire.AdaptivePlayback(1000/30);
     const receiver = this.receiver = c.receiveState({ stream:2, playback, reset:()=>timeline.clear(), apply:state=>{
@@ -63,43 +72,56 @@ try {
     const bytes=new Uint8Array(12),view=new DataView(bytes.buffer);view.setFloat32(0,session.data.position,true);view.setUint32(4,session.data.score,true);view.setUint32(8,tick,true);
     session.sendState(2,bytes);session.flush();}},1000/30);
   for(const name of engines) {
-    let browser;const row={engine:name,impaired,kind:'actual-browser-http3-rtc-ws-localhost'};
+    let browser,page;const row={engine:name,impaired,kind:'actual-browser-http3-rtc-ws-localhost'};
     try {
       browser=await({chromium,firefox,webkit}[name]).launch({headless:true,args:name==='chromium'?['--no-sandbox']:[]});
       row.browser=browser.version();
       const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
-      const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+      page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.goto(origin);row.nativeWebTransport=await page.evaluate(()=>typeof WebTransport==='function');
       await page.evaluate(([hash,impaired])=>T.start(hash,impaired),[certificateHash,impaired]);
-      await wait(page,()=>T.client.status==='online'&&T.client.clock.synced);
+      row.phase='session';await wait(page,()=>T.client.status==='online'&&T.client.clock.synced);
       const id=await page.evaluate(()=>T.client.id);
       if(row.nativeWebTransport) {
+        row.phase='prove-wt-application-states';
         await wait(page,()=>T.client.transport==='wt'&&T.receipts.filter(s=>s.via==='wt').length>=30);
         row.webtransportStates=await page.evaluate(()=>T.receipts.filter(s=>s.via==='wt').length);
         assert.ok(server.sessions.get(id).endpoint.datagramProven('wt'));
       } else row.webtransportStates=0;
-      await page.evaluate(()=>{T.move(12.5);T.client.sendEvent({fire:true});});
+      row.phase='move-and-render';await page.evaluate(()=>{T.move(12.5);T.client.sendEvent({fire:true});});
       await wait(page,()=>T.world?.position===12.5&&T.world.score===1&&T.rendered?.position===12.5&&T.events.length===1);
       row.initialPath=await page.evaluate(()=>T.client.transport);
       // Bulk resources have their own requests and never occupy the game's reliable event sequence.
-      await page.evaluate(async hash=>{const bulk=new Twinwire.BulkClient({maxBytes:1024*1024});
-        try{await Promise.all([bulk.request(location.origin+'/resources/a',{sha256:hash}).promise,
-          bulk.request(location.origin+'/resources/b',{sha256:hash}).promise]);}finally{bulk.close();}},resourceHash);
+      row.phase='concurrent-bulk-and-gameplay';
+      await page.evaluate(hash=>{const bulk=new Twinwire.BulkClient({maxBytes:1024*1024});T.bulkDone=false;
+        T.bulkPromise=Promise.all([bulk.request(location.origin+'/resources/a',{sha256:hash}).promise,
+          bulk.request(location.origin+'/resources/b',{sha256:hash}).promise]).then(()=>{T.bulkDone=true;}).finally(()=>bulk.close());
+        T.client.sendEvent({fire:true});},resourceHash);
+      await wait(page,()=>T.events.length===2&&T.world.score===2);
+      assert.equal(await page.evaluate(()=>T.bulkDone),false,'game command must finish while independent resources are pending');
+      await page.evaluate(()=>T.bulkPromise);row.bulkDidNotBlockGameplay=true;
+      row.phase='rtc-fallback';
       await page.evaluate(()=>{T.client.options.webtransport=false;T.client.endpoint.dropDatagram(true,'wt');});
       await wait(page,()=>T.client.transport==='rtc'&&T.receipts.slice(-5).every(s=>s.via==='rtc'));
       row.rtcFallback=true;
+      row.phase='ws-fallback';
       await page.evaluate(()=>{T.client.options.rtc=false;T.client.endpoint.dropDatagram(true,'rtc');});
       await wait(page,()=>T.client.transport==='ws'&&T.receipts.slice(-5).every(s=>s.via==='ws'));
       row.websocketFallback=true;
+      row.phase='same-session-queued-action-and-render';
       await page.evaluate(()=>{T.client.pause();T.client.sendEvent({fire:true});T.client.resume();});
-      await wait(page,()=>T.client.status==='online'&&T.world?.score===2&&T.events.length===2&&T.receiver.ready);
+      await wait(page,()=>T.client.status==='online'&&T.world?.score===3&&T.events.length===3&&T.receiver.ready&&T.rendered?.score===3&&T.rendered.position===12.5);
       assert.equal(await page.evaluate(()=>T.client.id),id);
       assert.equal(await page.evaluate(()=>T.world.position),12.5);
       row.sameSession=true;row.queuedFireOnce=true;row.rendered=await page.evaluate(()=>T.rendered);
       row.diagnostics=await page.evaluate(()=>T.trace.summary());row.errors=errors;assert.deepEqual(errors,[]);
-      row.pass=true;
+      row.phase='complete';row.pass=true;
       await page.evaluate(()=>T.client.close());
-    } catch(error) {row.pass=false;row.error=error.message;process.exitCode=1;}
+    } catch(error) {row.pass=false;row.error=error.message;process.exitCode=1;
+      if(page)try{row.clientState=await page.evaluate(()=>({status:T.client.status,path:T.client.transport,
+        paths:T.client.endpoint.datagramPaths,attempts:T.wtAttempts,received:T.receipts.reduce((counts,s)=>(counts[s.via]=(counts[s.via]||0)+1,counts),{})}));}catch{}
+      row.serverState=server.metrics();row.serverPaths=[...server.sessions.values()].map(s=>s.endpoint.datagramPaths);
+    }
     finally {await browser?.close();results.push(row);console.log(JSON.stringify(row));}
   }
 } finally {
