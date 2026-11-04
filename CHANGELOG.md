@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.1 (2026-11-04)
+
+- Fix sustained underuse of the event byte share when reliable events exceed the burst. Repay bounded one-packet
+  debt before the next oversized event instead of repeatedly waiting for a full bucket and clipping pump overshoot.
+  Preserve state scheduling, ordered replay, protected credit, rejected-write refunds and the configured byte rate.
+- Add minute-long real-browser state-age and reliable-throughput gates against the unchanged published 2.3 baseline.
+  With an explicit throughput-oriented state share of 0.075, five alternating pairs per browser/path deliver lower
+  p95 draw-submission state age and at least as many reliable events in every pair. The default remains 0.5; this
+  balanced setting does not retain the earlier default-share 66% age benefit. See validation/RELIABLE_PARITY.md.
+- Wire generation 5 and the application APIs are unchanged. This patch is compatible with 3.0.0 peers. Actual-game
+  rendering measurements are separate from the transport comparison; no general game-FPS increase is promised.
+
 ## 3.0.0 (2026-11-04)
 
 - Wire generation 5 adds optional authenticated WebTransport datagrams. Bind each physical HTTP/3 path to the live

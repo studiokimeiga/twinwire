@@ -60,14 +60,20 @@ finish(){this.measuring=false;this.freeze();const elapsedMs=performance.now()-th
 
 async function serverProcess(){
  const sdk=path.resolve(option('--sdk','')),profile=profiles[option('--profile','normal')],transport=option('--transport','ws');assert.ok(profile);assert.ok(['ws','rtc'].includes(transport));
+ const shareOption=option('--state-share',undefined),stateBudgetShare=shareOption===undefined?undefined:Number(shareOption);
+ assert.ok(stateBudgetShare===undefined||Number.isFinite(stateBudgetShare)&&stateBudgetShare>0&&stateBudgetShare<1);
  const {createGameServer,createNativeRtcFactory}=await import(pathToFileURL(sdk+'/dist/server/index.js'));
  const bundle=fs.readFileSync(sdk+'/dist/browser/twinwire.js');
  const errors=[];let server,timer,session,cpuStart,begin,lag,startStats;
- let counters={statesRequested:0,eventsQueued:0,eventsRejected:0};
- const measure=()=>{assert.ok(!cpuStart,'Only one measurement window per sample');counters={statesRequested:0,eventsQueued:0,eventsRejected:0};startStats={...session.endpoint.stats};cpuStart=process.cpuUsage();begin=performance.now();lag=monitorEventLoopDelay({resolution:10});lag.enable();process.send({type:'measuring'});};
+ let counters={statesRequested:0,eventsQueued:0,eventsRejected:0,budgetedEventBytes:0,maxEncodedEventBytes:0};
+ const measure=()=>{assert.ok(!cpuStart,'Only one measurement window per sample');counters={statesRequested:0,eventsQueued:0,eventsRejected:0,budgetedEventBytes:0,maxEncodedEventBytes:0};startStats={...session.endpoint.stats};cpuStart=process.cpuUsage();begin=performance.now();lag=monitorEventLoopDelay({resolution:10});lag.enable();process.send({type:'measuring'});};
  const rtc=transport==='rtc'?await createNativeRtcFactory({port:20000+Math.floor(Math.random()*30000)}):undefined;
- server=await createGameServer({host:'127.0.0.1',port:0,origins:[],rtc,pumpHz:60,endpoint:{bytesPerSecond:profile.rate,burstBytes:profile.burst},
-  onError:e=>errors.push(e.message),onSession:s=>{session=s;},
+ server=await createGameServer({host:'127.0.0.1',port:0,origins:[],rtc,pumpHz:60,endpoint:{bytesPerSecond:profile.rate,burstBytes:profile.burst,...(stateBudgetShare===undefined?{}:{stateBudgetShare})},
+  onError:e=>errors.push(e.message),onSession:s=>{session=s;
+   // Test-only observation of actual first WS sends, not enqueue attempts or received copies.
+   const events=s.endpoint.events,sent=events.sent;
+   events.sent=function(seq){if(cpuStart){const e=[...this.entries()].find(e=>e.seq===seq);assert.ok(e);const size=Buffer.byteLength(`{"t":"event","e":${s.endpoint.connectionEpoch},"s":${seq},"d":${e.text}}`);counters.budgetedEventBytes+=size;counters.maxEncodedEventBytes=Math.max(counters.maxEncodedEventBytes,size);}return sent.call(this,seq);};
+  },
   http(req,res){if(req.url==='/measure'&&req.method==='POST'){measure();res.writeHead(200);res.end('ok');return;}res.writeHead(200,{'content-type':req.url==='/sdk.js'?'text/javascript':'text/html','cache-control':'no-store'});res.end(req.url==='/sdk.js'?bundle:browserHTML);}});
  const port=await server.listen();server.options.origins.push('http://127.0.0.1:'+port);process.send({type:'ready',port});
  process.on('message',async message=>{
@@ -81,7 +87,9 @@ async function serverProcess(){
    }else if(message.type==='stop'){
     clearInterval(timer);const used=process.cpuUsage(cpuStart);lag.disable();
     const delta=key=>session.endpoint.stats[key]-startStats[key];
-    const result={elapsedMs:performance.now()-begin,cpuMs:(used.user+used.system)/1000,rssMiB:process.memoryUsage().rss/1048576,eventLoopP99Ms:lag.percentile(99)/1e6,...counters,errors,endpoint:{statesSent:delta('statesSent'),expired:delta('expired'),coalesced:delta('coalesced'),encodedBytesSent:delta('bytesSent')}};
+    const result={elapsedMs:performance.now()-begin,cpuMs:(used.user+used.system)/1000,rssMiB:process.memoryUsage().rss/1048576,eventLoopP99Ms:lag.percentile(99)/1e6,...counters,errors,endpoint:{statesSent:delta('statesSent'),expired:delta('expired'),coalesced:delta('coalesced'),encodedBytesSent:delta('bytesSent')},budgetedPrimaryBytes:counters.budgetedEventBytes+delta('statesSent')*32};
+    result.packetizedBudgetBound=profile.rate*result.elapsedMs/1000+profile.burst+counters.maxEncodedEventBytes+32;
+    assert.ok(result.budgetedPrimaryBytes<=result.packetizedBudgetBound,'Primary traffic must repay its configured rate with bounded oversized-packet debt');
     await server.close();process.send({type:'stopped',result},()=>process.exit(0));
    }
   }catch(error){clearInterval(timer);process.send({type:'fatal',error:error.stack});await server.close().catch(()=>{});process.exit(1);}
@@ -92,22 +100,25 @@ async function benchmark(){
  const root=path.resolve(option('--candidate',fileURLToPath(new URL('../',import.meta.url)))),baseline=path.resolve(option('--baseline',''));
  const seconds=Number(option('--seconds',12)),repetitions=Number(option('--repetitions',5)),engine=option('--engine','chromium'),transport=option('--transport','ws'),out=path.resolve(option('--out','artifacts/browser-performance'));
  const selected=option('--profiles',transport==='ws'?'normal,mixed-budget,render-load':'normal,mixed-budget').split(',');
+ const shareOption=option('--state-share',undefined),stateBudgetShare=shareOption===undefined?undefined:Number(shareOption);
+ assert.ok(stateBudgetShare===undefined||Number.isFinite(stateBudgetShare)&&stateBudgetShare>0&&stateBudgetShare<1);
  assert.ok(seconds>=3&&seconds<=60&&repetitions>=1&&repetitions<=10);assert.ok(['chromium','firefox'].includes(engine));assert.ok(['ws','rtc'].includes(transport));assert.ok(selected.every(p=>Object.hasOwn(profiles,p)));
  fs.mkdirSync(out,{recursive:true});
  const {chromium,firefox}=await import(pathToFileURL(root+'/node_modules/playwright/index.mjs'));
  const version=sdk=>JSON.parse(fs.readFileSync(sdk+'/package.json')).version;
- assert.equal(version(baseline),'2.3.0');assert.equal(version(root),'3.0.0');
+ assert.equal(version(baseline),'2.3.0');assert.notEqual(version(root),version(baseline),'Candidate must have a distinct recorded version');
  const hashes=sdk=>Object.fromEntries(['dist/browser/twinwire.js','dist/core/endpoint.js','dist/core/budget.js'].map(file=>[file,hash(fs.readFileSync(sdk+'/'+file))]));
  const report={kind:'actual-browser-canvas-sdk-comparison',captureProtocol:2,selectedProfiles:selected,at:new Date().toISOString(),source:process.env.GITHUB_SHA??null,harnessSHA256:hash(fs.readFileSync(ownFile)),seconds,repetitions,engine,transport,
   protocol:{snapshotHz:20,statePayloadBytes:20,stateTTLms:40,pumpHz:60,warmupMs:2000,profiles,capture:'Canvas pixel captures happen before rendering starts and after rendering freezes; no readbacks occur inside the timed window. Browser starts the server measurement through HTTP; window durations must agree within 250ms or 2%.',pairedOrder:'alternate baseline/candidate by repetition; fresh browser and server per sample',metrics:'JavaScript receipt age and canvas draw-submission age use synchronized server time with uncertainty. Previous submitted snapshot age is sampled before the next draw to retain frame gaps. Frame callbacks include real identical raster calls; no physical display/GPU presentation or full-game FPS claim.'},
   environment:{node:process.version,platform:process.platform,arch:process.arch,cpu:os.cpus()[0]?.model,parallelism:os.availableParallelism(),totalMemoryBytes:os.totalmem()},
   sdks:[{version:version(baseline),files:hashes(baseline)},{version:version(root),files:hashes(root)}],runs:[],limits:['Localhost sockets with an application byte budget, not OS-level packet loss, cellular or shared TCP congestion emulation.','Mixed-budget intentionally exceeds the event budget; outbox rejection and event throughput are reported.','Canvas scene frame cadence is not physical presentation or production-game FPS.','All trials, including neutral results and regressions, remain in this report.']};
+ report.protocol.candidateEndpointOverrides=stateBudgetShare===undefined?{}:{stateBudgetShare};
  async function sample(sdk,profile,repetition){
   let child,browser,page,fatal;const waiters=new Map(),stdout=[];let stopped=false;
   const wait=type=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{waiters.delete(type);reject(Error('Timed out waiting for server '+type+' '+stdout.join('').slice(-2000)));},20000);waiters.set(type,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});});
   const row={version:version(sdk),profile,repetition,started:new Date().toISOString()};
   try{
-   child=fork(ownFile,['--server','--sdk',sdk,'--profile',profile,'--transport',transport],{stdio:['ignore','pipe','pipe','ipc']});
+   child=fork(ownFile,['--server','--sdk',sdk,'--profile',profile,'--transport',transport,...(sdk===root&&stateBudgetShare!==undefined?['--state-share',String(stateBudgetShare)]:[])],{stdio:['ignore','pipe','pipe','ipc']});
    child.on('message',message=>{if(message.type==='fatal'){fatal=Error(message.error);for(const waiter of waiters.values())waiter.reject(fatal);waiters.clear();}else{const waiter=waiters.get(message.type);if(waiter){waiters.delete(message.type);waiter.resolve(message);}}});
    child.on('exit',code=>{if(!stopped&&code!==0){fatal=Error('Server exited '+code);for(const waiter of waiters.values())waiter.reject(fatal);waiters.clear();}});
    for(const stream of [child.stdout,child.stderr])stream.on('data',b=>{stdout.push(b.toString());if(stdout.length>50)stdout.shift();});

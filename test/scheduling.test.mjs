@@ -2,6 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pair } from './helpers.mjs';
 import { Endpoint } from '../dist/core/endpoint.js';
+import { TrafficBudget } from '../dist/core/budget.js';
+
+test('an oversized backlogged event spends its share instead of repeatedly losing refill credit to pump rounding', () => {
+  const budget = new TrafficBudget(4000, 200, .075, 0);
+  let events = 0;
+  for (let now = 0; now < 60000; now += 10) {
+    // The state class is busy: its positive credit must remain protected.
+    if (budget.reserve('event', 680, now, Infinity)) events++;
+    assert.ok(events * 680 <= now * 3.7 + 185 + 680, 'bounded one-packet debt must repay at the configured event rate');
+  }
+  assert.ok(events >= 325, `backlogged event class left earned bandwidth unused: ${events}`);
+});
 
 test('movement retains service under sustained ordered event load within the same byte budget', () => {
   const p = pair({ bytesPerSecond: 4000, burstBytes: 200 });
