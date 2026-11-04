@@ -1,4 +1,4 @@
-# Transport, latency and resource controls (3.0 candidate)
+# Transport, latency and resource controls (3.0)
 
 3.0 uses wire generation **5**. Deploy matching clients and servers together; a 2.x client is not compatible with a
 3.0 server. Preserve the previous paired release for rollback. Existing game APIs remain usable, but code that

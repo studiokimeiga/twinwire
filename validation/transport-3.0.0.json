@@ -1,0 +1,1447 @@
+{
+  "schema": 1,
+  "version": "3.0.0",
+  "wire": 5,
+  "preparedAt": "2026-11-04T05:31:28.606Z",
+  "runtimeCommit": "90f745d",
+  "baseline": {
+    "version": "2.3.0",
+    "tarballSHA256": "5fd06c1f96c6506b63153c1ab32913f04a262d8eaeb4f30e20d5c3dc99b6fda2"
+  },
+  "localCoreChecks": 232,
+  "fullValidation": {
+    "url": "https://github.com/studiokimeiga/twinwire/actions/runs/41777183172",
+    "configuredSoakSeconds": 3600,
+    "jobs": [
+      "Node22 core/native/workerd",
+      "Node24 core/native/workerd",
+      "Chromium/Firefox/WebKit normal/impaired/WS/party",
+      "Chromium/Firefox native WT and WebKit fallback",
+      "Node22 WS lifecycle60min",
+      "Node24 WS lifecycle60min",
+      "Chromium QUIC lifecycle60min",
+      "Firefox QUIC lifecycle60min"
+    ],
+    "rule": "Publication requires successful completion of every gate; consult the linked run for its recorded result."
+  },
+  "endpointModel": {
+    "kind": "deterministic-endpoint-model",
+    "node": "v22.23.4",
+    "stepMs": 5,
+    "caveat": "Known identical clocks and modeled delivery delays; not browser rendering, TCP congestion, RTC, QUIC or a live game. Events remain strictly ordered; outbox rejection and throughput tradeoffs are retained.",
+    "results": [
+      {
+        "version": "2.3.0",
+        "profiles": [
+          {
+            "name": "state-only-50Hz",
+            "statesRequested": 150,
+            "statesDelivered": 150,
+            "deliveryFraction": 1,
+            "stateAgeP50Ms": 0,
+            "stateAgeP99Ms": 0,
+            "eventsQueued": 0,
+            "eventsRejected": 0,
+            "eventsDelivered": 0,
+            "eventAgeP99Ms": null,
+            "encodedBytes": 16200,
+            "expired": 0,
+            "coalesced": 0
+          },
+          {
+            "name": "events-only-20Hz",
+            "statesRequested": 0,
+            "statesDelivered": 0,
+            "deliveryFraction": null,
+            "stateAgeP50Ms": null,
+            "stateAgeP99Ms": null,
+            "eventsQueued": 60,
+            "eventsRejected": 0,
+            "eventsDelivered": 60,
+            "eventAgeP99Ms": 0,
+            "encodedBytes": 4288,
+            "expired": 0,
+            "coalesced": 0
+          },
+          {
+            "name": "mixed-oversized-events",
+            "statesRequested": 60,
+            "statesDelivered": 32,
+            "deliveryFraction": 0.5333333333333333,
+            "stateAgeP50Ms": 0,
+            "stateAgeP99Ms": 35,
+            "eventsQueued": 300,
+            "eventsRejected": 0,
+            "eventsDelivered": 18,
+            "eventAgeP99Ms": 2795,
+            "encodedBytes": 12338,
+            "expired": 28,
+            "coalesced": 0
+          },
+          {
+            "name": "mixed-50ms-delivery",
+            "statesRequested": 60,
+            "statesDelivered": 31,
+            "deliveryFraction": 0.5166666666666667,
+            "stateAgeP50Ms": 50,
+            "stateAgeP99Ms": 85,
+            "eventsQueued": 300,
+            "eventsRejected": 0,
+            "eventsDelivered": 17,
+            "eventAgeP99Ms": 2680,
+            "encodedBytes": 12338,
+            "expired": 28,
+            "coalesced": 0
+          }
+        ]
+      },
+      {
+        "version": "3.0.0",
+        "profiles": [
+          {
+            "name": "state-only-50Hz",
+            "statesRequested": 150,
+            "statesDelivered": 150,
+            "deliveryFraction": 1,
+            "stateAgeP50Ms": 0,
+            "stateAgeP99Ms": 0,
+            "eventsQueued": 0,
+            "eventsRejected": 0,
+            "eventsDelivered": 0,
+            "eventAgeP99Ms": null,
+            "encodedBytes": 16200,
+            "expired": 0,
+            "coalesced": 0
+          },
+          {
+            "name": "events-only-20Hz",
+            "statesRequested": 0,
+            "statesDelivered": 0,
+            "deliveryFraction": null,
+            "stateAgeP50Ms": null,
+            "stateAgeP99Ms": null,
+            "eventsQueued": 60,
+            "eventsRejected": 0,
+            "eventsDelivered": 60,
+            "eventAgeP99Ms": 0,
+            "encodedBytes": 4288,
+            "expired": 0,
+            "coalesced": 0
+          },
+          {
+            "name": "mixed-oversized-events",
+            "statesRequested": 60,
+            "statesDelivered": 60,
+            "deliveryFraction": 1,
+            "stateAgeP50Ms": 0,
+            "stateAgeP99Ms": 0,
+            "eventsQueued": 300,
+            "eventsRejected": 0,
+            "eventsDelivered": 17,
+            "eventAgeP99Ms": 2725,
+            "encodedBytes": 12247,
+            "expired": 0,
+            "coalesced": 0
+          },
+          {
+            "name": "mixed-50ms-delivery",
+            "statesRequested": 60,
+            "statesDelivered": 59,
+            "deliveryFraction": 0.9833333333333333,
+            "stateAgeP50Ms": 50,
+            "stateAgeP99Ms": 50,
+            "eventsQueued": 300,
+            "eventsRejected": 0,
+            "eventsDelivered": 17,
+            "eventAgeP99Ms": 2775,
+            "encodedBytes": 12247,
+            "expired": 0,
+            "coalesced": 0
+          }
+        ]
+      }
+    ]
+  },
+  "localhostComparison": {
+    "kind": "alternating-same-runner-localhost-websocket-comparison",
+    "repetitions": [
+      {
+        "baseline": {
+          "kind": "localhost-single-process-websocket",
+          "sdkVersion": "2.3.0",
+          "node": "v22.23.4",
+          "clients": 50,
+          "hz": 20,
+          "neighbors": 8,
+          "seconds": 5.099722000000001,
+          "incomingStates": 4950,
+          "deliveredStates": 39600,
+          "serverEncodedBytesSent": 1146225,
+          "serverEncodedBytesPerSecond": 224762.25174627162,
+          "perClientEncodedBytesPerSecond": 4495.245034925432,
+          "cpuMsIncludingClients": 1427.058,
+          "rssMB": 126.66796875,
+          "eventLoopP99Ms": 21.086207,
+          "errors": [],
+          "trace": {
+            "enabled": false,
+            "recorded": 0,
+            "retained": 0,
+            "overwritten": 0
+          },
+          "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+        },
+        "candidate": {
+          "kind": "localhost-single-process-websocket",
+          "sdkVersion": "3.0.0",
+          "node": "v22.23.4",
+          "clients": 50,
+          "hz": 20,
+          "neighbors": 8,
+          "seconds": 5.100543396,
+          "incomingStates": 4950,
+          "deliveredStates": 39600,
+          "serverEncodedBytesSent": 1146254,
+          "serverEncodedBytesPerSecond": 224731.741504038,
+          "perClientEncodedBytesPerSecond": 4494.6348300807595,
+          "cpuMsIncludingClients": 1440.169,
+          "rssMB": 127.23046875,
+          "eventLoopP99Ms": 20.168703,
+          "errors": [],
+          "trace": {
+            "enabled": false,
+            "recorded": 0,
+            "retained": 0,
+            "overwritten": 0
+          },
+          "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+        }
+      },
+      {
+        "baseline": {
+          "kind": "localhost-single-process-websocket",
+          "sdkVersion": "2.3.0",
+          "node": "v22.23.4",
+          "clients": 50,
+          "hz": 20,
+          "neighbors": 8,
+          "seconds": 5.10100102,
+          "incomingStates": 4950,
+          "deliveredStates": 39600,
+          "serverEncodedBytesSent": 1146242,
+          "serverEncodedBytesPerSecond": 224709.22775859394,
+          "perClientEncodedBytesPerSecond": 4494.184555171879,
+          "cpuMsIncludingClients": 1399.863,
+          "rssMB": 125.90234375,
+          "eventLoopP99Ms": 20.004863,
+          "errors": [],
+          "trace": {
+            "enabled": false,
+            "recorded": 0,
+            "retained": 0,
+            "overwritten": 0
+          },
+          "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+        },
+        "candidate": {
+          "kind": "localhost-single-process-websocket",
+          "sdkVersion": "3.0.0",
+          "node": "v22.23.4",
+          "clients": 50,
+          "hz": 20,
+          "neighbors": 8,
+          "seconds": 5.099927481,
+          "incomingStates": 4950,
+          "deliveredStates": 39600,
+          "serverEncodedBytesSent": 1146261,
+          "serverEncodedBytesPerSecond": 224760.2547821405,
+          "perClientEncodedBytesPerSecond": 4495.20509564281,
+          "cpuMsIncludingClients": 1447.445,
+          "rssMB": 121.16015625,
+          "eventLoopP99Ms": 20.152319,
+          "errors": [],
+          "trace": {
+            "enabled": false,
+            "recorded": 0,
+            "retained": 0,
+            "overwritten": 0
+          },
+          "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+        }
+      },
+      {
+        "baseline": {
+          "kind": "localhost-single-process-websocket",
+          "sdkVersion": "2.3.0",
+          "node": "v22.23.4",
+          "clients": 50,
+          "hz": 20,
+          "neighbors": 8,
+          "seconds": 5.1005590849999995,
+          "incomingStates": 4950,
+          "deliveredStates": 39600,
+          "serverEncodedBytesSent": 1146258,
+          "serverEncodedBytesPerSecond": 224731.8344710441,
+          "perClientEncodedBytesPerSecond": 4494.636689420882,
+          "cpuMsIncludingClients": 1412.446,
+          "rssMB": 120.328125,
+          "eventLoopP99Ms": 18.579455,
+          "errors": [],
+          "trace": {
+            "enabled": false,
+            "recorded": 0,
+            "retained": 0,
+            "overwritten": 0
+          },
+          "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+        },
+        "candidate": {
+          "kind": "localhost-single-process-websocket",
+          "sdkVersion": "3.0.0",
+          "node": "v22.23.4",
+          "clients": 50,
+          "hz": 20,
+          "neighbors": 8,
+          "seconds": 5.100646169000001,
+          "incomingStates": 4950,
+          "deliveredStates": 39600,
+          "serverEncodedBytesSent": 1146241,
+          "serverEncodedBytesPerSecond": 224724.66468395013,
+          "perClientEncodedBytesPerSecond": 4494.493293679003,
+          "cpuMsIncludingClients": 1400.68,
+          "rssMB": 127.9296875,
+          "eventLoopP99Ms": 19.365887,
+          "errors": [],
+          "trace": {
+            "enabled": false,
+            "recorded": 0,
+            "retained": 0,
+            "overwritten": 0
+          },
+          "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+        }
+      }
+    ],
+    "baselineVersion": "2.3.0",
+    "candidateVersion": "3.0.0",
+    "deliveredStateRatio": 1,
+    "cpuRatio": 1.0196276530217794,
+    "rssRatio": 1.0105488504855573,
+    "eventLoopP99Ms": 20.152319,
+    "caveat": "Separate processes on one hosted runner, 50 local clients and server together; not a device/cellular/game-frame or QUIC comparison. Noise remains; raw repetitions are retained."
+  },
+  "tracing": {
+    "kind": "opt-in-tracing-localhost-overhead",
+    "repetitions": 3,
+    "cpuRatio": 1.0813862005256059,
+    "deliveredStateRatio": 1,
+    "rssRatio": 1.0118083341465796,
+    "results": [
+      {
+        "repetition": 1,
+        "kind": "localhost-single-process-websocket",
+        "sdkVersion": "3.0.0",
+        "node": "v22.23.4",
+        "clients": 50,
+        "hz": 20,
+        "neighbors": 8,
+        "seconds": 5.100343849999999,
+        "incomingStates": 4950,
+        "deliveredStates": 39600,
+        "serverEncodedBytesSent": 1146240,
+        "serverEncodedBytesPerSecond": 224737.78900220623,
+        "perClientEncodedBytesPerSecond": 4494.755780044125,
+        "cpuMsIncludingClients": 1275.796,
+        "rssMB": 119.65234375,
+        "eventLoopP99Ms": 17.907711,
+        "errors": [],
+        "trace": {
+          "enabled": false,
+          "recorded": 0,
+          "retained": 0,
+          "overwritten": 0
+        },
+        "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+      },
+      {
+        "repetition": 1,
+        "kind": "localhost-single-process-websocket",
+        "sdkVersion": "3.0.0",
+        "node": "v22.23.4",
+        "clients": 50,
+        "hz": 20,
+        "neighbors": 8,
+        "seconds": 5.100350552,
+        "incomingStates": 4950,
+        "deliveredStates": 39600,
+        "serverEncodedBytesSent": 1146242,
+        "serverEncodedBytesPerSecond": 224737.8858205196,
+        "perClientEncodedBytesPerSecond": 4494.757716410391,
+        "cpuMsIncludingClients": 1383.888,
+        "rssMB": 128.72265625,
+        "eventLoopP99Ms": 17.186815,
+        "errors": [],
+        "trace": {
+          "enabled": true,
+          "recorded": 133650,
+          "retained": 512,
+          "overwritten": 133138
+        },
+        "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+      },
+      {
+        "repetition": 2,
+        "kind": "localhost-single-process-websocket",
+        "sdkVersion": "3.0.0",
+        "node": "v22.23.4",
+        "clients": 50,
+        "hz": 20,
+        "neighbors": 8,
+        "seconds": 5.100001578,
+        "incomingStates": 4950,
+        "deliveredStates": 39600,
+        "serverEncodedBytesSent": 1145486,
+        "serverEncodedBytesPerSecond": 224605.02854377747,
+        "perClientEncodedBytesPerSecond": 4492.100570875549,
+        "cpuMsIncludingClients": 1269.773,
+        "rssMB": 125.69140625,
+        "eventLoopP99Ms": 18.792447,
+        "errors": [],
+        "trace": {
+          "enabled": false,
+          "recorded": 0,
+          "retained": 0,
+          "overwritten": 0
+        },
+        "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+      },
+      {
+        "repetition": 2,
+        "kind": "localhost-single-process-websocket",
+        "sdkVersion": "3.0.0",
+        "node": "v22.23.4",
+        "clients": 50,
+        "hz": 20,
+        "neighbors": 8,
+        "seconds": 5.100253876,
+        "incomingStates": 4950,
+        "deliveredStates": 39600,
+        "serverEncodedBytesSent": 1145510,
+        "serverEncodedBytesPerSecond": 224598.62349016918,
+        "perClientEncodedBytesPerSecond": 4491.972469803383,
+        "cpuMsIncludingClients": 1367.385,
+        "rssMB": 121.5,
+        "eventLoopP99Ms": 19.152895,
+        "errors": [],
+        "trace": {
+          "enabled": true,
+          "recorded": 133650,
+          "retained": 512,
+          "overwritten": 133138
+        },
+        "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+      },
+      {
+        "repetition": 3,
+        "kind": "localhost-single-process-websocket",
+        "sdkVersion": "3.0.0",
+        "node": "v22.23.4",
+        "clients": 50,
+        "hz": 20,
+        "neighbors": 8,
+        "seconds": 5.1011655110000005,
+        "incomingStates": 4950,
+        "deliveredStates": 39600,
+        "serverEncodedBytesSent": 1146238,
+        "serverEncodedBytesPerSecond": 224701.19770242443,
+        "perClientEncodedBytesPerSecond": 4494.023954048488,
+        "cpuMsIncludingClients": 1253.688,
+        "rssMB": 120.08203125,
+        "eventLoopP99Ms": 20.070399,
+        "errors": [],
+        "trace": {
+          "enabled": false,
+          "recorded": 0,
+          "retained": 0,
+          "overwritten": 0
+        },
+        "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+      },
+      {
+        "repetition": 3,
+        "kind": "localhost-single-process-websocket",
+        "sdkVersion": "3.0.0",
+        "node": "v22.23.4",
+        "clients": 50,
+        "hz": 20,
+        "neighbors": 8,
+        "seconds": 5.100821439000001,
+        "incomingStates": 4950,
+        "deliveredStates": 39600,
+        "serverEncodedBytesSent": 1146249,
+        "serverEncodedBytesPerSecond": 224718.51126486764,
+        "perClientEncodedBytesPerSecond": 4494.370225297353,
+        "cpuMsIncludingClients": 1373.115,
+        "rssMB": 120.19140625,
+        "eventLoopP99Ms": 22.331391,
+        "errors": [],
+        "trace": {
+          "enabled": true,
+          "recorded": 133650,
+          "retained": 512,
+          "overwritten": 133138
+        },
+        "caveat": "Includes clients and server in one process. Not a VPS, native WebRTC, cellular, or complete game simulation benchmark. Counts encoded application traffic, not IP/TLS/provider-billed bytes."
+      }
+    ],
+    "caveat": "50 clients and server together, separate alternating processes, one hosted runner. Callback cost depends on the supplied observer. This measures a bounded 512-entry recorder, not console logging, game rendering or cellular transport."
+  },
+  "phases": [
+    {
+      "engine": "chromium",
+      "browser": "153.0.8010.12",
+      "impaired": false,
+      "nativeWebTransport": true,
+      "webtransportStates": 30,
+      "phaseTiming": {
+        "caveat": "Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.",
+        "wt": {
+          "path": "wt",
+          "received": 60,
+          "elapsedMs": 1985.5,
+          "retained": 358,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 0.1502516666610063,
+            "p50": 0.35740633333898586,
+            "p95": 0.5574063333215236,
+            "p99": 0.6502516666610063,
+            "max": 0.6502516666610063
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 0.1502516666610063,
+            "p50": 0.35740633333898586,
+            "p95": 0.6074063333389859,
+            "p99": 0.6502516666610063,
+            "max": 0.6502516666610063
+          },
+          "playbackDelayMs": {
+            "count": 119,
+            "min": 36.69438743924002,
+            "p50": 37.55867280919847,
+            "p95": 38.82318585319672,
+            "p99": 38.89090469564644,
+            "max": 38.903964866854494
+          },
+          "renderAgeMs": {
+            "count": 119,
+            "min": 36.69438743924002,
+            "p50": 37.61500754623785,
+            "p95": 38.865185836120645,
+            "p99": 38.952448121694715,
+            "max": 38.97795312284484
+          },
+          "maxClockUncertaintyMs": 0.26906766666672866
+        },
+        "rtc": {
+          "path": "rtc",
+          "received": 60,
+          "elapsedMs": 2009.2000000000116,
+          "retained": 360,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": -0.02390166666737059,
+            "p50": 0.24490166666691948,
+            "p95": 0.4449016666494572,
+            "p99": 0.8949016666610987,
+            "max": 0.8949016666610987
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 0.07609833333845017,
+            "p50": 0.2760983333209879,
+            "p95": 0.4449016666494572,
+            "p99": 0.9949016666669195,
+            "max": 0.9949016666669195
+          },
+          "playbackDelayMs": {
+            "count": 120,
+            "min": 35.65261215060855,
+            "p50": 35.855331855293116,
+            "p95": 36.15198997613152,
+            "p99": 36.18684973276777,
+            "max": 36.194006432342576
+          },
+          "renderAgeMs": {
+            "count": 120,
+            "min": 35.65527319284047,
+            "p50": 35.86412242758979,
+            "p95": 36.172714367711706,
+            "p99": 36.194006432342576,
+            "max": 36.19920510541306
+          },
+          "maxClockUncertaintyMs": 0.2531353333323523
+        },
+        "ws": {
+          "path": "ws",
+          "received": 60,
+          "elapsedMs": 1984,
+          "retained": 358,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 0.026098333320987877,
+            "p50": 0.2260983333326294,
+            "p95": 0.3260983333384502,
+            "p99": 0.4260983333151671,
+            "max": 0.4260983333151671
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 0.026098333320987877,
+            "p50": 0.2260983333326294,
+            "p95": 0.37609833332680864,
+            "p99": 0.4260983333151671,
+            "max": 0.4260983333151671
+          },
+          "playbackDelayMs": {
+            "count": 119,
+            "min": 35.44230792557755,
+            "p50": 35.51150807373233,
+            "p95": 35.612752978515346,
+            "p99": 35.622228753990385,
+            "max": 35.62463656457294
+          },
+          "renderAgeMs": {
+            "count": 119,
+            "min": 35.44230792557755,
+            "p50": 35.5403428479176,
+            "p95": 35.64914686519205,
+            "p99": 35.71744426217356,
+            "max": 35.71982652051611
+          },
+          "maxClockUncertaintyMs": 0.23447133333354486
+        }
+      },
+      "bulkDidNotBlockGameplay": true,
+      "rtcFallback": true,
+      "websocketFallback": true,
+      "sameSession": true,
+      "queuedFireOnce": true,
+      "renderedScore": 3,
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "browser": "153.0.8010.12",
+      "impaired": true,
+      "nativeWebTransport": true,
+      "webtransportStates": 30,
+      "phaseTiming": {
+        "caveat": "Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.",
+        "wt": {
+          "path": "wt",
+          "received": 60,
+          "elapsedMs": 2010.7000000000116,
+          "retained": 360,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 29.72595933334196,
+            "p50": 34.37595933333614,
+            "p95": 38.97595933334196,
+            "p99": 39.97595933334196,
+            "max": 39.97595933334196
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 29.72595933334196,
+            "p50": 34.37595933333614,
+            "p95": 38.97595933334196,
+            "p99": 39.97595933334196,
+            "max": 39.97595933334196
+          },
+          "playbackDelayMs": {
+            "count": 120,
+            "min": 73.33194956041348,
+            "p50": 73.33333280320221,
+            "p95": 73.3333333329374,
+            "p99": 73.33333333313021,
+            "max": 73.33333333315568
+          },
+          "renderAgeMs": {
+            "count": 120,
+            "min": 73.33194956041348,
+            "p50": 73.33333330863525,
+            "p95": 73.43333333137889,
+            "p99": 73.43333333313603,
+            "max": 73.53332461549735
+          },
+          "maxClockUncertaintyMs": 34.30777400000875
+        },
+        "rtc": {
+          "path": "rtc",
+          "received": 60,
+          "elapsedMs": 2084.3000000000175,
+          "retained": 370,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 29.02595933333123,
+            "p50": 34.47595933334287,
+            "p95": 38.42595933332541,
+            "p99": 38.72595933334287,
+            "max": 38.72595933334287
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 29.02595933333123,
+            "p50": 34.52595933333123,
+            "p95": 38.42595933332541,
+            "p99": 38.72595933334287,
+            "max": 38.72595933334287
+          },
+          "playbackDelayMs": {
+            "count": 125,
+            "min": 73.33333333333303,
+            "p50": 73.33333333333303,
+            "p95": 73.33333333333303,
+            "p99": 73.33333333333303,
+            "max": 73.33333333333303
+          },
+          "renderAgeMs": {
+            "count": 125,
+            "min": 73.33333333333303,
+            "p50": 73.33333333333303,
+            "p95": 73.43333333333885,
+            "p99": 73.43333333333885,
+            "max": 73.43333333333885
+          },
+          "maxClockUncertaintyMs": 34.04930133332459
+        },
+        "ws": {
+          "path": "ws",
+          "received": 60,
+          "elapsedMs": 1984.8000000000175,
+          "retained": 358,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 29.62595933333705,
+            "p50": 34.8791243333344,
+            "p95": 39.3791243333344,
+            "p99": 39.92595933332541,
+            "max": 39.92595933332541
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 29.72595933334287,
+            "p50": 34.8791243333344,
+            "p95": 39.3791243333344,
+            "p99": 39.92595933332541,
+            "max": 39.92595933332541
+          },
+          "playbackDelayMs": {
+            "count": 119,
+            "min": 73.33333333333303,
+            "p50": 73.33333333333394,
+            "p95": 73.33333333333394,
+            "p99": 73.33333333333394,
+            "max": 73.33333333333394
+          },
+          "renderAgeMs": {
+            "count": 119,
+            "min": 73.33333333333303,
+            "p50": 73.33333333333394,
+            "p95": 73.43333333333976,
+            "p99": 73.43333333333976,
+            "max": 73.43333333333976
+          },
+          "maxClockUncertaintyMs": 34.04930133332459
+        }
+      },
+      "bulkDidNotBlockGameplay": true,
+      "rtcFallback": true,
+      "websocketFallback": true,
+      "sameSession": true,
+      "queuedFireOnce": true,
+      "renderedScore": 3,
+      "errors": []
+    },
+    {
+      "engine": "firefox",
+      "browser": "155.0",
+      "impaired": false,
+      "nativeWebTransport": true,
+      "webtransportStates": 30,
+      "phaseTiming": {
+        "caveat": "Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.",
+        "wt": {
+          "path": "wt",
+          "received": 60,
+          "elapsedMs": 1991,
+          "retained": 358,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": -0.7244359999999688,
+            "p50": 0.17877899999893998,
+            "p95": 1.310763333333398,
+            "p99": 1.810763333333398,
+            "max": 1.810763333333398
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": -0.57122100000106,
+            "p50": 0.27556400000003123,
+            "p95": 1.560763333333398,
+            "p99": 2.310763333333398,
+            "max": 2.310763333333398
+          },
+          "playbackDelayMs": {
+            "count": 119,
+            "min": 37.331937336208284,
+            "p50": 37.33333279834778,
+            "p95": 37.33333333293649,
+            "p99": 37.3333333331002,
+            "max": 37.3333333331293
+          },
+          "renderAgeMs": {
+            "count": 119,
+            "min": 37.331937336208284,
+            "p50": 37.333332926274124,
+            "p95": 38.333326592091,
+            "p99": 38.333333330767346,
+            "max": 38.3333333323244
+          },
+          "maxClockUncertaintyMs": 8.473402666666516
+        },
+        "rtc": {
+          "path": "rtc",
+          "received": 60,
+          "elapsedMs": 1964,
+          "retained": 356,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": -0.5193150000004607,
+            "p50": 0.2306849999995393,
+            "p95": 0.9806849999995393,
+            "p99": 0.9806849999995393,
+            "max": 0.9806849999995393
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": -0.5193150000004607,
+            "p50": 0.2306849999995393,
+            "p95": 0.9806849999995393,
+            "p99": 0.9806849999995393,
+            "max": 0.9806849999995393
+          },
+          "playbackDelayMs": {
+            "count": 118,
+            "min": 36.10016895077115,
+            "p50": 36.57663090340884,
+            "p95": 37.28371909705493,
+            "p99": 37.33333333333303,
+            "max": 37.33333333333303
+          },
+          "renderAgeMs": {
+            "count": 118,
+            "min": 36.10016895077115,
+            "p50": 36.58729413183573,
+            "p95": 37.316326057763945,
+            "p99": 37.42165546396427,
+            "max": 37.930174138457915
+          },
+          "maxClockUncertaintyMs": 0.830480000000307
+        },
+        "ws": {
+          "path": "ws",
+          "received": 60,
+          "elapsedMs": 1988,
+          "retained": 358,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": -0.7693150000013702,
+            "p50": 0.2306849999986298,
+            "p95": 0.7306849999986298,
+            "p99": 0.9806849999986298,
+            "max": 0.9806849999986298
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": -0.7693150000004607,
+            "p50": 0.2306849999986298,
+            "p95": 0.7306849999986298,
+            "p99": 1.2306849999986298,
+            "max": 1.2306849999986298
+          },
+          "playbackDelayMs": {
+            "count": 119,
+            "min": 35.59285558821284,
+            "p50": 35.757803811993654,
+            "p95": 35.99884918686803,
+            "p99": 36.02163861270947,
+            "max": 36.02719489347328
+          },
+          "renderAgeMs": {
+            "count": 119,
+            "min": 35.59285558821284,
+            "p50": 35.761230310708925,
+            "p95": 36.00456374232817,
+            "p99": 36.02719489347328,
+            "max": 36.658377951489456
+          },
+          "maxClockUncertaintyMs": 0.830480000000307
+        }
+      },
+      "bulkDidNotBlockGameplay": true,
+      "rtcFallback": true,
+      "websocketFallback": true,
+      "sameSession": true,
+      "queuedFireOnce": true,
+      "renderedScore": 3,
+      "errors": []
+    },
+    {
+      "engine": "firefox",
+      "browser": "155.0",
+      "impaired": true,
+      "nativeWebTransport": true,
+      "webtransportStates": 30,
+      "phaseTiming": {
+        "caveat": "Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.",
+        "wt": {
+          "path": "wt",
+          "received": 60,
+          "elapsedMs": 2017,
+          "retained": 362,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 31.198601999999482,
+            "p50": 36.40298400000029,
+            "p95": 41.17530999999963,
+            "p99": 42.17530999999963,
+            "max": 42.17530999999963
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 31.198601999999482,
+            "p50": 36.40298400000029,
+            "p95": 41.17530999999963,
+            "p99": 42.17530999999963,
+            "max": 42.17530999999963
+          },
+          "playbackDelayMs": {
+            "count": 121,
+            "min": 76.38864199809814,
+            "p50": 77.07272128141994,
+            "p95": 78.06123664761208,
+            "p99": 78.17742373253895,
+            "max": 78.20184495741796
+          },
+          "renderAgeMs": {
+            "count": 121,
+            "min": 76.38864199809814,
+            "p50": 77.1170037933498,
+            "p95": 78.10820166319218,
+            "p99": 78.20184495741796,
+            "max": 78.47628314675057
+          },
+          "maxClockUncertaintyMs": 42.33411099999989
+        },
+        "rtc": {
+          "path": "rtc",
+          "received": 60,
+          "elapsedMs": 1988,
+          "retained": 358,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 28.4563886666665,
+            "p50": 34.966451666667126,
+            "p95": 38.7063886666665,
+            "p99": 39.71645166666622,
+            "max": 39.71645166666622
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 28.4563886666665,
+            "p50": 34.966451666667126,
+            "p95": 38.7063886666665,
+            "p99": 39.71645166666622,
+            "max": 39.71645166666622
+          },
+          "playbackDelayMs": {
+            "count": 119,
+            "min": 75.09171625293311,
+            "p50": 75.70254443672002,
+            "p95": 75.9124990082264,
+            "p99": 75.93202611211109,
+            "max": 75.93716084253356
+          },
+          "renderAgeMs": {
+            "count": 119,
+            "min": 75.09171625293311,
+            "p50": 75.70571100152938,
+            "p95": 75.92723192064477,
+            "p99": 76.78814279985727,
+            "max": 76.86161445866583
+          },
+          "maxClockUncertaintyMs": 36.6274686666668
+        },
+        "ws": {
+          "path": "ws",
+          "received": 60,
+          "elapsedMs": 1963,
+          "retained": 356,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 29.942225666667582,
+            "p50": 36.44222566666758,
+            "p95": 39.216451666667126,
+            "p99": 40.19222566666758,
+            "max": 40.19222566666758
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 29.942225666667582,
+            "p50": 36.44222566666758,
+            "p95": 39.216451666667126,
+            "p99": 40.19222566666758,
+            "max": 40.19222566666758
+          },
+          "playbackDelayMs": {
+            "count": 118,
+            "min": 73.92846333388297,
+            "p50": 74.29838329138329,
+            "p95": 74.84646974582938,
+            "p99": 74.89748653290553,
+            "max": 74.91090160204294
+          },
+          "renderAgeMs": {
+            "count": 118,
+            "min": 73.92846333388297,
+            "p50": 74.30617356799303,
+            "p95": 74.88496116064925,
+            "p99": 75.33092083910378,
+            "max": 75.57219703642113
+          },
+          "maxClockUncertaintyMs": 36.6274686666668
+        }
+      },
+      "bulkDidNotBlockGameplay": true,
+      "rtcFallback": true,
+      "websocketFallback": true,
+      "sameSession": true,
+      "queuedFireOnce": true,
+      "renderedScore": 3,
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "browser": "26.6",
+      "impaired": false,
+      "nativeWebTransport": false,
+      "webtransportStates": 0,
+      "phaseTiming": {
+        "caveat": "Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.",
+        "rtc": {
+          "path": "rtc",
+          "received": 60,
+          "elapsedMs": 1960,
+          "retained": 364,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": -0.05778533333341329,
+            "p50": 0.4422146666665867,
+            "p95": 0.6922146666665867,
+            "p99": 0.6922146666665867,
+            "max": 0.6922146666665867
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": -0.05778533333341329,
+            "p50": 0.4422146666665867,
+            "p95": 0.6922146666665867,
+            "p99": 0.9422146666665867,
+            "max": 0.9422146666665867
+          },
+          "playbackDelayMs": {
+            "count": 122,
+            "min": 36.61173128807786,
+            "p50": 37.40449097092824,
+            "p95": 38.55567298682399,
+            "p99": 38.688856505008516,
+            "max": 38.71580835403529
+          },
+          "renderAgeMs": {
+            "count": 122,
+            "min": 36.61173128807786,
+            "p50": 37.471839850396464,
+            "p95": 38.58155509444441,
+            "p99": 39.609282654601884,
+            "max": 39.6355953596576
+          },
+          "maxClockUncertaintyMs": 0.5851633333340942
+        },
+        "ws": {
+          "path": "ws",
+          "received": 60,
+          "elapsedMs": 1987,
+          "retained": 366,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": -0.3077853333325038,
+            "p50": 0.4422146666674962,
+            "p95": 0.9422146666674962,
+            "p99": 1.4422146666674962,
+            "max": 1.4422146666674962
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": -0.0577853333325038,
+            "p50": 0.4422146666674962,
+            "p95": 0.9422146666674962,
+            "p99": 1.4422146666674962,
+            "max": 1.4422146666674962
+          },
+          "playbackDelayMs": {
+            "count": 123,
+            "min": 35.76487452828769,
+            "p50": 36.03844978945199,
+            "p95": 36.430364614601785,
+            "p99": 36.47570635424199,
+            "max": 36.484881992024384
+          },
+          "renderAgeMs": {
+            "count": 123,
+            "min": 35.76487452828769,
+            "p50": 36.049822390947156,
+            "p95": 36.46660382872324,
+            "p99": 37.23826820414433,
+            "max": 37.43972912327263
+          },
+          "maxClockUncertaintyMs": 0.5851633333340942
+        }
+      },
+      "bulkDidNotBlockGameplay": true,
+      "rtcFallback": true,
+      "websocketFallback": true,
+      "sameSession": true,
+      "queuedFireOnce": true,
+      "renderedScore": 3,
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "browser": "26.6",
+      "impaired": true,
+      "nativeWebTransport": false,
+      "webtransportStates": 0,
+      "phaseTiming": {
+        "caveat": "Successive 60-state phases on one localhost browser/server with tracing enabled. Snapshot age includes browser scheduling; clock uncertainty is reported. Render submission is not GPU presentation. Application impairment does not emulate QUIC congestion.",
+        "rtc": {
+          "path": "rtc",
+          "received": 60,
+          "elapsedMs": 2016,
+          "retained": 370,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 30.076279666666323,
+            "p50": 34.57627966666632,
+            "p95": 39.57627966666632,
+            "p99": 40.32627966666632,
+            "max": 40.32627966666632
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 30.076279666666323,
+            "p50": 34.82627966666632,
+            "p95": 40.04364033333286,
+            "p99": 40.32627966666632,
+            "max": 40.32627966666632
+          },
+          "playbackDelayMs": {
+            "count": 125,
+            "min": 74.33131903299704,
+            "p50": 75.17049239606467,
+            "p95": 75.33193850147063,
+            "p99": 75.33260370946073,
+            "max": 75.33269137130355
+          },
+          "renderAgeMs": {
+            "count": 125,
+            "min": 74.33131903299704,
+            "p50": 75.18760159056865,
+            "p95": 75.33269137130355,
+            "p99": 76.30964994520855,
+            "max": 76.32827633102079
+          },
+          "maxClockUncertaintyMs": 36.707190666666634
+        },
+        "ws": {
+          "path": "ws",
+          "received": 60,
+          "elapsedMs": 1988,
+          "retained": 368,
+          "overwritten": 0,
+          "queueMs": null,
+          "receiveAgeMs": {
+            "count": 60,
+            "min": 30.826279666666778,
+            "p50": 35.82627966666678,
+            "p95": 40.868711999999505,
+            "p99": 42.118711999999505,
+            "max": 42.118711999999505
+          },
+          "applyAgeMs": {
+            "count": 60,
+            "min": 30.826279666666778,
+            "p50": 35.82627966666678,
+            "p95": 40.868711999999505,
+            "p99": 42.118711999999505,
+            "max": 42.118711999999505
+          },
+          "playbackDelayMs": {
+            "count": 124,
+            "min": 74.51938005574448,
+            "p50": 75.12048962863719,
+            "p95": 75.33323996715535,
+            "p99": 75.33328410205468,
+            "max": 75.33329036217492
+          },
+          "renderAgeMs": {
+            "count": 124,
+            "min": 74.51938005574448,
+            "p50": 75.13484422081092,
+            "p95": 75.33326105465676,
+            "p99": 76.19435513896497,
+            "max": 76.33328410205468
+          },
+          "maxClockUncertaintyMs": 36.707190666666634
+        }
+      },
+      "bulkDidNotBlockGameplay": true,
+      "rtcFallback": true,
+      "websocketFallback": true,
+      "sameSession": true,
+      "queuedFireOnce": true,
+      "renderedScore": 3,
+      "errors": []
+    }
+  ],
+  "shortChurn": [
+    {
+      "engine": "chromium",
+      "configuredSeconds": 60,
+      "elapsedSeconds": 60.028907704000005,
+      "churns": 6,
+      "checkpoints": 2,
+      "drained": {
+        "sessions": 0,
+        "connections": 0,
+        "rtc": 0,
+        "wt": 0,
+        "ws": 0,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "pendingEvents": 0,
+        "connectionsAccepted": 30,
+        "protocolErrors": 0,
+        "rateLimited": 0,
+        "sessionResumes": 14,
+        "expiredSessions": 16
+      },
+      "resourcesAfterClose": []
+    },
+    {
+      "engine": "firefox",
+      "configuredSeconds": 60,
+      "elapsedSeconds": 60.124799523,
+      "churns": 6,
+      "checkpoints": 2,
+      "drained": {
+        "sessions": 0,
+        "connections": 0,
+        "rtc": 0,
+        "wt": 0,
+        "ws": 0,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "pendingEvents": 0,
+        "connectionsAccepted": 30,
+        "protocolErrors": 0,
+        "rateLimited": 0,
+        "sessionResumes": 14,
+        "expiredSessions": 16
+      },
+      "resourcesAfterClose": []
+    }
+  ],
+  "distributedFiles": {
+    "dist/browser/twinwire.js": "80f203d0a767182b3372b8d69c1bb4077358593b97ab8ddaef719fa9106b6759",
+    "dist/browser/twinwire.js.map": "66e264cee3d4ef9747a30d412603cb0f9f40dd6691f3a129347a6b25d388e6b8",
+    "dist/browser/twinwire.min.js": "bea1caddc4bb83022a08b1927c29665ef60ffc8bd0f6be5cb84499693a6bb0f9",
+    "dist/browser/twinwire.mjs": "e7e76a5e414768c18257c7db90d10abae8106d2392910b67c1000c6ff2e986df",
+    "dist/browser/twinwire.mjs.map": "d555dedfa9add06420646348005d9913abf192033c5cd1db1c6836b85443b315",
+    "dist/browser.d.ts": "45bd5c2d7769bc18d624591f4d65a11281e72f4fed5243e953d8ca30801f8ae2",
+    "dist/browser.js": "9e82ed97b8e35a97e7890cafb8309420f2d2207d64e5b08fc7091a0f017a4635",
+    "dist/browser.js.map": "19d7caac591a393bd47a68274c948263ac49d59c60ecaa9b11e11fa65aa70382",
+    "dist/client/bulk.d.ts": "f21eec52fd30522eb5d5d40bfc7ba92193ed8fdfc81e38681a8d3a8f2d6365e5",
+    "dist/client/bulk.js": "a57b6d50f23cfd56bae33acbbf37f91d49960d544458e2e1209b693a6a13dc8e",
+    "dist/client/bulk.js.map": "2aec97c6fd22bc63d8692157d6fcc5911ecfb771cede03524cdc655e05e7d3e0",
+    "dist/client/channel.d.ts": "b4e8fc401247ad8fa72c2c509d9fd3527b83d56807044135c93d068dc93d086b",
+    "dist/client/channel.js": "9f65f3c0abbadc2aecee72aa5c564c6b0f4a15ae6920c1f64dfbbe9aeca8f0e3",
+    "dist/client/channel.js.map": "3323886a24e99279b9981119075cd66194a7fc12a17a2c762b80b647141336f6",
+    "dist/client/client.d.ts": "f819eedee9742be6c2d8a4edb3a0a4a47fcc4b3932a40e260a88a25bb7093925",
+    "dist/client/client.js": "7fbd544073c586e06b354d4873e11ea4a2833cdd72518736d74bb177acf369b7",
+    "dist/client/client.js.map": "dc306591c988b126977c7cc246cc319648882ad81cfb5ca2592a1dcdaf064291",
+    "dist/client/index.d.ts": "a934294aaef9a12042ac855eb99c199e89b2cac16faf20f57155abecbe1f2745",
+    "dist/client/index.js": "92ad36c71bb9a6e0c1661183d0bae5efba319b3c028ee3c3ed72bc76d29ac54a",
+    "dist/client/index.js.map": "e69c6bdf9f65dc0f079fa185b6e03376f6ff8e7ac40dd6cfa1278390e9b9ae0c",
+    "dist/client/lobby.d.ts": "ecb0c8add6e4237a49469eb331134f12b837f1508961c03d5680c5e8c2575395",
+    "dist/client/lobby.js": "525764c502ed549dc6f46665bf07e529fd45d4aebb464875fead6a13e76d654c",
+    "dist/client/lobby.js.map": "fa78af3a8a2da6e77a0c9283a1eabc90f4a79a259f244fd5b8ad03bb32fa8008",
+    "dist/client/rtc.d.ts": "730f92e4a1cde10d77c0fee7da734bd3a1c83f829ab0e50479e346760ed1db5c",
+    "dist/client/rtc.js": "58daff86af196d376c6e61289b76efe789352b3d5c477eb8ed531f2632d4e1fb",
+    "dist/client/rtc.js.map": "7be14454b9003857c243dc650d4588da0b2c27ef522612ef2ec87ad6e3223fa2",
+    "dist/client/state.d.ts": "a6380afa4d2d4c1199ddf9ffd3bcb847ecceede8eb0c8eae2ef1afded0efcba4",
+    "dist/client/state.js": "9abb4656fcd65910e6acfdea5a317af9488136c2bb74cfddb21c4833db6563b9",
+    "dist/client/state.js.map": "84700856f2eaf7a14b249e812e042ef2013db0e12e9244e85f65d42e1dcd79e3",
+    "dist/client/webtransport.d.ts": "5aefe7940cbda1fd9c5b8b860f8bc7e420c1aeb3b011155bad8cbdeb87d1505e",
+    "dist/client/webtransport.js": "ffb28fabfcd78efd509d7036d17a97fa355319c8de94892056afe998bf5f3a31",
+    "dist/client/webtransport.js.map": "db06cddd26ddc182652f6c7427180a3730ffa3c8b9fba74812d7c3dca2da7ac0",
+    "dist/core/budget.d.ts": "07f50b6b477e4d113a9a9de187d08626e078b2ab0027a3573a55afe476b1d6ae",
+    "dist/core/budget.js": "6f7d08d0f5cf522434f1b10b2614442649ad9b95954efedc9bcba541929aced5",
+    "dist/core/budget.js.map": "43c99bf5ad402231a3eb4953555b3aee39b693317e50f6112eaced31e5165d4d",
+    "dist/core/channels.d.ts": "f945ca88c598e5a554171ab5b322667972deace5b68e052a8eb9a47660c266e2",
+    "dist/core/channels.js": "d817f835a4716322863a6be9d6fc6e6b513759004229f8d1e215e296b5a3a69c",
+    "dist/core/channels.js.map": "2af426ac913d1ca08875e8b9ea57deb213b4cd0a3811f5c0d61fc54e4716c72e",
+    "dist/core/clone.d.ts": "9bf4fe56615d2c3c4f6a9e6d1dc571ddb6400096f72055f3abfa73616c738860",
+    "dist/core/clone.js": "9d0e8ae2b4359195ea06916d9349febefb7d72bf33a2ba31558e00f250fc7dec",
+    "dist/core/clone.js.map": "166d3ac740dd93e041d41dd47477ee5f1bb8c4c2051dfb1ead81038774dc3ac7",
+    "dist/core/diagnostics.d.ts": "21b789e05cab31e57888426587cda4734f6be7314961f671a76ed718525e469a",
+    "dist/core/diagnostics.js": "cf2aa86648385042764b5931cab7c31907682e5e7309ca04107e3c0d04f8dca6",
+    "dist/core/diagnostics.js.map": "7d3d5b0629006de3e7b4e1efe68d781687a9031e72e50dbf7ba09b0a8c59e10a",
+    "dist/core/endpoint.d.ts": "09881b35cb041c9167e4ba461575d9958e1f2c60c173faa5f4d07d769331e0e5",
+    "dist/core/endpoint.js": "cf3f1982af1c20370fd610cd9ad2e4d56e00c63de17da32a5504d123c3fc07a4",
+    "dist/core/endpoint.js.map": "471c2550f73a441df17629f00dbb2313fdf8379ad5204f39f935fbbe3b45ac40",
+    "dist/core/lobby.d.ts": "e5b85bad0246c9b1b28663e6d82cbbff9e611f296839b285935d43d79b2e7b07",
+    "dist/core/lobby.js": "96a1c0b5085037b47880eb1cd44a6097f19e83d00b1eb4cdea1a0575a768bf6c",
+    "dist/core/lobby.js.map": "9e88437996aded096eb4ce913f8385faa0dbbbf9dbfc1fa2bdcb3870b9105c19",
+    "dist/core/protocol.d.ts": "097574f75d92e51d106f546015ad9a819bff131cb1d24524cd2f15d3297d8dab",
+    "dist/core/protocol.js": "9b4692b5604f533348977097a909bfa420444a5dae60ceccf7dae4175243e59a",
+    "dist/core/protocol.js.map": "020a17f9c44f630c46acb1bfa4c30898e071bd46e0c341f6a96085f92f569826",
+    "dist/core/reliable.d.ts": "d2b240ee19aefc480ba639151ac99004af4ae4be7834e2f14823aef537e45b45",
+    "dist/core/reliable.js": "32c7bd89d1ed1a66211fc220c9519c1b306aa62e5d0309e6a85cd595242fd0d8",
+    "dist/core/reliable.js.map": "2e575959fe7377699da4258c640603160d27a7946852a0d4989838144745d069",
+    "dist/core/rtc.d.ts": "c0f7c6611037d185590595221255b589802f72c16a20f7ab38444a3207cf3bc0",
+    "dist/core/rtc.js": "001350beb485b865219ce8ee92b0ca4f626af71f477535847bab17af66043c65",
+    "dist/core/rtc.js.map": "0e51410bc70fbb513d0b740f7ded2b3463792c93720bcb98142ee07352883c61",
+    "dist/core/session.d.ts": "c044f6b4d7c140c83e280febb91bad7a9cf258635777bba2ba55493a078a6ece",
+    "dist/core/session.js": "23b6c862a81232e1344f8749215d505246156220391a6fe29ac73b0d1f0774bf",
+    "dist/core/session.js.map": "61fd52955e774cd20ee5b6e51ddd024a48eaab23c3723a1d689bc3988a132415",
+    "dist/core/webtransport.d.ts": "0fef34474cfaa18f1919992ea5f9e219316744212720f47b05524b89acc08d61",
+    "dist/core/webtransport.js": "eb56acb591d177403e858e1708e46cbf06aaf9fe638a1e07491e25d2d7c68dcb",
+    "dist/core/webtransport.js.map": "1223d9293464b3eecdfe881fe5a32009b6b9b644a84ae90ecca4a63527e6789b",
+    "dist/index.d.ts": "e3e1a251d3f15d7e713b646c3b95b1620017b3dc21121a3718ce8415ab7e754c",
+    "dist/index.js": "10a967053bf21dbc71a9d938270d371a478d3493a3749629c5d944656f04176f",
+    "dist/index.js.map": "4118bba01554d3d6b10911e112a05817c6c34268895d9c4124769dc4326b445a",
+    "dist/netcode/clock.d.ts": "5a1aa2d93679716d8aa7567b6b17c47dd5a73ea6b09e340abef6d97e84b0d08a",
+    "dist/netcode/clock.js": "1124588acb799cfb0e7dbfe00e498bbbc33bffa61406c2c4c5be217982e2d930",
+    "dist/netcode/clock.js.map": "81404b793a9fe39a3d480f0953bcaa6b5657776717c9c6cf3b98cdff368c2bca",
+    "dist/netcode/codec.d.ts": "4e2a9c06d290395062a3b55a7a9a15234b77d7200e5b8cb3b2b922d286934d0c",
+    "dist/netcode/codec.js": "835296699d215e76068b465a72461ff37d1edffc7cf41a0708b7fd88f7443910",
+    "dist/netcode/codec.js.map": "fdb9a358b2f74c104f8a45deda27db5aa150340fd5e5f73fb85ac95be665f7b2",
+    "dist/netcode/index.d.ts": "75b5c0d3368dc18453bb4b7fd23b95e1c05c9c5f852b44ebfc94bd50cef00bc8",
+    "dist/netcode/index.js": "1a336c028d6211a3eb46563bde95b748fc012e23864ac280a05a8e31401cb23f",
+    "dist/netcode/index.js.map": "f56b35fbb7b61a469b38f453e96ef81e0516f18f266ebb3e4dc27b8e1dfc7fa6",
+    "dist/netcode/inputs.d.ts": "7f76389c9c64358c65c9a8f8ed2b57d00f44a647575d80b554b0e03622b6f450",
+    "dist/netcode/inputs.js": "8765bb63122f5d8070f86f24c5900c6f6cf97ad7923b37b09303b1c67013b586",
+    "dist/netcode/inputs.js.map": "098fce69f44b4e136c1864751c3c756163bdeeb256cfbc230816ceaf46effb5e",
+    "dist/netcode/interpolation.d.ts": "c729bb6614e229e07102ba3b02c95cc1d448a0a34e69fd807514c0fd26f7994d",
+    "dist/netcode/interpolation.js": "a92f62ae52d04200cce134dd45392c665e08624973a58901e4fc45d9884bcbb4",
+    "dist/netcode/interpolation.js.map": "86c81342b5ec722132b5f8358990a7a1d3d43090c7c1ff9f617909dc632c4816",
+    "dist/netcode/prediction.d.ts": "72c8e20167e5edc5ce52477c95fb8fbad2505f088a9209d5b862753c459988cd",
+    "dist/netcode/prediction.js": "e6c224f0fac61b97fa43606e301e3d24dd8eb74b6f63150a75af91c6f81b5b9a",
+    "dist/netcode/prediction.js.map": "f34f93c1764ce3bee80ea4688f30f18b1c1ca9d6a22fb29fb6a69053c4532ec2",
+    "dist/netcode/replication.d.ts": "3c49a5206210cdc99cac299cdfdff6c4caf37c7333c7fe0621ec463bffe49723",
+    "dist/netcode/replication.js": "4759b846286e533e650f463fa4eea57bb1b591604af4989e00cc81c9f62dbdb7",
+    "dist/netcode/replication.js.map": "e58eb1e0a66e6244e2ce09511921380a96f23dfee68a2a0fd96ac04ba85e05cb",
+    "dist/netcode/rewind.d.ts": "b3ec5c9b6905d3659724a2103b17a211224abed26443da41a88487d34583e1e3",
+    "dist/netcode/rewind.js": "83de5398c8f0a25ff6d760a57b4d0b000f5f617ffa0adcb20959333ca1908b0d",
+    "dist/netcode/rewind.js.map": "942e311a350bc6c4536d998c9e1f1da15ee1efe3f9425c5244f15009fee62d58",
+    "dist/netcode/snapshots.d.ts": "f1ac8cdca203af1664e70ce422e4403e32927776ef15a0a26f96c11e9a2502d0",
+    "dist/netcode/snapshots.js": "12478a0b0a22de2f2ef4733d3fe4dcf7e62636731a5ad25093e95b01cf765dde",
+    "dist/netcode/snapshots.js.map": "c0b7eaee0f2def7d0d58a88df96d4052144bd8a1736c8bd4b0fd7cc560c50dc3",
+    "dist/netcode/spatial.d.ts": "0ed108968a422fb4717e701ff7b5b76c9001dd129e0dd9a5bbe2de12619487f6",
+    "dist/netcode/spatial.js": "19d9ddde6044a2ce9e670ef01f1f11c1fb741da989dc00d0bf1f50934dcc3e7a",
+    "dist/netcode/spatial.js.map": "5a0d37157008b639925c1e9616ffbf392e8579aed7c8b815621083f92e9ce413",
+    "dist/netcode/subtick.d.ts": "2304ea92f13d4f1e38feb447969aad38ab756a357027792a93280dda8cdbcf94",
+    "dist/netcode/subtick.js": "6d765125f766cdaf148c535c5c6bb94e6ed4686e7e16a80b25f60063a7e90c8f",
+    "dist/netcode/subtick.js.map": "d105e2205d6b23cd32efbbf58accdc34283d8b178f937080ff013610c6e3d614",
+    "dist/netcode/timing.d.ts": "25fee660e2157fc07b317ce01558ae526ff72254abafc2f40885583dc3ac0359",
+    "dist/netcode/timing.js": "4f1acc6abc7b5852a496509fea8567697efd62fb9ba79a144077935f08ea658a",
+    "dist/netcode/timing.js.map": "046e12b8c2983761ad29b3e269394477eeb9dd212c7e5515c8d598b756b5ec65",
+    "dist/server/bulk.d.ts": "e519787e9eca1ef9788c41968eaa12cd886632e199eeaa12a8a4bb18c4e46e56",
+    "dist/server/bulk.js": "a0a6a5c9050feae0029082e7f6f9fe5cbc614a5283f961fb7f84383c8a117207",
+    "dist/server/bulk.js.map": "9aa7ffbb0ca52a86bbbc7fca815ddc087dfc33108b876357dadd9e3fa6858142",
+    "dist/server/channel.d.ts": "3e6ea1347639bd743b34f435aee0b168bf023a0f1244fd661f10881d8368939b",
+    "dist/server/channel.js": "729ff80290c48574b357cf63ec200dd0685f4604fbe2dc7b4910fed406998e67",
+    "dist/server/channel.js.map": "4f6e1a9672cf91b0faf0ef5c65346120f01032064a93f61938bfffb9ed3dbf30",
+    "dist/server/index.d.ts": "019d937404d2c067b6cd777b764178af9dad3df3ef0cdd303f72b042d1d6b215",
+    "dist/server/index.js": "6d7ae5e02c9f802ce83f637853d0ec1fe700f04d19303c294023e6d7f4eecd1e",
+    "dist/server/index.js.map": "fb9810a2a4a58060e10872b37bd4ec86077fed9ce861cada00fa8f54a1a6d52d",
+    "dist/server/lobby.d.ts": "4ddd2dbf2587ed06ed180407db7120168cb3498e6412fa5355aaf9bb4b7de0d2",
+    "dist/server/lobby.js": "e97738fc08ba8e25df05a44b0e1eb77a39c3b335eb4d8e989faa9dd46cadee92",
+    "dist/server/lobby.js.map": "aa8c315b7f69080d01c16e1927d8567fa0dba5a59aaf036bf813a0d3613c34d0",
+    "dist/server/rtc.d.ts": "59edfaf8be4f9f3bc171d5f55de6e65f9b6b540285096ef128a9fcdcfaff5d1f",
+    "dist/server/rtc.js": "0cf1486031d9df803c0cad74880a59b659e083b398a44d5c6e6a2eb7158df68f",
+    "dist/server/rtc.js.map": "58b0dd28f414e8da65abbfccd25f5e9da3413befb03705e2c4a424d4a880422f",
+    "dist/server/server.d.ts": "cf89703c539ea225d99c70a06547aaed171692839753be72e426fe7dc4538cfd",
+    "dist/server/server.js": "0ccbf8f4364cb6f27a5d7cd371edee21c016b4112284e6083ff973ea52360169",
+    "dist/server/server.js.map": "4bb7af9e43c630b8cb44d3f2f260ab8b3de0cb1725db899717f523b8827bb63b",
+    "dist/server/turn.d.ts": "afee71b08d48a2656365b33b46bd3bc7b0fdd83e96a1f0b1f00cf7d309532868",
+    "dist/server/turn.js": "242bf4cc4c4a9c4c6091e34693cb43f6d021a790f9facf926dd2428828a50e4a",
+    "dist/server/turn.js.map": "0b5599d77268dd9af2488ee683caebd7166041316f9a958d476f555352f2f098",
+    "dist/server/webtransport.d.ts": "4bb78f0ee9eabe0322b37058fd29b77ab7fe81c6961811c0a4e1835bc5bfda72",
+    "dist/server/webtransport.js": "7a93fc0f97716849e7316050f13df97c8d8ea1e46cb0c3e4566f9320caf1d6cd",
+    "dist/server/webtransport.js.map": "758ca9aedc9dc25e61c3a257ef939976cd751de922a51d03c12c82344b1e58bf",
+    "dist/worker.d.ts": "5d80c04371e1736c26af191b2b9c3415e7c6a35415dd81b88fa692613838dcd8",
+    "dist/worker.js": "b660169c20abdd4494f85c071a62910bc5c8d1c513399a71a339f84b03b03b55",
+    "dist/worker.js.map": "d917409d2981497eb49650654c5acda91c849618e306b266094cac059bc6b696"
+  },
+  "limits": [
+    "These controlled localhost observations do not establish cellular, maximum VPS capacity or physical-device performance.",
+    "Snapshot age is a synchronized estimate with clock uncertainty and includes browser callback scheduling.",
+    "Explicit render submission is not GPU presentation. Application impairment does not model complete QUIC congestion.",
+    "Pinned Linux WebKit lacks native WT; its successful fallback must not be presented as Safari/iPhone QUIC proof.",
+    "Game deployment and actual public gameplay acceptance are recorded separately. No absolute perfection claim."
+  ]
+}

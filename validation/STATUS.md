@@ -1,30 +1,59 @@
-# Validation status: 3.0.0 candidate (2026-11-03, not released)
+# Validation status: 3.0.0 (2026-11-04)
 
-The candidate uses wire generation 5. Local build and 227 tests passed after diagnostics, bulk resources,
-multi-path capabilities, framing/cancellation, session-binding, corrected scheduler borrowing, standby retry debt
-legacy missing-reliability capability negotiation, resource timeouts/ownership and Node Buffer copy boundaries.
-The local native RTC fallback/recovery gate and actual workerd compatibility matrix also pass after the dependency
-update; both development and production npm audits report no findings.
-Actual HTTP/3 cannot load on this Ubuntu 22.04/glibc 2.35 machine: the optional
-prebuilt provider requires GLIBC_2.38. Memory-stream adapter tests are not QUIC evidence. The first candidate's hosted
-Ubuntu24 gates pass core Node22/24, all existing browser matrices and both 10-minute lifecycle soaks. Firefox actually
-receives WT application states in normal/impaired runs; pinned Linux WebKit has no native WT and passes RTC/WS fallback.
-Chromium153 omits `reliability`, motivating explicit HTTP/3 host confirmation. The corrected native/browser gates
-pass at7e00fbc in CI41769031215: Chromium and Firefox each receive actual WT states in both normal and impaired runs,
-prove RTC/WS fallback, execute game commands while independent resources wait and render the updated score after
-same-ID recovery. WebKit remains fallback-only coverage. Later resource/Buffer changes need final-head gates.
-The first candidate's alternating 3x50-client localhost comparison has delivery ratio1.000, CPU ratio1.02234,
-RSS ratio1.00873 and candidate loop p9919.759ms. Those results are attached to CI41767377314 at d7f126f, not a claim
-about later runtime changes. Final head gates, longer soaks and production upgrades remain pending. Do not infer publication
-or live game upgrades from the candidate version in package.json.
+3.0 uses wire generation 5. Local build and **232 tests** pass, including actual optional-provider JS
+lifecycle regressions, dynamic QUIC message limits, state/event scheduling, session binding, bulk cancellation,
+timeouts and immutable Node Buffer ownership. Native RTC fallback/recovery and the real workerd compatibility
+matrix pass. Both development and production npm audits report no findings.
+
+The final runtime is `90f745d`. Its hosted Ubuntu24
+[full run](https://github.com/studiokimeiga/twinwire/actions/runs/41777183172) records core Node22/24, native RTC,
+workerd, all original Chromium/Firefox/WebKit normal, impaired, forced-WS and party gates, and independent
+60-minute Node22/24 lifecycle and Chromium/Firefox native QUIC soaks. Publication requires successful completion
+of every job in that run and the final PR gates. Consult the linked run for its recorded conclusion; package.json
+alone is not publication or production acceptance evidence. The earlier
+[3fa9f8f hour-long run](https://github.com/studiokimeiga/twinwire/actions/runs/41773073530) completed successfully,
+but predates the final shared-close ownership correction and does not substitute for final-runtime validation.
+
+Real Chromium153 and Firefox155 receive WT application states, prove RTC/WS fallback, execute game commands while
+two hashed HTTP resources are pending and render the recovered score after same-ID resume. Pinned Linux WebKit
+does not expose native WT and proves fallback only. Chromium's missing `reliability` property requires explicit
+HTTP/3 host confirmation and subsequent two-way datagram proof. A short churn soak exposed a provider crash from
+premature cancellation of provider-owned session streams; releasing readers and letting physical closure own
+its controllers fixes both real-provider regressions. Shared ownership also ensures that browser adapters,
+endpoints and native hosts close each physical session only once.
+[Both final 60-second churn probes](https://github.com/studiokimeiga/twinwire/actions/runs/41776818293)
+pass six churn cycles, two checkpoint reloads and complete session/socket/timer drain per browser.
+
+The local Ubuntu22/glibc2.35 host cannot load this provider's GLIBC_2.38 native binary. Memory-stream tests never
+count as QUIC evidence. Production hosts must separately support the optional provider, TLS and a routed UDP listener.
+
+The final-runtime alternating three-repeat 50-client localhost comparison with published 2.3.0 gives delivery
+ratio **1.000**, CPU ratio **1.0196**, RSS ratio **1.0105** and candidate event-loop p99 **20.152ms**.
+The same run's tracing measurements retain 512 entries under load: opt-in recording gives CPU ratio **1.0814**,
+RSS **1.0118** and unchanged delivery against disabled tracing. Raw repetitions, per-path browser timing,
+measurement limits and all 131 distributed-file hashes are in the [public evidence](transport-3.0.0.json).
+These observations include clients and server together on one runner; they are not universal speedup or FPS claims.
+
+The browser gate records successive 60-state WT/RTC/WS phases with receipt/application age, playback,
+render-submission age and clock uncertainty. Clean Chromium receipt medians are 0.23–0.36ms with uncertainty up to
+0.27ms, while render-submission age is about35–38ms. With explicit application impairment, receipt medians are about
+34–35ms and playback/render age about73ms; clock uncertainty rises substantially. Firefox's slightly negative
+submillisecond age estimates lie inside its reported clock uncertainty. These distinguish measurable boundaries;
+they do not measure pure wire delay or GPU presentation, and the impairment is not a full QUIC network emulator.
+
+Intermediate PR reruns exposed two test assumptions: nominal20+20ms timeouts could deliver after38.68ms, and a
+lobby countdown could be null before clock synchronization. Fixtures now respect monotonic deadlines and wait for
+clock synchronization without relaxing accuracy requirements. The impaired browser exercise repeats movement
+intent until accepted, because a single unreliable packet can legitimately be lost, while issuing the ordered
+fire command only once. Native provider cleanup failures were fixed in runtime code and reproduced by regressions.
 
 The deterministic endpoint model compares the unchanged published 2.3.0 tarball with this candidate. An initial
 reservation policy improved state delivery but stranded surplus credit and cut event throughput; it was corrected
 before commit. The corrected three-second overload case delivers 60/60 states and 17 ordered events versus 32/60
 states and 18 events on 2.3, at 12,247 versus 12,338 encoded bytes. Pure state and pure event cases have identical
 delivered counts/bytes. These are modeled fixed-clock endpoints, not browser/QUIC/VPS performance or fairness results.
-The raw old and corrected observations are retained in the execution workspace; hosted artifacts will record final
-commit-specific comparisons and real measurements. See docs/TRANSPORTS.md for APIs, guarantees and measurement limits.
+See docs/TRANSPORTS.md for APIs, guarantees and measurement limits. Game deployment and live acceptance have
+separate receipts; these SDK tests do not certify any particular production game or every device/NAT.
 
 ## Validation status: 2.3.0 (2026-11-01)
 

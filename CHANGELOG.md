@@ -1,10 +1,11 @@
 # Changelog
 
-## 3.0.0 (unreleased candidate)
+## 3.0.0 (2026-11-04)
 
 - Wire generation 5 adds optional authenticated WebTransport datagrams. Bind each physical HTTP/3 path to the live
   WebSocket session using a short-lived, one-use ticket and epoch; prove both directions before selecting it. Keep
   independently proven RTC and WS fallback, path-size limits and hysteresis. Reliable session/events remain on WS.
+  Respect changing datagram limits and provider-owned stream teardown; standby proof clears retry debt too.
   This protocol change requires paired client/server deployment; 2.x clients cannot connect to 3.0 hosts.
 - Add optional bounded metadata tracing for state enqueue, send, receipt, accepted application, playback and explicit
   render submission. Report clock uncertainty and separate queue time from playback age; never retain payloads/secrets.
