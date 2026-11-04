@@ -29,6 +29,57 @@ concurrency:
   group: networking-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  starters:
+    if: ${{ !inputs.webtransport_only }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm ci --prefix examples/starter
+      - run: npm ci --prefix examples/starter-worker
+      - run: npm run build --prefix examples/starter-worker
+      - run: bash tools/prepare-browser-runner.sh
+      - run: npx playwright install --with-deps chromium
+      - name: Real Node RTC, forced WebSocket and Worker starter recovery and tracing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/starter
+          RTC=1 HOST=127.0.0.1 PORT=18770 RTC_PORT=18771 node examples/starter/server.mjs > artifacts/starter/node.log 2>&1 &
+          starter_pid=$!
+          (cd examples/starter-worker && exec node node_modules/wrangler/bin/wrangler.js dev --local --port 8789) > artifacts/starter/worker.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$starter_pid" "$worker_pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const installed=JSON.parse(fs.readFileSync('examples/starter-worker/node_modules/twinwire/package.json'));
+          const {VERSION}=await import('./examples/starter-worker/node_modules/twinwire/dist/index.js');
+          for(const url of ['http://127.0.0.1:18770/','http://127.0.0.1:8789/health']){
+            let response;
+            for(let n=0;n<100;n++){
+              try{response=await fetch(url);if(response.ok)break;}catch{}
+              await new Promise(r=>setTimeout(r,300));
+            }
+            assert.ok(response?.ok,url);
+            if(url.endsWith('/health')){const h=await response.json();assert.equal(h.twinwire,installed.version);assert.equal(h.wire,VERSION);}
+          }
+          NODE
+          STARTER_URL='http://127.0.0.1:18770/?room=starter-node-rtc' STARTER_WIRE=rtc STARTER_LABEL=node-rtc node tools/starter-e2e.mjs
+          STARTER_URL='http://127.0.0.1:18770/?room=starter-node-ws&rtc=0' STARTER_WIRE=ws STARTER_LABEL=node-ws node tools/starter-e2e.mjs
+          STARTER_URL='http://127.0.0.1:8789/?room=starter-worker' STARTER_WIRE=ws STARTER_LABEL=worker node tools/starter-e2e.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: starter-recovery-and-tracing
+          path: artifacts/starter/
+          retention-days: 7
   core:
     if: ${{ !inputs.webtransport_only }}
     runs-on: ubuntu-24.04

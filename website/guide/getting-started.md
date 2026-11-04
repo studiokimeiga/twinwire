@@ -37,6 +37,15 @@ npm start
 A checkpoint contains a private resume token: keep it in a per-player store, never put it in a shared URL.
 An expired session needs an explicit new start; old actions are not sent to a new player.
 
+### See where state spends time
+
+Open **State timing** below the arena and enable recording. The same invite and player resume after the page
+reloads. The recorder retains at most 512 metadata samples and reports state age on receipt and when the game
+submits its canvas draw, along with server-clock uncertainty. Disable it to remove the trace observer.
+
+These ages include their stated boundaries: the draw mark is an application submission, not GPU presentation.
+They do not isolate browser scheduling or game playback into network delay. [Read the tracing contract](/reference/api/transports#observe-the-actual-boundaries).
+
 ## The server
 
 This is the complete starter server, including its simulation and static-file routes:

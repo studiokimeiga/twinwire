@@ -20,11 +20,15 @@ the exact tested runtime, distributed-file hashes, controlled 2.3 comparison, tr
 
 The Worker compatibility matrix runs real workerd Durable Objects at both 2025-01-01 and 2026-03-17 compatibility dates: binary state, ordered replay, same-session recovery, takeover fencing, origin rejection and close handshakes. The hosted arena verifies actual movement, a queued ping exactly once, same-player reconnect and checkpoint reload. The complete Node starter also verifies application snapshots over native RTC.
 
-Production acceptance is separate from SDK validation. The previous 2.2 rollout verified ten paired games through
+Production acceptance is separate from SDK validation. The 3.0 rollout verified eleven paired games through
 their public URLs: movement/actions, same-session reconnects and current-world presentation on native RTC and forced
 WebSocket for the Node games. Emoji Mahjong preserves private hands and seats through disconnect and reload in
-desktop Chromium, phone-sized Chromium and phone-sized WebKit. Each newer rollout needs its own matching client,
-server and acceptance receipt. [Try the live integrations](/demos#live-game-integrations).
+desktop Chromium, phone-sized Chromium and phone-sized WebKit. Oak0's public clients deploy on both teams, move,
+fall back from RTC and retain identity through interruption and reload. Each newer rollout needs its own matching
+client, server and acceptance receipt. [Try the live integrations](/demos#live-game-integrations).
+
+The [3.0 production acceptance record](https://github.com/studiokimeiga/twinwire/blob/main/validation/games-3.0.0.json)
+lists the eleven tested source revisions, merged PRs, public endpoints, scenario boundaries and longer game-run links.
 
 The starter checks use real movement, an offline queued ping exactly once, same-player reconnect and checkpoint
 reload. Public-download verification compares its files with the clean-installed tested project. The release record

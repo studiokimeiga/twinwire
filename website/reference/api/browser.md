@@ -14,7 +14,7 @@ netcode. The build targets Safari 15 syntax; tested engines and deployment limit
 ## A script tag
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/twinwire@2.2.0/dist/browser/twinwire.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/twinwire@3.0.0/dist/browser/twinwire.min.js"></script>
 <script>
   const { GameClient, LobbyClient, Timeline, AdaptivePlayback, lerp } = Twinwire;
   const net = new GameClient({ url: 'wss://play.mygame.com/connect', room: 'mygame' });

@@ -57,8 +57,8 @@ deploy the client and server together. For rooms, ready-up, prediction and chat,
 - [kimu.nyc](https://kimu.nyc): a shared city, with interest groups and adaptive playback for nearby players.
 - CS2 browser prototype: authoritative shooter movement, fire events and paired client/server releases.
 
-The 2.2 release also runs in seven more games, including a turn-based Worker game and several arena games.
-[Explore all ten live integrations](/demos#live-game-integrations).
+Twinwire 3.0 also runs in eight more games, including Oak0, a turn-based Worker game and several arena games.
+[Explore all eleven live integrations](/demos#live-game-integrations).
 [Read the release evidence and its limits](/reference/verification).
 
 ## What you bring

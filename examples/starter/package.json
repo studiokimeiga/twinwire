@@ -10,7 +10,7 @@
     "start": "node server.mjs"
   },
   "dependencies": {
-    "twinwire": "2.2.0"
+    "twinwire": "3.0.0"
   },
   "optionalDependencies": {
     "node-datachannel": "^0.33.4"

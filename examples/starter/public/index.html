@@ -12,6 +12,11 @@ output{display:block;min-height:48px;font:14px monospace;margin:14px 0;overflow-
 <output id="status" aria-live="polite">Connecting…</output>
 <div class="controls"><button id="ping">Send reliable ping</button><button id="drop">Disconnect for 2 seconds</button><button id="new" hidden>Start a new session</button></div>
 <p id="messages" aria-live="polite">A ping adds one point. A reconnect keeps your ID and score.</p>
+<details id="timing-panel"><summary>Measure state timing</summary>
+<p><a id="timing-toggle" href="?trace=1">Record timing</a> to collect at most 512 metadata entries. This reloads the page and resumes your seat. No player payloads or tokens are recorded.</p>
+<output id="timing">Timing is off.</output>
+<p>Receipt age includes the server, network and browser scheduling. Render submission adds the time until this canvas draw; it does not measure GPU presentation. Ages use the synchronized server clock and its uncertainty. These values are observations from your connection.</p>
+</details>
 <p>This demo uses a real server. Add <code>?rtc=0</code> to test WebSocket only. To try WebRTC, restart the server with <code>RTC=1 npm start</code>.</p>
 <a href="https://studiokimeiga.github.io/twinwire/guide/getting-started">Read the code walkthrough →</a>
 <script type="module" src="/game.mjs"></script></body></html>
