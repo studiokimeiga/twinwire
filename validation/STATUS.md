@@ -18,6 +18,11 @@ The application remains deliberately overloaded, with rejected attempts and long
 neither these Canvas trials nor the package version establish game-FPS improvements or production deployment.
 The final package-version and production acceptance gates must complete before publication is considered done.
 
+The package-version CI run exposed a pre-existing adapter-fixture assumption: client-side WT proof does not prove
+the server's return path. A deliberately slower server pump reproduces the first-state WS observation before its
+probe reply. The fixture now waits for the authority's independent proof before requiring WT application delivery;
+the oversized-state WS fallback assertion remains. This changes the test's synchronization, not path-selection code.
+
 ## Validation status: 3.0.0 (2026-11-04)
 
 3.0 uses wire generation 5. Local build and **232 tests** pass, including actual optional-provider JS

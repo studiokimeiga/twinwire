@@ -29,7 +29,7 @@ test('WebTransport adapter frames and authenticates the fast path against the li
   assert.equal(typeof serverApi.acceptWebTransport, 'function');
   let claim; const offers = [];
   const host = { url: 'https://game.test/twinwire', setAcceptor(fn) { claim = fn; }, async close() {} };
-  const server = await serverApi.createGameServer({ origins: [], allowMissingOrigin: true, webtransport: host });
+  const server = await serverApi.createGameServer({ origins: [], allowMissingOrigin: true, webtransport: host, pumpHz: 10 });
   const client = new clientApi.GameClient({ url: `ws://127.0.0.1:${await server.listen()}/connect`, room: 'wt', rtc: false,
     websocket: u => new WebSocket(u), syncPingMs: 10, endpoint: { probeIntervalMs: 20, probeTimeoutMs: 100 },
     webtransport: { create() {
@@ -40,6 +40,8 @@ test('WebTransport adapter frames and authenticates the fast path against the li
   const events = []; client.onEvent = d => events.push(d);
   client.connect(); await until(() => client.transport === 'wt', 3000);
   const id = client.id, session = server.sessions.get(id);
+  // Each endpoint needs its own probe replies. Client proof can precede the slower server pump.
+  await until(() => session.endpoint.datagramProven('wt'));
   session.onEvent = d => session.sendEvent(d);
   client.sendEvent({ once: 1 }); await until(() => events.length === 1);
   const states = []; client.onState = s => states.push(s);
