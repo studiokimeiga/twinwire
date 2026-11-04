@@ -1,4 +1,21 @@
-# Validation status: 2.3.0 (2026-11-01)
+# Validation status: 3.0.0 candidate (2026-11-03, not released)
+
+The candidate uses wire generation 5. Local build and 214 tests passed after diagnostics, bulk resources,
+multi-path capabilities, framing/cancellation, session-binding and the corrected scheduler borrowing policy.
+Actual HTTP/3 cannot load on this Ubuntu 22.04/glibc 2.35 machine: the optional
+prebuilt provider requires GLIBC_2.38. Memory-stream adapter tests are not QUIC evidence. Hosted Ubuntu24 real-browser
+WT/RTC/WS gates, longer soaks, broad release gates and production upgrades remain pending. Do not infer publication
+or live game upgrades from the candidate version in package.json.
+
+The deterministic endpoint model compares the unchanged published 2.3.0 tarball with this candidate. An initial
+reservation policy improved state delivery but stranded surplus credit and cut event throughput; it was corrected
+before commit. The corrected three-second overload case delivers 60/60 states and 17 ordered events versus 32/60
+states and 18 events on 2.3, at 12,247 versus 12,338 encoded bytes. Pure state and pure event cases have identical
+delivered counts/bytes. These are modeled fixed-clock endpoints, not browser/QUIC/VPS performance or fairness results.
+The raw old and corrected observations are retained in the execution workspace; hosted artifacts will record final
+commit-specific comparisons and real measurements. See docs/TRANSPORTS.md for APIs, guarantees and measurement limits.
+
+## Validation status: 2.3.0 (2026-11-01)
 
 2.3.0 adds server-measured round trips (`session.rttMs`, `session.minRttMs`, the `probeMs` option on both hosts),
 `SubtickInputBuffer`/`replaySubtick` and `selectRewindTime`, Safari 15.0-15.3 clone compatibility and Windows test

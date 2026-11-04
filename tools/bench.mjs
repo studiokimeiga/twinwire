@@ -1,5 +1,10 @@
-import { createGameServer } from '../dist/server/index.js';
-import { GameClient } from '../dist/client/index.js';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const sdkRoot=process.env.TWINWIRE_SDK_ROOT?path.resolve(process.env.TWINWIRE_SDK_ROOT):fileURLToPath(new URL('../',import.meta.url));
+const {createGameServer}=await import(pathToFileURL(path.join(sdkRoot,'dist/server/index.js')));
+const {GameClient}=await import(pathToFileURL(path.join(sdkRoot,'dist/client/index.js')));
+const sdkVersion=JSON.parse(await readFile(path.join(sdkRoot,'package.json'),'utf8')).version;
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 const option=(name,value)=>{const i=process.argv.indexOf(name);return i<0?value:Number(process.argv[i+1]);};
 const count=option('--clients',50), hz=option('--hz',20), seconds=option('--seconds',3), neighbors=option('--neighbors',8);
@@ -15,7 +20,7 @@ const timer=setInterval(()=>{sends++;for(let i=0;i<clients.length;i++){const b=n
 await new Promise(r=>setTimeout(r,seconds*1000));clearInterval(timer);await new Promise(r=>setTimeout(r,100));
 const elapsed=(performance.now()-begin)/1000,used=process.cpuUsage(cpu);lag.disable();
 const down=peers.reduce((n,p)=>n+p.endpoint.stats.bytesSent,0),received=clients.reduce((n,p)=>n+p.endpoint.stats.statesReceived,0);
-const result={kind:'localhost-single-process-websocket',node:process.version,clients:count,hz,neighbors,seconds:elapsed,
+const result={kind:'localhost-single-process-websocket',sdkVersion,node:process.version,clients:count,hz,neighbors,seconds:elapsed,
  incomingStates:rawMessages,deliveredStates:received,serverEncodedBytesSent:down,serverEncodedBytesPerSecond:down/elapsed,
  perClientEncodedBytesPerSecond:down/elapsed/count,cpuMsIncludingClients:(used.user+used.system)/1000,
  rssMB:process.memoryUsage().rss/1048576,eventLoopP99Ms:lag.percentile(99)/1e6,errors,

@@ -56,6 +56,28 @@ jobs:
       - run: npm run test:worker
       - run: npm run test:native
       - run: npm run bench -- --clients 50 --seconds 5
+      - name: Compare against immutable published 2.3.0
+        if: matrix.node == 22
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .benchmark-baseline artifacts/transport
+          npm pack twinwire@2.3.0 --ignore-scripts --silent --pack-destination .benchmark-baseline
+          sha256sum .benchmark-baseline/twinwire-2.3.0.tgz > artifacts/transport/baseline-SHA256SUMS
+          tar -xzf .benchmark-baseline/twinwire-2.3.0.tgz -C .benchmark-baseline
+          ln -s ../../node_modules .benchmark-baseline/package/node_modules
+          node tools/compare-transport.mjs --baseline .benchmark-baseline/package > artifacts/transport/endpoint-model.json
+          for n in 1 2 3; do
+            TWINWIRE_SDK_ROOT=.benchmark-baseline/package node tools/bench.mjs --clients 50 --seconds 5 > "artifacts/transport/baseline-$n.json"
+            node tools/bench.mjs --clients 50 --seconds 5 > "artifacts/transport/candidate-$n.json"
+          done
+          node tools/assert-transport-comparison.mjs artifacts/transport
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.node == 22
+        with:
+          name: transport-comparison-node22
+          path: artifacts/transport/
+          retention-days: 7
   browsers:
     name: browsers (${{ matrix.engine }})
     runs-on: ubuntu-24.04
@@ -139,3 +161,33 @@ jobs:
           name: lifecycle-soak-node-${{ matrix.node }}
           path: artifacts/soak/
           retention-days: 3
+  webtransport:
+    name: WebTransport (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    env:
+      ENGINES: ${{ matrix.engine }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/check-wt-native.mjs
+      - run: bash tools/prepare-browser-runner.sh
+      - run: npx playwright install --with-deps "$ENGINES"
+      - run: node tools/webtransport-e2e.mjs
+      - run: IMPAIR=1 node tools/webtransport-e2e.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: webtransport-${{ matrix.engine }}
+          path: validation/webtransport*.json
+          retention-days: 7

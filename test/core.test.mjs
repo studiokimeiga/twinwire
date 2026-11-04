@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeFrame, decodeFrame, newer, stringify, readControl, MAX_STATE_BYTES } from '../dist/core/protocol.js';
+import { encodeFrame, decodeFrame, newer, stringify, readControl, MAX_STATE_BYTES, VERSION } from '../dist/core/protocol.js';
 import { ReliableEvents } from '../dist/core/reliable.js';
 import { TokenBucket, estimateEgress } from '../dist/core/budget.js';
 import { pair } from './helpers.mjs';
@@ -14,15 +14,15 @@ test('binary decoder rejects malformed, wrong-version and over-limit packets', (
   assert.equal(decodeFrame(bytes(1)), null);
   const good = () => encodeFrame(frame());
   const bad = f => { const b = good(); f(b); assert.equal(decodeFrame(b), null); };
-  bad(b => { b[0] = (5 << 4) | 1; });          // another protocol version
-  bad(b => { b[0] = (4 << 4) | 9; });          // an unknown kind
+  bad(b => { b[0] = (((VERSION + 1) % 16) << 4) | 1; }); // another protocol version
+  bad(b => { b[0] = (VERSION << 4) | 9; });     // an unknown kind
   bad(b => { b[1] = b[2] = 0; });               // epoch 0
-  bad(b => { b[0] = (4 << 4) | 2; });           // a probe carrying a payload
+  bad(b => { b[0] = (VERSION << 4) | 2; });      // a probe carrying a payload
   // the stream varint: overlong (a needless continuation), more than 3 bytes, or over 65535
-  assert.equal(decodeFrame(Uint8Array.of(0x41, 5, 0, 0x88, 0x00, 4, 0, 0, 0, 0, 0, 0, 0)), null);
-  assert.equal(decodeFrame(Uint8Array.of(0x41, 5, 0, 0xff, 0xff, 0xff, 0x01, 4, 0, 0, 0, 0, 0, 0, 0)), null);
-  assert.equal(decodeFrame(Uint8Array.of(0x41, 5, 0, 0xff, 0xff, 0x7f, 4, 0, 0, 0, 0, 0, 0, 0)), null);
-  assert.equal(decodeFrame(Uint8Array.of(0x44, 5, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0)), null);   // events kind with a stream
+  assert.equal(decodeFrame(Uint8Array.of(VERSION << 4 | 1, 5, 0, 0x88, 0x00, 4, 0, 0, 0, 0, 0, 0, 0)), null);
+  assert.equal(decodeFrame(Uint8Array.of(VERSION << 4 | 1, 5, 0, 0xff, 0xff, 0xff, 0x01, 4, 0, 0, 0, 0, 0, 0, 0)), null);
+  assert.equal(decodeFrame(Uint8Array.of(VERSION << 4 | 1, 5, 0, 0xff, 0xff, 0x7f, 4, 0, 0, 0, 0, 0, 0, 0)), null);
+  assert.equal(decodeFrame(Uint8Array.of(VERSION << 4 | 4, 5, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0)), null); // events kind with a stream
   assert.equal(decodeFrame(new Uint8Array(1101)), null);
   assert.throws(() => encodeFrame(frame({ payload: new Uint8Array(MAX_STATE_BYTES + 1) })));
   assert.throws(() => encodeFrame(frame({ time: NaN })));

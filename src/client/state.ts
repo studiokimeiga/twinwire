@@ -1,5 +1,6 @@
 import type { StateMessage } from '../core/endpoint.js';
 import type { AdaptivePlayback } from '../netcode/interpolation.js';
+import type { StateTrace } from '../core/diagnostics.js';
 
 export interface StateReceiverOptions {
   /** The authoritative snapshot stream. Omit for grouped snapshot streams: apply must reject unrelated payloads. */
@@ -23,6 +24,8 @@ interface ReceiverContext {
   now: () => number | null;
   tolerance: () => number;
   remove: () => void;
+  trace?: (stage: StateTrace['stage'], state: Pick<StateMessage, 'stream' | 'seq' | 'time' | 'via'> & { data?: Uint8Array },
+    details?: Pick<StateTrace, 'playbackTimeMs' | 'playbackDelayMs'>) => void;
 }
 
 /** A session-aware state stream. Create with GameClient.receiveState(), rather than wiring reconnect flags yourself. */
@@ -31,6 +34,7 @@ export class StateReceiver {
   private waiting = true;
   private resetOK = true;
   private disposed = false;
+  private last?: Pick<StateMessage, 'stream' | 'seq' | 'time' | 'via'>;
   private readonly maxExtrapolation: number;
   private readonly options: StateReceiverOptions;
   constructor(private readonly context: ReceiverContext, options: StateReceiverOptions) {
@@ -66,7 +70,16 @@ export class StateReceiver {
     // The new route may be slower: learn its delay while holding the old cursor, otherwise the fresh-data gate
     // could wait forever for data to fit the previous route's smaller buffer. Adapt exactly once per frame.
     this.options.playback.updateDelay(dtMs);
-    return this.ready ? this.options.playback.advance(this.context.now()!, 0) : null;
+    if (!this.ready) return null;
+    const now = this.context.now()!, at = this.options.playback.advance(now, 0);
+    if (this.last) this.context.trace?.('playback', this.last, { playbackTimeMs: at, playbackDelayMs: now - at });
+    return at;
+  }
+  /** Mark when the game submits a frame, optionally with the actual sampled snapshot time. This is not GPU presentation. */
+  markRendered(sourceTimeMs = this.last?.time): void {
+    if (!this.ready || !this.last || sourceTimeMs === undefined) return;
+    if (!Number.isFinite(sourceTimeMs)) throw new RangeError('Invalid render source time');
+    this.context.trace?.('rendered', { ...this.last, time: sourceTimeMs });
   }
   /** Remove the receiver without closing the session. A disposed receiver never becomes ready again. */
   dispose(): void {
@@ -74,7 +87,7 @@ export class StateReceiver {
     this.disposed = true; this.disconnect(); this.context.remove();
   }
   /** @internal */
-  disconnect(): void { this.waiting = true; this.newest = -Infinity; }
+  disconnect(): void { this.waiting = true; this.newest = -Infinity; this.last = undefined; }
   /** @internal Called before application session callbacks, even if disconnect/reconnect happened between render frames. */
   session(resumed: boolean): void {
     this.disconnect();
@@ -97,6 +110,9 @@ export class StateReceiver {
     // A sample received before clock sync must not poison subsequent freshness if its time proves implausible.
     if (now !== null && this.newest > now + tolerance) this.newest = -Infinity;
     this.newest = Math.max(this.newest, state.time);
+    if (this.context.trace && (!this.last || state.time >= this.last.time))
+      this.last = { stream: state.stream, seq: state.seq, time: state.time, via: state.via };
+    this.context.trace?.('applied', state);
     const playback = this.options.playback;
     if (this.waiting && playback && now !== null && now - state.time <= playback.maxMs + this.maxExtrapolation)
       playback.observe(now, state.time); // valid current headers teach recovery, including unchanged idle entities
