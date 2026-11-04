@@ -11,6 +11,20 @@ export interface TransportSession {
   incomingUnidirectionalStreams?: ReadableStream<ReadableStream<Uint8Array>>;
   close(): void;
 }
+const observedSessions = new WeakSet<TransportSession>(), retiredSessions = new WeakSet<TransportSession>();
+/** Peer, endpoint and native host share physical ownership; providers need not tolerate a second close. */
+export function observeTransportSession<T extends TransportSession>(session: T): T {
+  if (!observedSessions.has(session)) {
+    observedSessions.add(session);
+    void session.closed.then(() => retiredSessions.add(session), () => retiredSessions.add(session));
+  }
+  return session;
+}
+export function closeTransportSession(session: TransportSession): void {
+  if (retiredSessions.has(session)) return;
+  retiredSessions.add(session);
+  try { session.close(); } catch { /* already closed */ }
+}
 export interface WebTransportOffer { url: string; ticket: string; a: number }
 export interface WebTransportBinding {
   open(link: DatagramLink): void; data(bytes: Uint8Array): void; closed(): void; error(error: Error): void;
@@ -78,6 +92,7 @@ export function validOffer(value: unknown): value is WebTransportOffer {
 /** Each pending write is counted; queue growth is bounded even when the provider's writer stalls. */
 export function datagramConnection(session: TransportSession, maxMessageBytes: number, callbacks: WebTransportBinding,
   maxBufferedBytes = 64 * 1024): DatagramLink {
+  observeTransportSession(session);
   const writable = session.datagrams.writable ?? session.datagrams.createWritable?.();
   if (!writable) throw new Error('No WebTransport datagram writer');
   const writer = writable.getWriter(), reader = session.datagrams.readable.getReader();
@@ -93,7 +108,7 @@ export function datagramConnection(session: TransportSession, maxMessageBytes: n
     if (!alive) return; alive = false;
     for (const release of releaseReaders) release();
     void writer.abort().catch(() => {}).finally(() => writer.releaseLock());
-    try { session.close(); } catch { /* already closed */ }
+    closeTransportSession(session);
   };
   const failure = () => { if (alive) { close(); callbacks.closed(); } };
   void session.closed.then(failure, failure);

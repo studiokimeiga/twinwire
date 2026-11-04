@@ -1,4 +1,4 @@
-import { bindingVersion, datagramConnection, deadline, readBinding, writeBinding,
+import { bindingVersion, datagramConnection, deadline, readBinding, writeBinding, observeTransportSession, closeTransportSession,
   type TransportSession, type WebTransportBinding, type WebTransportOffer } from '../core/webtransport.js';
 export interface BrowserWebTransportOptions {
   /** Override with a standards-compatible provider; absent native support simply retains RTC/WS. */
@@ -19,8 +19,8 @@ export class BrowserWebTransportPeer {
     try {
       const native = (globalThis as unknown as { WebTransport?: new (url: string, options: Record<string, unknown>) => TransportSession }).WebTransport;
       const create = options.create ?? ((url, opts) => new native!(url, opts));
-      const session = this.session = create(offer.url, { requireUnreliable: true, congestionControl: 'low-latency',
-        ...(options.serverCertificateHashes ? { serverCertificateHashes: options.serverCertificateHashes } : {}) });
+      const session = this.session = observeTransportSession(create(offer.url, { requireUnreliable: true, congestionControl: 'low-latency',
+        ...(options.serverCertificateHashes ? { serverCertificateHashes: options.serverCertificateHashes } : {}) }));
       void session.closed.then(() => this.abort.abort(), () => this.abort.abort());
       await deadline((async () => {
         await session.ready;
@@ -47,6 +47,6 @@ export class BrowserWebTransportPeer {
   close(): void {
     if (!this.alive) return; this.alive = false;
     this.abort.abort();
-    try { this.session?.close(); } catch { /* already closed */ }
+    if (this.session) closeTransportSession(this.session);
   }
 }

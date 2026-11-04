@@ -60,6 +60,23 @@ test('binding parser rejects trailing bytes in a separate stream write', async (
   await assert.rejects(readBinding(readable), /trailing/i);
 });
 
+test('client peer and endpoint teardown close each physical WebTransport session at most once', async t => {
+  let claim;const pending=[],pairs=[];
+  const host={url:'https://game.test/twinwire',setAcceptor(fn){claim=fn;},async close(){}};
+  const server=await serverApi.createGameServer({origins:[],allowMissingOrigin:true,webtransport:host});
+  const client=new clientApi.GameClient({url:`ws://127.0.0.1:${await server.listen()}/connect`,room:'wt-close',rtc:false,
+    websocket:u=>new WebSocket(u),endpoint:{probeIntervalMs:20},webtransport:{create(){
+      const pair=memorySessions(),counts={a:0,b:0};
+      for(const side of ['a','b']){const close=pair[side].close;pair[side].close=()=>{counts[side]++;close();};}
+      pairs.push(counts);pending.push(serverApi.acceptWebTransport(pair.b,claim,{unreliableDatagrams:true}));return pair.a;
+    }}});
+  t.after(async()=>{client.close();await server.close();await Promise.all(pending);});
+  client.connect();await until(()=>client.transport==='wt');
+  client.close();await until(()=>server.sessions.size===0);await sleep(10);
+  assert.equal(pairs.length,1);assert.equal(pairs[0].a,1,'browser peer and endpoint share one physical close');
+  assert.ok(pairs[0].b<=1,'remote close notification never closes the native session twice');
+});
+
 test('a timed-out binding cannot later claim a session when its delayed stream finally supplies bytes', async () => {
   const pair = memorySessions(); let claims = 0;
   const stream = await pair.a.createBidirectionalStream();

@@ -101,8 +101,13 @@ try {
       row.phase='prove-backup-rtc';
       await page.evaluate(()=>{T.client.options.rtc={};});
       await wait(page,()=>T.client.endpoint.datagramProven('rtc'));
-      row.phase='move-and-render';await page.evaluate(()=>{T.move(12.5);T.client.sendEvent({fire:true});});
+      row.phase='move-and-render';await page.evaluate(()=>{
+        // Movement is latest-wins state: an impaired path may lose a single packet. Drive a real repeated input
+        // stream until authority accepts it; the reliable fire action is still issued exactly once.
+        T.movement=setInterval(()=>T.move(12.5),50);T.move(12.5);T.client.sendEvent({fire:true});
+      });
       await wait(page,()=>T.world?.position===12.5&&T.world.score===1&&T.rendered?.position===12.5&&T.events.length===1);
+      await page.evaluate(()=>clearInterval(T.movement));
       row.initialPath=await page.evaluate(()=>T.client.transport);
       // Bulk resources have their own requests and never occupy the game's reliable event sequence.
       row.phase='concurrent-bulk-and-gameplay';

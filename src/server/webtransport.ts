@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { bindingVersion, datagramConnection, deadline, readBinding, writeBinding,
+import { bindingVersion, datagramConnection, deadline, readBinding, writeBinding, observeTransportSession, closeTransportSession,
   type TransportSession, type WebTransportBinding, type WebTransportClaim, type WebTransportHost } from '../core/webtransport.js';
 export type { WebTransportHost, WebTransportClaim, WebTransportBinding, TransportSession } from '../core/webtransport.js';
 /** Host-adapter entry point. An accepted HTTP/3 session still needs a one-use, live WebSocket binding ticket. */
 export async function acceptWebTransport(session: TransportSession, claim: (request: WebTransportClaim) => WebTransportBinding | null,
   options: { origin?: string; maxDatagramSize?: number; handshakeTimeoutMs?: number; unreliableDatagrams?: boolean } = {}): Promise<void> {
+  observeTransportSession(session);
   const abort = new AbortController();
   void session.closed.then(() => abort.abort(), () => abort.abort());
   try {
@@ -32,7 +33,7 @@ export async function acceptWebTransport(session: TransportSession, claim: (requ
       if (abort.signal.aborted) throw new Error('Retired WebTransport binding');
       binding.open(datagramConnection(session, max, binding));
     })(), options.handshakeTimeoutMs ?? 5000);
-  } catch { abort.abort(); try { session.close(); } catch { /* rejected session */ } }
+  } catch { abort.abort(); closeTransportSession(session); }
 }
 export interface WebTransportHostOptions {
   url: string; cert: string; privKey: string; port?: number; host?: string;
@@ -58,19 +59,19 @@ export async function createWebTransportHost(options: WebTransportHostOptions): 
     try {
       while (!stopped) {
         const result = await stream.read(); if (result.done) break;
-        const session = result.value as TransportSession & { header?: Record<string, string> };
-        if (!accept || sessions.size >= (options.maxConnections ?? 256)) { session.close(); continue; }
+        const session = observeTransportSession(result.value as TransportSession & { header?: Record<string, string> });
+        if (!accept || sessions.size >= (options.maxConnections ?? 256)) { closeTransportSession(session); continue; }
         sessions.add(session);
         void session.closed.then(() => sessions.delete(session), () => sessions.delete(session));
         void acceptWebTransport(session, accept, { origin: session.header?.origin, maxDatagramSize: options.maxDatagramSize,
           handshakeTimeoutMs: options.handshakeTimeoutMs, unreliableDatagrams: true });
       }
-    } catch { if (!stopped) for (const session of sessions) session.close(); }
+    } catch { if (!stopped) for (const session of sessions) closeTransportSession(session); }
   })();
   return { get url() { return url.href; }, setAcceptor(fn) { if (accept) throw new Error('WebTransport host already attached'); accept = fn; },
     async close() {
       if (stopped) return; stopped = true;
-      for (const session of sessions) session.close(); sessions.clear();
+      for (const session of sessions) closeTransportSession(session); sessions.clear();
       await stream.cancel().catch(() => {}); stream.releaseLock(); server.stopServer();
     } };
 }
