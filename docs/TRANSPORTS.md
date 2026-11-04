@@ -115,7 +115,7 @@ congestion control.
 For the deliberately overloaded 4,000B/s comparison, an explicit `stateBudgetShare: 0.075` in3.0.1
 preserved more reliable-event throughput while still reducing state age relative to2.3. It gives less state
 service than the default0.5 under a flood; it is a measured workload setting, not a recommended universal default.
-The [minute-long paired protocol and results](../validation/RELIABLE_PARITY.md) retain both improvements and limits.
+The [minute-long paired protocol and results](https://github.com/studiokimeiga/twinwire/blob/main/validation/RELIABLE_PARITY.md) retain both improvements and limits.
 Oversized events repay one bounded packet of debt before the next grant, avoiding repeated full-bucket pump
 rounding gaps without changing the sustained configured rate.
 
