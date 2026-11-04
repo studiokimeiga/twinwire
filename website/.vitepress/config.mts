@@ -23,7 +23,7 @@ export default defineConfig({
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;0,700;1,400&family=Big+Shoulders+Display:wght@600;700;800&display=swap' }],
     ['meta', { name: 'theme-color', content: '#17192e' }],
     ['meta', { property: 'og:title', content: 'Twinwire: multiplayer networking for browser games' }],
-    ['meta', { property: 'og:description', content: 'One session, two wires: WebSocket for what must arrive, WebRTC datagrams for what must arrive fast. With a lobby, automatic reconnects and snapshot recovery.' }],
+    ['meta', { property: 'og:description', content: 'One session. Two delivery modes. Reliable events and replaceable state over WebSocket, WebRTC and optional HTTP/3 WebTransport. With reconnects, lobbies and snapshot recovery.' }],
   ],
   themeConfig: {
     logo: { src: '/logo.svg', alt: '' },
@@ -82,7 +82,7 @@ function sidebar() {
     ] },
     { text: 'How it works', items: [
       { text: 'Sessions that survive', link: '/how/sessions' },
-      { text: 'Two wires', link: '/how/two-wires' },
+      { text: 'Two delivery modes', link: '/how/two-wires' },
       { text: 'Snapshot interpolation', link: '/how/interpolation' },
       { text: 'Prediction and reconciliation', link: '/how/prediction' },
       { text: 'Delta snapshots', link: '/how/deltas' },
