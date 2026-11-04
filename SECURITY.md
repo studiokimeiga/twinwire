@@ -1,8 +1,8 @@
 # Security
 
 Please report vulnerabilities privately, through GitHub's **Report a vulnerability** (the repository's Security tab),
-not in a public issue. Include what an attacker can do, how to reproduce it, and the version. You'll get an answer
-within a few days, and a fix or a plan as soon as one is ready.
+not in a public issue. Include what an attacker can do, how to reproduce it, and the version. Reports are reviewed
+on a best-effort basis; acknowledgement and remediation times are not guaranteed.
 
 What's in scope: the server's handling of untrusted connections (handshakes, frames, events, signalling, lobby
 requests), resource limits, session and resume-token handling, and anything in the browser client that a malicious
