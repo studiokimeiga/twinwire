@@ -5,6 +5,14 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      webtransport_soak:
+        description: Also run real browser QUIC lifecycle soaks
+        type: boolean
+        default: false
+      wt_soak_seconds:
+        description: Short validation override (0 uses soak_minutes)
+        type: number
+        default: 0
       webtransport_only:
         description: Run only native WebTransport browser gates
         type: boolean
@@ -197,4 +205,36 @@ jobs:
         with:
           name: webtransport-${{ matrix.engine }}
           path: validation/webtransport*.json
+          retention-days: 7
+  webtransport-soak:
+    if: ${{ inputs.webtransport_soak }}
+    name: WT lifecycle soak (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ inputs.soak_minutes == '60' && 80 || inputs.soak_minutes == '30' && 50 || 30 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox]
+    env:
+      ENGINES: ${{ matrix.engine }}
+      SOAK_MINUTES: ${{ inputs.soak_minutes || '10' }}
+      WT_SOAK_SECONDS: ${{ inputs.wt_soak_seconds || '0' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/check-wt-native.mjs
+      - run: bash tools/prepare-browser-runner.sh
+      - run: npx playwright install --with-deps "$ENGINES"
+      - run: node --expose-gc tools/webtransport-soak.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: webtransport-soak-${{ matrix.engine }}
+          path: validation/webtransport-soak-*.json
           retention-days: 7

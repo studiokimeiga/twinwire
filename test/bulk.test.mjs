@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { createHash } from 'node:crypto';
 import * as clientApi from '../dist/client/index.js';
 import * as serverApi from '../dist/server/index.js';
@@ -12,7 +12,7 @@ async function fixture(t, options = {}) {
   const handler = serverApi.createBulkHandler({ origins: ['https://game.test'], ...options });
   const server = createServer((req, res) => { void handler(req, res).then(handled => {
     if (!handled) { res.writeHead(404); res.end(); }
-  }); });
+  }).catch(()=>{res.writeHead(500);res.end();}); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => { server.closeAllConnections(); return new Promise(resolve => server.close(resolve)); });
   return { handler, base: `http://127.0.0.1:${server.address().port}/resources/` };
@@ -84,4 +84,41 @@ test('bulk host validates origins, authorization, method, route and immutable ve
   assert.equal((await fetch(base + 'one', { headers: { ...headers, 'if-none-match': tag } })).status, 304);
   assert.equal((await fetch(base + 'one', { method: 'POST', headers })).status, 405);
   assert.equal((await fetch(base + 'bad%2Fid', { headers })).status, 400);
+});
+
+test('HTTP bulk works on a browser without AbortSignal.throwIfAborted', async t => {
+  const {base}=await fixture(t,{resolve:async()=>({bytes:new Uint8Array([3])})});
+  const client=new clientApi.BulkClient({maxBytes:10});t.after(()=>client.close());
+  const original=Object.getOwnPropertyDescriptor(AbortSignal.prototype,'throwIfAborted');
+  Object.defineProperty(AbortSignal.prototype,'throwIfAborted',{value:undefined,configurable:true,writable:true});
+  try{assert.deepEqual(await client.request(base+'legacy').promise,new Uint8Array([3]));}
+  finally{Object.defineProperty(AbortSignal.prototype,'throwIfAborted',original);}
+});
+
+test('a stalled HTTP response times out and releases its admission slot',async t=>{
+  const server=createServer((_req,res)=>{res.writeHead(200);res.flushHeaders();});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>{server.closeAllConnections();return new Promise(resolve=>server.close(resolve));});
+  const client=new clientApi.BulkClient({concurrency:1,maxQueued:0,maxBytes:100,timeoutMs:30});t.after(()=>client.close());
+  await Promise.race([assert.rejects(client.request(`http://127.0.0.1:${server.address().port}/`).promise,{name:'TimeoutError'}),
+    sleep(300).then(()=>{throw Error('stalled transfer did not time out');})]);
+  assert.equal(client.active,0);
+});
+
+test('a malformed network-path request target returns 400 rather than rejecting the handler',async t=>{
+  const {base}=await fixture(t,{resolve:async()=>({bytes:new Uint8Array([1])})});
+  const url=new URL(base);
+  const status=await new Promise((resolve,reject)=>{const request=httpRequest({host:url.hostname,port:url.port,path:'//[',method:'GET'},response=>{
+    response.resume();resolve(response.statusCode);
+  });request.on('error',reject);request.end();});
+  assert.equal(status,400);
+});
+
+test('resource bytes remain the hashed snapshot if the game reuses its source buffer during delivery',async t=>{
+  const bytes=Buffer.alloc(8*1024*1024,7),hash=createHash('sha256').update(bytes).digest('hex');
+  const {base}=await fixture(t,{maxBytes:bytes.length,resolve:async()=>({bytes})});
+  const client=new clientApi.BulkClient({maxBytes:bytes.length,fetch:async(...args)=>{const response=await fetch(...args);bytes.fill(9);return response;}});
+  t.after(()=>client.close());
+  const result=await client.request(base+'snapshot',{sha256:hash}).promise;
+  assert.equal(result.length,8*1024*1024);assert.ok(result.every(byte=>byte===7));
 });

@@ -88,7 +88,7 @@
     "test:worker": "node tools/worker-e2e.mjs"
   },
   "dependencies": {
-    "ws": "^8.18.3"
+    "ws": "^8.22.0"
   },
   "peerDependencies": {
     "@fails-components/webtransport": ">=1.6.11 <2",
@@ -100,6 +100,13 @@
     "@fails-components/webtransport-transport-http3-quiche": { "optional": true },
     "node-datachannel": {
       "optional": true
+    }
+  },
+  "overrides": {
+    "ws": "$ws",
+    "miniflare": {
+      "sharp": "0.35.5",
+      "undici": "7.30.1"
     }
   },
   "devDependencies": {

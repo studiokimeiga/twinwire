@@ -84,13 +84,15 @@ const bytes = await transfer.promise;
 
 HTTP transport is available across browsers without WebTransport. Resources do not consume event sequence numbers,
 wait behind a missing gameplay event, or allocate permanent state stream IDs. Requests bound concurrency, queue
-length and reserved download memory; response length is checked both in headers and while streaming. SHA-256
+length and reserved download memory; response length is checked both in headers and while streaming. Transfers time
+out after 30 seconds of active transfer by default (`timeoutMs` on the client or request, up to 10 minutes). SHA-256
 verification is optional and requires a secure browser context. Assembly may temporarily use twice the reserved
-download buffer; completed resources belong to the game and need its own cache/eviction policy.
+download buffer, excluding browser fetch/decompression/crypto allocations; completed resources belong to the game
+and need its own cache/eviction policy.
 
 Node hosts can attach `createBulkHandler({origins, authorize, resolve})` to their HTTP hook. The returned async
 handler returns false for unrelated routes. It accepts opaque IDs under `/resources/`, caps simultaneous responses
-and resource size, honors client cancellation/backpressure and supplies content hashes as ETags. It never maps IDs
+and resource size, snapshots source bytes before hashing, honors client cancellation/backpressure and supplies content hashes as ETags. It never maps IDs
 to filesystem paths. Authorization, chunk generation, versions and world revisions belong to the application.
 Respect the resolver's AbortSignal, and configure HTTP/proxy timeouts and bandwidth alongside the game's budget.
 HTTP/2 can still share TCP congestion across resource requests; isolation from the gameplay event sequence does

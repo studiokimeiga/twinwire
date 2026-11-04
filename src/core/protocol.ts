@@ -58,7 +58,7 @@ export function decodeFrame(b: Uint8Array, maxBytes = MAX_FRAME_BYTES, base = 0)
   }
   if (!KINDS.has(kind) || !epoch || stream > 0xffff || at + 8 > b.byteLength ||
       (empty(kind) && b.byteLength !== at + 8) || (!streamed(kind) && stream !== 0)) return null;
-  return { kind: kind as FrameKind, epoch, stream, seq: v.getUint32(at, true), time: base + v.getInt32(at + 4, true) / TIME_UNITS, payload: b.slice(at + 8) };
+  return { kind: kind as FrameKind, epoch, stream, seq: v.getUint32(at, true), time: base + v.getInt32(at + 4, true) / TIME_UNITS, payload: new Uint8Array(b.subarray(at + 8)) };
 }
 /** RFC-1982-style comparison. Live windows must be smaller than half the sequence space. */
 export function newer(a: number, b: number): boolean { return a !== b && ((a - b) >>> 0) < 0x80000000; }

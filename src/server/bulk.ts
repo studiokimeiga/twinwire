@@ -23,7 +23,9 @@ export function createBulkHandler(options: BulkHandlerOptions): (req: IncomingMe
     throw new RangeError('Invalid bulk host limits or origins');
   let active = 0;
   return async (req, res) => {
-    const path = new URL(req.url ?? '/', 'http://resource.invalid').pathname;
+    let path: string;
+    try { path = new URL(req.url ?? '/', 'http://resource.invalid').pathname; }
+    catch { res.writeHead(400); res.end(); return true; }
     if (!path.startsWith(prefix)) return false;
     const finish = (status: number) => { res.writeHead(status); res.end(); return true; };
     const origin = req.headers.origin;
@@ -49,8 +51,9 @@ export function createBulkHandler(options: BulkHandlerOptions): (req: IncomingMe
       const resource = await options.resolve(id, controller.signal);
       if (res.destroyed) return true;
       if (!resource) return finish(404);
-      const { bytes } = resource;
-      if (!(bytes instanceof Uint8Array) || bytes.byteLength > maxBytes) return finish(413);
+      const source = resource.bytes;
+      if (!(source instanceof Uint8Array) || source.byteLength > maxBytes) return finish(413);
+      const bytes = new Uint8Array(source); // snapshot before hashing/streaming, including Node Buffer views
       const etag = '"' + createHash('sha256').update(bytes).digest('hex') + '"';
       res.setHeader('ETag', etag); res.setHeader('Cache-Control', options.cacheControl ?? 'private, no-cache');
       if (req.headers['if-none-match'] === etag) return finish(304);

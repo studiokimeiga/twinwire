@@ -10,10 +10,13 @@
   render submission. Report clock uncertainty and separate queue time from playback age; never retain payloads/secrets.
 - Add bounded cancellable HTTP bulk resources with browser admission/memory limits, optional SHA-256 integrity and a
   Node handler with authorization, origin checks, ETags and backpressure. Bulk bytes stay outside ordered game events.
+  Stalled downloads time out, older AbortSignals work, malformed targets return400 and source buffers are snapshotted.
 - Protect state and reliable-event bandwidth under mixed load while lending surplus positive credit. Refund failed
   writes and allow useful smaller states past unsendable large candidates. Preserve ordered event delivery.
 - Add regressions, deterministic comparison with published 2.3.0 and hosted real QUIC/browser and alternating-process
   localhost benchmark gates. Candidate/release evidence is recorded in validation/STATUS.md; no universal speedup claim.
+- Fix mutable Node Buffer views at state/frame/replica ownership boundaries: later caller mutations cannot change
+  an already queued or decoded snapshot. Require patched ws8.22+ and patch the pinned local Worker tool's dependencies.
 
 ## 2.3.0 (2026-11-01)
 

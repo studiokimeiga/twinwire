@@ -235,7 +235,7 @@ export class Endpoint {
     const now = this.now();
     this.lastStateAt = now;
     this.lastStateBytes = data.length + HEADER_BYTES;
-    this.queued.set(stream, { frame: { kind: o.ack ? FrameKind.stateAcked : FrameKind.state, epoch: this.epoch, stream, seq, time, payload: data.slice() },
+    this.queued.set(stream, { frame: { kind: o.ack ? FrameKind.stateAcked : FrameKind.state, epoch: this.epoch, stream, seq, time, payload: new Uint8Array(data) },
       first: old?.first ?? now, enqueued: now, deadline: now + (o.ttlMs ?? 100), priority: o.priority ?? 1 });
     if (this.trace) this.traceState('queued', { stream, seq, time, data });
     return seq;
