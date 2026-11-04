@@ -34,6 +34,18 @@ The starter checks use real movement, an offline queued ping exactly once, same-
 reload. Public-download verification compares its files with the clean-installed tested project. The release record
 separates SDK lifecycle soaks, game replay measurements and production acceptance.
 
+## Comparing latency and rendering
+
+The [rendered browser comparison protocol](https://github.com/studiokimeiga/twinwire/blob/main/validation/BROWSER_PERFORMANCE.md)
+compares the same Canvas scene on 2.3.0 and 3.0.0 using five alternating paired trials per workload. Chromium and
+Firefox exercise real WebSocket and native RTC for ordinary traffic and an overloaded application byte budget.
+A separate forced-WebSocket scene adds heavy rendering work. Pixel readbacks stay outside aligned measurement windows.
+
+[The release's rendered comparison results](https://github.com/studiokimeiga/twinwire/releases/tag/v3.0.0#rendered-browser-comparison)
+retain every trial, reliable-event throughput and rejection tradeoffs, clock uncertainty and frame-interval tails.
+Receipt age, Canvas draw submission and animation-callback cadence are separate measurements. A result in one
+workload does not establish lower latency on every network or higher GPU FPS in every game.
+
 [Release and source](https://github.com/studiokimeiga/twinwire/releases/tag/v3.0.0) ·
 [One-hour verification](https://github.com/studiokimeiga/twinwire/actions/runs/41777183172) ·
 [Detailed validation record](https://github.com/studiokimeiga/twinwire/blob/main/validation/STATUS.md) ·
