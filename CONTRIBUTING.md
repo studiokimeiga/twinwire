@@ -32,4 +32,13 @@ npm run test:example                # the party example in three browsers
 - Run `npm run check` (CI also runs the native and browser gates).
 - Update `docs/` and `CHANGELOG.md` when behaviour or API changes.
 
+## Code provenance and AI assistance
+
+AI-assisted contributions are welcome, but the contributor is responsible for reviewing and understanding the changes, running the appropriate tests, and responding to review feedback. Do not submit unreviewed generated code simply because it compiles.
+
+- Submit only code and assets you are authorized to contribute. Do not include confidential employer material, copied proprietary code, or code from incompatible licenses.
+- Identify third-party code or significant adapted snippets and include source and license details where required. If you are unsure about the provenance of AI-generated output, investigate before submitting and disclose unresolved concerns in the PR.
+- Do not imply that employment at an organization authorizes you to contribute its code or intellectual property. Obtain authorization where necessary.
+- For protocol, security, or concurrency changes, explain the invariants the change preserves and provide a regression test.
+
 By contributing you agree your work is released under the MIT license.

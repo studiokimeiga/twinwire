@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If Twinwire supports your research, writing, or presentations, please cite this software."
+type: software
+title: "Twinwire"
+abstract: "Multiplayer networking for browser games, including resumable sessions, WebSocket and WebRTC transport, optional WebTransport, and authoritative netcode helpers."
+authors:
+  - family-names: "Alpay"
+    given-names: "Hakan"
+repository-code: "https://github.com/studiokimeiga/twinwire"
+url: "https://studiokimeiga.github.io/twinwire/"
+license: MIT

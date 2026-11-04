@@ -107,6 +107,14 @@ npm run test:browser          # real browsers <-> native server (also IMPAIR=1, 
 npm run test:example          # the party example, played in three browsers
 ```
 
-Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
+## Credit and citation
 
-MIT licensed.
+Twinwire was created by [Hakan Alpay](https://github.com/Kimeiga) and is maintained under [Studio Kimeiga](https://github.com/studiokimeiga).
+
+For research, technical writing, or presentations that reference Twinwire, use GitHub's **Cite this repository** menu or the machine-readable [CITATION.cff](CITATION.cff). For games or tools that use Twinwire, a link to the [project](https://github.com/studiokimeiga/twinwire) is appreciated, though it is not a condition of the MIT license. Copies or substantial portions of Twinwire must retain the applicable copyright and license notice.
+
+## Contributions and support
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Community support is provided on a best-effort basis; see [SUPPORT.md](SUPPORT.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+MIT licensed; see [LICENSE](LICENSE).
