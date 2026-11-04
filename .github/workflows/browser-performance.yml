@@ -1,0 +1,51 @@
+name: Rendered browser performance comparison
+on:
+  workflow_dispatch:
+  push:
+    branches: [performance/browser-comparison-20261104]
+    paths: ['tools/browser-performance*.mjs', 'tools/summarize-browser-performance.mjs', '.github/workflows/browser-performance.yml']
+permissions:
+  contents: read
+concurrency:
+  group: browser-performance-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  compare:
+    name: rendered comparison (${{ matrix.engine }}, ${{ matrix.transport }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox]
+        transport: [ws, rtc]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify immutable published baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir .performance-baseline
+          npm pack twinwire@2.3.0 --ignore-scripts --silent --pack-destination .performance-baseline
+          echo '5fd06c1f96c6506b63153c1ab32913f04a262d8eaeb4f30e20d5c3dc99b6fda2  .performance-baseline/twinwire-2.3.0.tgz' | sha256sum -c -
+          tar -xzf .performance-baseline/twinwire-2.3.0.tgz -C .performance-baseline
+          ln -s ../../node_modules .performance-baseline/package/node_modules
+      - run: bash tools/prepare-browser-runner.sh
+      - run: npx playwright install --with-deps ${{ matrix.engine }}
+      - name: Five alternating pairs per workload with actual raster calls
+        run: node tools/browser-performance.mjs --baseline .performance-baseline/package --engine ${{ matrix.engine }} --transport ${{ matrix.transport }} --seconds 12 --repetitions 5 --out artifacts/browser-performance
+      - name: Retain neutral results, regressions and reliable-event tradeoffs
+        run: node tools/summarize-browser-performance.mjs artifacts/browser-performance/report-${{ matrix.engine }}-${{ matrix.transport }}.json --out artifacts/browser-performance/summary.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: browser-performance-${{ matrix.engine }}-${{ matrix.transport }}
+          path: artifacts/browser-performance/
+          retention-days: 30

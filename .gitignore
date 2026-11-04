@@ -13,3 +13,5 @@ __pycache__/
 *.pyc
 .benchmark-baseline/
 artifacts/starter/
+artifacts/browser-performance/
+.performance-baseline/
