@@ -106,7 +106,7 @@ async function benchmark(){
  fs.mkdirSync(out,{recursive:true});
  const {chromium,firefox}=await import(pathToFileURL(root+'/node_modules/playwright/index.mjs'));
  const version=sdk=>JSON.parse(fs.readFileSync(sdk+'/package.json')).version;
- assert.equal(version(baseline),'2.3.0');assert.equal(version(root),'3.0.0');
+ assert.equal(version(baseline),'2.3.0');assert.notEqual(version(root),version(baseline),'Candidate must have a distinct recorded version');
  const hashes=sdk=>Object.fromEntries(['dist/browser/twinwire.js','dist/core/endpoint.js','dist/core/budget.js'].map(file=>[file,hash(fs.readFileSync(sdk+'/'+file))]));
  const report={kind:'actual-browser-canvas-sdk-comparison',captureProtocol:2,selectedProfiles:selected,at:new Date().toISOString(),source:process.env.GITHUB_SHA??null,harnessSHA256:hash(fs.readFileSync(ownFile)),seconds,repetitions,engine,transport,
   protocol:{snapshotHz:20,statePayloadBytes:20,stateTTLms:40,pumpHz:60,warmupMs:2000,profiles,capture:'Canvas pixel captures happen before rendering starts and after rendering freezes; no readbacks occur inside the timed window. Browser starts the server measurement through HTTP; window durations must agree within 250ms or 2%.',pairedOrder:'alternate baseline/candidate by repetition; fresh browser and server per sample',metrics:'JavaScript receipt age and canvas draw-submission age use synchronized server time with uncertainty. Previous submitted snapshot age is sampled before the next draw to retain frame gaps. Frame callbacks include real identical raster calls; no physical display/GPU presentation or full-game FPS claim.'},

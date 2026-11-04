@@ -1,4 +1,24 @@
-# Validation status: 3.0.0 (2026-11-04)
+# Validation status: 3.0.1 (2026-11-04)
+
+Local build and **244 tests** pass, including an observed-red oversized-event throughput regression and a
+per-prefix byte bound, reliable-parity guards and candidate-version-aware benchmark summaries. Wire generation5
+is unchanged. The runtime correction changes only oversized-event debt eligibility; state eligibility is retained.
+
+The [96a0ad9 browser comparison](https://github.com/studiokimeiga/twinwire/actions/runs/41919352005) completed
+successfully on all four Chromium/Firefox × forced-WS/native-RTC jobs:80 valid trials/40 pairs, with five minute-long
+overload pairs per combination. An explicit state share of0.075 gives median p95 draw-submission state ages
+about140–141ms versus171–172ms on2.3, and331 versus323 reliable events/minute. Every overload pair qualifies for
+lower age beyond reported clock estimates and no fewer events. Normal controls remain approximately unchanged.
+The [candidate networking gates](https://github.com/studiokimeiga/twinwire/actions/runs/41919524618) also completed
+successfully, including Node22/24 lifecycle soaks and the original native/browser/Worker/party gates.
+
+This is a throughput-oriented configuration, not the unchanged0.5 default or the full earlier66% age improvement.
+The application remains deliberately overloaded, with rejected attempts and long event queues. See
+[the protocol, all outcomes and limitations](RELIABLE_PARITY.md). Actual-game render/FPS observations are separate;
+neither these Canvas trials nor the package version establish game-FPS improvements or production deployment.
+The final package-version and production acceptance gates must complete before publication is considered done.
+
+## Validation status: 3.0.0 (2026-11-04)
 
 3.0 uses wire generation 5. Local build and **232 tests** pass, including actual optional-provider JS
 lifecycle regressions, dynamic QUIC message limits, state/event scheduling, session binding, bulk cancellation,

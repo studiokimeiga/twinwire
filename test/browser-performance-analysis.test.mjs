@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {comparePairedRuns,assertCaptureWindow} from '../tools/browser-performance-analysis.mjs';
 const run=(age,fps=60,uncertainty=1)=>({valid:true,client:{renderSubmissionAgeMs:{p95:age},clockUncertaintyMs:{max:uncertainty},averageFrameCallbacksPerSecond:fps}});
 const pairs=(before,after,n=5)=>Array.from({length:n},()=>({before,after}));
@@ -43,4 +47,17 @@ test('reliable parity needs complete counts and five passing latency pairs',()=>
  assert.equal(comparePairedRuns(pairs(before,after)).lowerLatencyWithReliableParityDemonstrated,true);
  assert.equal(comparePairedRuns(pairs(before,after,1)).lowerLatencyWithReliableParityDemonstrated,false);
  assert.equal(comparePairedRuns(pairs(run(150),run(100))).lowerLatencyWithReliableParityDemonstrated,false);
+});
+test('the summary uses the recorded candidate version rather than silently assuming 3.0.0',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'twinwire-summary-'));
+ try{
+  const rows=[];for(let i=0;i<5;i++)for(const [version,age,receivedEvents] of [['2.3.0',150,65],['3.0.1',100,66]]){
+   const row=run(age);Object.assign(row,{version,profile:'mixed-budget',repetition:i,server:{eventsRejected:0,cpuMs:1}});Object.assign(row.client,{receivedEvents,frameIntervalMs:{p99:17}});rows.push(row);
+  }
+  const file=path.join(dir,'report.json'),out=path.join(dir,'summary.json');
+  fs.writeFileSync(file,JSON.stringify({kind:'actual-browser-canvas-sdk-comparison',sdks:[{version:'2.3.0'},{version:'3.0.1'}],protocol:{profiles:{'mixed-budget':{}}},repetitions:5,runs:rows}));
+  const child=spawnSync(process.execPath,['tools/summarize-browser-performance.mjs',file,'--out',out],{encoding:'utf8'});
+  assert.equal(child.status,0,child.stderr);
+  const result=JSON.parse(fs.readFileSync(out));assert.equal(result.candidate,'3.0.1');assert.equal(result.comparisons[0].lowerLatencyWithReliableParityDemonstrated,true);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

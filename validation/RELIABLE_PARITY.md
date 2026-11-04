@@ -48,3 +48,30 @@ The minute-long window checks sustained service rather than a fortunate initial
 burst. The completed workflow, not this proposed protocol, determines whether the
 candidate qualifies. Pilot attempts and a rejected broader state-debt change are
 retained separately. No wire-format change is proposed.
+
+## Completed candidate comparison
+
+The [96a0ad9 workflow](https://github.com/studiokimeiga/twinwire/actions/runs/41919352005)
+completed successfully in all four browser/path jobs: **80 valid trials, 40 pairs**.
+Every minute-long overload pair met both thresholds. Normal controls remained
+approximately unchanged and did not qualify as a repeated latency improvement.
+
+| Browser / path | Median p95 age, 2.3 → candidate | Median paired age change | Median reliable events / minute |
+| --- | ---: | ---: | ---: |
+| Chromium / WS | 171.4 → 140.1 ms | −18.0% | 323 → 331 |
+| Chromium / RTC | 170.9 → 140.2 ms | −17.8% | 323 → 331 |
+| Firefox / WS | 172.3 → 140.9 ms | −18.2% | 323 → 331 |
+| Firefox / RTC | 171.4 → 141.1 ms | −17.3% | 323 → 331 |
+
+Before/after values are independent medians; paired changes summarize individual
+ratios. This is state generation to Canvas draw submission with clock estimates,
+not packet transit or physical display latency. The flood still rejects thousands
+of attempts at its bounded outbox and queues accepted events for tens of seconds;
+delivering more of them does not make this deliberately overloaded application
+healthy. Games should keep bulk resources out of ordered events and admit commands
+within sustainable capacity.
+
+This setting improves both measures relative to 2.3 in this workload. It delivers
+fewer, regularly paced states than the state-oriented 3.0 default under the flood;
+it does **not** establish the full original 66% state-age improvement at unchanged
+event throughput. Real-game FPS and gameplay acceptance require separate evidence.
