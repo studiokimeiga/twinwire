@@ -257,6 +257,16 @@ test('a connection four days old is reconnected; the session resumes on a new ep
   } finally { c.close(); await server.close(); }
 });
 
+test('a resumed welcome without event counters, from a server that predates them, still comes online', () => {
+  const ws = { readyState: 0, bufferedAmount: 0, binaryType: '', send() {}, close() {} };
+  const c = new GameClient({ url: 'ws://127.0.0.1:1/connect', room: 'test', rtc: false, websocket: () => ws });
+  try {
+    c.connect(); ws.readyState = 1; ws.onopen();
+    ws.onmessage({ data: JSON.stringify({ t: 'welcome', v: 5, e: 9, b: performance.now(), id: 'p1', token: 'x'.repeat(24), resumed: true, rtc: false, ice: [] }) });
+    assert.equal(c.status, 'online');
+  } finally { c.close(); }
+});
+
 test('a client stamps states with the server clock only: none before it syncs, however far the page clock is', () => {
   // frame times travel relative to the server's time base, so a page clock a week away must never reach a frame
   const sent = [], ws = { readyState: 0, bufferedAmount: 0, binaryType: '', send: d => sent.push(d), close() {} };

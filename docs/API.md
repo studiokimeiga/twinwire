@@ -146,7 +146,7 @@ const client = new GameClient({
 | `status`, `onStatus(s)` | `idle`, `connecting`, `online`, `paused`, `closed`, `lost`. |
 | `transport`, `onTransport(t)` | Primary proven fast path: `wt` or `rtc`; otherwise `ws` or `none`. A particular state's `via` can differ because of payload limits. |
 | `onSession({id,resumed})` | Identity is available. `resumed: false` means a brand-new session: reset game state. |
-| `onSessionLost({pendingEvents,reason})` | Expiry, kick, takeover by another tab, authentication or protocol rejection. Retrying stops; call `newSession()`. |
+| `onSessionLost({pendingEvents,reason})` | Expiry, kick, takeover by another tab, authentication or protocol rejection. Retrying stops; call `newSession()`. An `authenticate` hook that returns `null` is a rejection; one that throws is a temporary failure, and the client keeps retrying. |
 | `sendEvent(json)` | Ordered, acknowledged, deduplicated; replayed after reconnects. Returns its seq; throws when the outbox is full (512 events / 1 MiB) or the event is over 64 KiB. |
 | `onEvent(data, seq)` | Each event exactly once, in order, whichever path brought it first. |
 | `sendState(stream, bytes, {ttlMs, priority, ack}?)` | Latest wins per stream (0 to 65535). Returns the seq, or 0 before the session is online and the clock synced. Up to `maxStateBytes` (64 KiB). |

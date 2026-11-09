@@ -21,7 +21,8 @@ The application owns authority. The library can't decide whether a position, hit
 ## Connection lifecycle
 
 1. WebSocket: version, origin, room name, authentication; create or resume one session. The welcome carries the
-   epoch, a resume token and the ICE servers for this session.
+   epoch, a resume token, the ICE servers for this session and the server's event counters, which a client resuming
+   from an older checkpoint uses to line up its sequence numbers before it sends anything.
 2. Pings estimate the server clock. States aren't sent before the client has an estimate.
 3. The client offers an unordered, zero-retransmit data channel (signalled over the WebSocket). The server answers
    from one UDP port shared by every connection.

@@ -189,6 +189,12 @@ export class Endpoint {
     this.impairment = lagMs || jitterMs || loss || duplicate ? { lagMs, jitterMs, loss, duplicate, stallMs } : undefined;
   }
   get impaired(): Impairment | undefined { return this.impairment && { ...this.impairment }; }
+  /** Apply the peer's event counters from a resumed welcome; call before `attach`. Returns how many inbound events are gone for good. */
+  resumeEvents(peerReceived: number, peerAcknowledged: number): number {
+    const before = this.events.acknowledged, missed = this.events.realign(peerReceived, peerAcknowledged);
+    if (this.events.acknowledged > before) this.onEventAck(this.events.acknowledged);
+    return missed;
+  }
   attach(epoch: number, reliable: ReliableLink, timeBase = 0): void {
     if (!isUint(epoch, 0xffff) || !epoch || !Number.isFinite(timeBase)) throw new Error('Invalid epoch');
     this.detach(); this.epoch = epoch; this.timeBase = timeBase; this.reliable = this.impairReliable(reliable);

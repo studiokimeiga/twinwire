@@ -223,6 +223,10 @@ export class GameClient {
       if (this.status !== 'connecting' || !isUint(m.e, 0xffff) || !m.e || typeof m.b !== 'number' || !Number.isFinite(m.b) || typeof m.id !== 'string' ||
           typeof m.token !== 'string' || !/^[\w-]{20,128}$/.test(m.token) || typeof m.resumed !== 'boolean' || m.v !== VERSION)
         throw new Error('Invalid welcome');
+      if (m.resumed && typeof m.r === 'number' && typeof m.a === 'number') {   // a server that predates the counters omits them
+        const missed = this.endpoint.resumeEvents(m.r, m.a);
+        if (missed) this.report(new Error(`This checkpoint is older than the session: ${missed} server event(s) it never saw were already delivered and won't be replayed`));
+      }
       const generation = this.generation;
       this.token = m.token; this.id = m.id; this.epoch = m.e; this.reconnects = 0; this.serverRtc = m.rtc === true;
       this.wtOffer = validOffer(m.wt) ? m.wt : undefined; this.serverWt = !!this.wtOffer;
