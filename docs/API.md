@@ -180,8 +180,11 @@ const client = new GameClient({
 | `websocket` | `u => new WebSocket(u)` | Socket factory (tests, Node clients, proxies). |
 
 Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means "not accepted", and the same
-event is offered again, in order, about 100 ms later (whichever wire brought it). A throw from `onState` or `onStateAck`
-drops that one message. Either way the connection carries on and the error goes to `onError`.
+event is offered again, in order, about 100 ms later (whichever wire brought it). After `events.maxRejections` attempts
+(10, about a second), or after one last offer if the queue behind it fills, the event is dropped so the events behind it
+can continue. The sender sees it acknowledged like any other, so an ack alone doesn't prove the handler accepted it;
+`stats.eventsDropped` counts each drop and a final error says so. A throw from `onState` or `onStateAck` drops
+that one message. Either way the connection carries on and the error goes to `onError`.
 
 ## LobbyClient
 
@@ -291,7 +294,8 @@ actual frame must fit its link's capability and may use proven RTC or WS when th
 goes once the bucket is full). `maxBufferedBytes` (64 KiB): socket backpressure. `maxStateBytes` (64 KiB, at most
 256 KiB). `datagramStateBytes` (8 KiB): bigger states use the WebSocket. `datagramEvents` (true). `stateAckIntervalMs`
 (50). `probeIntervalMs`/`probeTimeoutMs` (250/1500). `maxStreams` (1024). `events: {maxEvents, maxBytes,
-maxEventBytes, maxEarly, maxEarlyBytes}` (512, 1 MiB, 64 KiB, and 256 events / 256 KiB waiting for a gap). `lateStates`
+maxEventBytes, maxEarly, maxEarlyBytes, maxRejections}` (512, 1 MiB, 64 KiB, 256 events / 256 KiB waiting for a gap, and
+10 attempts per rejected event; `Infinity` never drops one, and a full queue then ends the session). `lateStates`
 (`'drop'`): `'deliver'` passes on an overtaken state once, within the last 32 of its stream, with `late: true`. `impair`. Both ends should agree on `maxStateBytes`.
 
 ## Snapshot recovery

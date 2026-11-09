@@ -56,7 +56,7 @@ test('JSON follows JSON.stringify: undefined fields drop, non-finite numbers bec
 test('reliable events deliver once and in order, holding early copies from the datagram path', () => {  const r = new ReliableEvents(), delivered = [];  r.receive(1, 'a', d => delivered.push(d)); r.receive(1, 'a', d => delivered.push(d));  assert.equal(r.receive(3, 'c', d => delivered.push(d)), 0); assert.deepEqual(delivered, ['a']);  assert.equal(r.receive(2, 'b', d => delivered.push(d)), 2); r.receive(3, 'c', d => delivered.push(d));  assert.deepEqual(delivered, ['a', 'b', 'c']); assert.throws(() => r.receive(10000, 'far', () => {}), /gap/);  r.push('c'); assert.throws(() => r.ack(1)); r.sent(1); r.ack(1); assert.equal(r.size, 0);});
 test('application rejection does not acknowledge an event', () => {
   const r = new ReliableEvents(); assert.throws(() => r.receive(1, 'x', () => { throw new Error('reject'); }));
-  assert.equal(r.received, 0); r.receive(1, 'x', () => {}); assert.equal(r.received, 1);
+  assert.equal(r.received, 0); r.drain(() => {}); assert.equal(r.received, 1);
 });
 test('outboxes are bounded and take ownership of payload values', () => {
   const r = new ReliableEvents({ maxEvents: 1 }), data = { x: 1 }; r.push(data); data.x = 99;

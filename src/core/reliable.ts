@@ -2,15 +2,20 @@ import { cloneNetcodeValue } from './clone.js';
 import { stringify, utf8Length, type Json, type JsonInput } from './protocol.js';
 export interface PendingEvent { seq: number; data: Json; bytes: number; text: string; datagramAt: number; datagramTries: number }
 export interface ReliableCheckpoint { next: number; received: number; acknowledged: number; pending: { seq: number; data: Json }[] }
-export interface ReliableOptions { maxEvents?: number; maxBytes?: number; maxEventBytes?: number; maxEarly?: number; maxEarlyBytes?: number }
-/** The application's event handler threw: the event wasn't accepted and will be offered again. */
+export interface ReliableOptions {
+  maxEvents?: number; maxBytes?: number; maxEventBytes?: number; maxEarly?: number; maxEarlyBytes?: number;
+  /** How many times the handler may reject one event before it is dropped, so it can't hold up the events behind it. */
+  maxRejections?: number;
+}
+/** The application's event handler threw: the event wasn't accepted. It is offered again unless it was just dropped. */
 export class EventRejected extends Error {
   constructor(readonly error: unknown) { super('Event handler threw: ' + (error instanceof Error ? error.message : String(error))); }
 }
 /** Ordered event delivery with replay/deduplication within a retained logical session.
  * Copies may arrive on two paths (WebSocket and datagrams), so early events wait in a buffer bounded by count and
  * size (only datagram copies arrive early, and they are small: a peer can't park megabytes there).
- * An ACK means the synchronous receiver accepted the event, NOT that a database transaction committed. */
+ * An ACK means the sender can forget the event: the synchronous receiver accepted it or, after `maxRejections`, gave up
+ * on it. It does NOT mean that a database transaction committed. */
 export class ReliableEvents {
   private next = 1;
   received = 0;
@@ -20,16 +25,25 @@ export class ReliableEvents {
   private pending = new Map<number, PendingEvent>();
   private early = new Map<number, { data: Json; bytes: number }>();
   private earlyBytes = 0;
+  private rejections = 0;
+  private rejectedWith: unknown;
   readonly maxEvents: number;
   readonly maxBytes: number;
   readonly maxEventBytes: number;
   readonly maxEarly: number;
   readonly maxEarlyBytes: number;
+  readonly maxRejections: number;
+  /** The handler refused an offer of the next event in order. */
+  onRejected: (error: unknown) => void = () => {};
+  /** An event the handler kept rejecting was given up on; the sequence moves past it. */
+  onDropped: (seq: number, attempts: number, error: unknown) => void = () => {};
   constructor(opts: ReliableOptions = {}) {
     this.maxEvents = opts.maxEvents ?? 512; this.maxBytes = opts.maxBytes ?? 1024 * 1024;
     this.maxEventBytes = opts.maxEventBytes ?? 64 * 1024; this.maxEarly = opts.maxEarly ?? 256;
-    this.maxEarlyBytes = opts.maxEarlyBytes ?? 256 * 1024;
-    if (![this.maxEvents, this.maxBytes, this.maxEventBytes, this.maxEarly, this.maxEarlyBytes].every(v => Number.isInteger(v) && v > 0)) throw new RangeError('Invalid event limits');
+    this.maxEarlyBytes = opts.maxEarlyBytes ?? 256 * 1024; this.maxRejections = opts.maxRejections ?? 10;
+    const limited = [this.maxEvents, this.maxBytes, this.maxEventBytes, this.maxEarly, this.maxEarlyBytes];
+    if (this.maxRejections !== Infinity) limited.push(this.maxRejections);
+    if (!limited.every(v => Number.isInteger(v) && v > 0)) throw new RangeError('Invalid event limits');
   }
   push(data: JsonInput): number {
     const text = stringify(data, this.maxEventBytes), bytes = utf8Length(text) + 64;
@@ -53,40 +67,75 @@ export class ReliableEvents {
     return true;
   }
   /** Returns how many events were delivered. Early events wait (bounded); duplicates are dropped. When `deliver`
-   * throws, the event wasn't accepted: it is kept at the head and `drain` tries it again (EventRejected is thrown). */
+   * throws, the event wasn't accepted: it is kept at the head and `drain` tries it again (EventRejected is thrown),
+   * up to `maxRejections` attempts in all. A queue with no room left offers it once more and then gives up on it.
+   * A repeated copy of a waiting event doesn't count as an offer: retries come only from `drain`. */
   receive(seq: number, data: Json, deliver: (data: Json, seq: number) => void): number {
     if (!Number.isSafeInteger(seq) || seq < 1) throw new Error('Invalid event sequence');
     if (seq <= this.received) return 0;
-    if (seq !== this.received + 1) {
-      if (seq - this.received > this.maxEarly) throw new Error('Event sequence gap');
-      if (!this.early.has(seq)) {
-        const bytes = utf8Length(stringify(data, this.maxEventBytes));
-        if (this.earlyBytes + bytes > this.maxEarlyBytes) throw new Error('Too many early event bytes');
+    let delivered = 0;
+    if (seq !== this.received + 1 && !this.early.has(seq)) {
+      const yielding = () => this.rejections > 0 && this.maxRejections !== Infinity;
+      const far = () => seq - this.received > this.maxEarly;
+      if (far() && !yielding()) throw new Error('Event sequence gap');
+      const bytes = utf8Length(stringify(data, this.maxEventBytes));
+      const full = () => far() || this.earlyBytes + bytes > this.maxEarlyBytes;
+      while (yielding() && full()) delivered += this.makeRoom(deliver);
+      if (seq !== this.received + 1) {
+        if (full()) throw new Error(far() ? 'Event sequence gap' : 'Too many early event bytes');
         this.early.set(seq, { data, bytes }); this.earlyBytes += bytes;
+        return delivered;
       }
-      return 0;
     }
-    if (this.early.has(seq)) return this.drain(deliver);   // a rejected copy is already waiting at the head
+    if (this.early.has(seq)) return 0;   // a copy is already waiting: `drain` offers it when its retry is due
     try { deliver(data, seq); }
     catch (error) {
       const bytes = utf8Length(stringify(data, this.maxEventBytes));
       this.early.set(seq, { data, bytes }); this.earlyBytes += bytes;
-      throw new EventRejected(error);
+      throw this.rejected(seq, error);
     }
     this.received = seq;
-    return 1 + this.drain(deliver);
+    return delivered + 1 + this.drain(deliver);
   }
   /** The next event in order is waiting (early copies caught up, or one the receiver rejected). */
   get waiting(): boolean { return this.early.has(this.received + 1); }
+  /** The handler has rejected the next event in order and it is still being held for another attempt. */
+  get holding(): boolean { return this.rejections > 0; }
   /** Deliver what's waiting, in order. Throws EventRejected, keeping that event, when `deliver` throws. */
   drain(deliver: (data: Json, seq: number) => void): number {
     let n = 0;
     for (let s = this.received + 1, e = this.early.get(s); e; s++, e = this.early.get(s)) {
-      try { deliver(e.data, s); } catch (error) { throw new EventRejected(error); }
-      this.early.delete(s); this.earlyBytes -= e.bytes; this.received = s; n++;
+      try { deliver(e.data, s); } catch (error) { throw this.rejected(s, error); }
+      this.early.delete(s); this.earlyBytes -= e.bytes; this.received = s; this.rejections = 0; n++;
     }
     for (const [s, e] of this.early) if (s <= this.received) { this.early.delete(s); this.earlyBytes -= e.bytes; }
     return n;
+  }
+  private rejected(seq: number, error: unknown): EventRejected {
+    this.rejectedWith = error; this.rejections++;
+    this.onRejected(error);
+    if (this.rejections >= this.maxRejections) this.drop(seq);
+    return new EventRejected(error);
+  }
+  private drop(seq: number): void {
+    const attempts = this.rejections, error = this.rejectedWith, e = this.early.get(seq)!;
+    this.early.delete(seq); this.earlyBytes -= e.bytes; this.received = seq;
+    this.rejections = 0; this.rejectedWith = undefined;
+    this.onDropped(seq, attempts, error);
+  }
+  /** Offer the held event one last time, drop it if refused, and deliver what was queued behind it. Stops at the next
+   * event the handler holds, which keeps its own attempts. */
+  private makeRoom(deliver: (data: Json, seq: number) => void): number {
+    const held = this.received + 1;
+    for (;;) {
+      try { return this.drain(deliver); }
+      catch (error) {
+        if (!(error instanceof EventRejected)) throw error;
+        if (!this.rejections) continue;                // it reached maxRejections and is already gone
+        if (this.received + 1 !== held) return 0;
+        this.drop(held);
+      }
+    }
   }
   checkpoint(): ReliableCheckpoint {
     return { next: this.next, received: this.received, acknowledged: this.acknowledged,
