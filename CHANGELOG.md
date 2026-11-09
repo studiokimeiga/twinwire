@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.1.0 (2026-11-09)
 
 - A handler that keeps throwing can no longer stall a player's events or end the session. A rejected event is now
   offered at most `events.maxRejections` times (default 10, about a second), then dropped and acknowledged, so the
