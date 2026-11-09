@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createGameServer } from '../dist/server/index.js';
 import { GameClient } from '../dist/client/index.js';
 import { SnapshotHistory, diffEntities, applyEntityDelta, Predictor, InputInbox, encodeInputs, decodeInputs } from '../dist/netcode/index.js';
+import { EventRejected, ReliableEvents } from '../dist/core/reliable.js';
 import { pair, until, sleep } from './helpers.mjs';
 
 const W = 0xffffffff;
@@ -95,6 +96,107 @@ test('a throw from the client onEvent means the event comes again (API.md), not 
     await sleep(100);
     assert.equal(c.status, 'online', `client status ${c.status}, lost reason: ${lost?.reason}`);
     assert.deepEqual(got, ['hello']);
+  } finally { c.close(); await s.server.close(); }
+});
+
+for (const maxRejections of [1, 3]) {
+  test(`an event rejected ${maxRejections} time(s) is dropped once, and the events behind it still arrive in order`, () => {
+    const p = pair({ events: { maxRejections } });
+    let attempts = 0; const got = [], errors = [];
+    p.b.onCallbackError = e => errors.push(e.message);
+    p.b.onEvent = d => { if (d === 'poison') { attempts++; throw new Error('bad buy'); } got.push(d); };
+    for (const d of ['before', 'poison', 'after-1', 'after-2']) p.a.sendEvent(d);
+    for (let i = 0; i < 20; i++) p.advance(50);
+    assert.equal(attempts, maxRejections);
+    assert.deepEqual(got, ['before', 'after-1', 'after-2']);
+    assert.equal(p.b.stats.eventsDropped, 1);
+    assert.equal(p.a.events.size, 0);                               // the drop is acknowledged, so the sender stops replaying it
+    assert.equal(errors.filter(m => /dropped/i.test(m)).length, 1);
+  });
+}
+
+test('a handler that recovers within maxRejections still gets the event, once', () => {
+  const p = pair({ events: { maxRejections: 3 } });
+  let attempts = 0; const got = [];
+  p.b.onEvent = d => { if (++attempts < 3) throw new Error('not yet'); got.push(d); };
+  p.a.sendEvent('one');
+  for (let i = 0; i < 20; i++) p.advance(50);
+  assert.equal(attempts, 3);
+  assert.deepEqual(got, ['one']);
+  assert.equal(p.b.stats.eventsDropped, 0);
+});
+
+test('extra copies of a rejected event wait for the retry delay instead of using up its attempts', () => {
+  const p = pair({ events: { maxRejections: 3 } });
+  let attempts = 0;
+  p.b.onEvent = () => { attempts++; throw new Error('bad buy'); };
+  for (let i = 0; i < 5; i++) p.b.receiveControl({ t: 'event', e: 1, s: 1, d: 'poison' });
+  assert.equal(attempts, 1);
+  assert.equal(p.b.stats.eventsDropped, 0);
+  p.advance(100);
+  assert.equal(attempts, 2);
+});
+
+test('maxRejections: Infinity keeps offering a rejected event', () => {
+  const p = pair({ events: { maxRejections: Infinity } });
+  let attempts = 0; const got = [];
+  p.b.onEvent = d => { if (d === 'poison') { attempts++; throw new Error('bad buy'); } got.push(d); };
+  p.a.sendEvent('poison'); p.a.sendEvent('after');
+  for (let i = 0; i < 40; i++) p.advance(150);
+  assert.ok(attempts > 20, `only ${attempts} attempts`);
+  assert.deepEqual(got, []);
+  assert.equal(p.b.stats.eventsDropped, 0);
+});
+
+test('maxRejections must be a positive whole number or Infinity', () => {
+  for (const maxRejections of [0, -1, 1.5, NaN]) assert.throws(() => pair({ events: { maxRejections } }), RangeError);
+});
+
+function holdingPoison(options) {
+  const events = new ReliableEvents(options), got = [], dropped = [];
+  events.onDropped = seq => dropped.push(seq);
+  const deliver = d => { if (d === 'poison') throw new Error('bad buy'); got.push(d); };
+  assert.throws(() => events.receive(1, 'poison', deliver), EventRejected);
+  return { events, got, dropped, deliver };
+}
+
+test('when the queue behind a rejected event fills by count, the rejected event is given up, not the session', () => {
+  const { events, got, dropped, deliver } = holdingPoison({ maxEarly: 4, maxRejections: 100 });
+  for (let seq = 2; seq <= 8; seq++) events.receive(seq, seq, deliver);
+  assert.deepEqual(dropped, [1]);
+  assert.deepEqual(got, [2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(events.received, 8);
+});
+
+test('when the queue behind a rejected event fills by bytes, the rejected event is given up, not the session', () => {
+  const { events, got, dropped, deliver } = holdingPoison({ maxEarlyBytes: 64, maxRejections: 100 });
+  const pad = 'x'.repeat(40);
+  for (let seq = 2; seq <= 4; seq++) events.receive(seq, pad, deliver);
+  assert.deepEqual(dropped, [1]);
+  assert.deepEqual(got, [pad, pad, pad]);
+});
+
+test('with maxRejections: Infinity a full queue stays a protocol error and nothing is dropped', () => {
+  const { events, dropped, deliver } = holdingPoison({ maxEarly: 4, maxRejections: Infinity });
+  for (let seq = 2; seq <= 4; seq++) events.receive(seq, seq, deliver);
+  assert.throws(() => events.receive(5, 5, deliver), /gap/);
+  assert.deepEqual(dropped, []);
+});
+
+test('by default, a poison event cannot stall a real session or end it', async () => {
+  const got = []; let session;
+  const s = await setup({ onSession: x => { session = x; x.onEvent = d => { if (d === 'poison') throw new Error('bad buy'); got.push(d); }; } });
+  const c = new GameClient({ url: s.url, room: 'r', rtc: false, reconnectBaseMs: 20 });
+  let lost; c.onSessionLost = info => lost = info;
+  try {
+    c.connect(); await until(() => c.status === 'online');
+    c.sendEvent('poison');
+    const want = Array.from({ length: 300 }, (_, i) => i);
+    for (const n of want) c.sendEvent(n);
+    await until(() => got.length === want.length || c.status === 'lost', 8000);
+    assert.equal(c.status, 'online', `client status ${c.status}, lost reason: ${lost?.reason}`);
+    assert.deepEqual(got, want);
+    assert.equal(session.endpoint.stats.eventsDropped, 1);
   } finally { c.close(); await s.server.close(); }
 });
 

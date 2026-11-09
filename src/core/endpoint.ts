@@ -61,9 +61,9 @@ export class Endpoint {
   readonly stats = { bytesSent: 0, bytesReceived: 0, statesSent: 0, statesReceived: 0,
     stale: 0, expired: 0, coalesced: 0, congested: 0, invalid: 0, fastTransitions: 0, datagramRttMs: 0,
     eventsViaDatagram: 0, datagramEventFrames: 0, stateAcksSent: 0, stateAcksReceived: 0, impairedDrops: 0,
-    impairedStalls: 0, eventsRejected: 0, callbackErrors: 0, traceErrors: 0 };
+    impairedStalls: 0, eventsRejected: 0, eventsDropped: 0, callbackErrors: 0, traceErrors: 0 };
   onState: (state: StateMessage) => void = () => {};
-  /** A throw means "not accepted": the event is offered again (in order) shortly after, not dropped. */
+  /** A throw means "not accepted": the event is offered again (in order) shortly after, up to `events.maxRejections` attempts. */
   onEvent: (data: Json, seq: number) => void = () => {};
   /** An application callback threw (onEvent, onState, onStateAck). The connection carries on. */
   onCallbackError: (error: unknown) => void = () => {};
@@ -126,6 +126,7 @@ export class Endpoint {
     this.datagramEvents = o.datagramEvents ?? true; this.deliverLate = o.lateStates === 'deliver';
     this.stateAckInterval = o.stateAckIntervalMs ?? 50;
     this.events = new ReliableEvents(o.events);
+    this.events.onDropped = (seq, attempts, error) => this.eventDropped(seq, attempts, error);
     if (!(this.highWater > 0) || !isUint(this.maxStreams, 65536) || this.maxStreams < 1 ||
         !(this.probeInterval >= 10) || !(this.probeTimeout >= this.probeInterval * 2) ||
         !isUint(this.maxStateBytes, MAX_STATE_BYTES) || this.maxStateBytes < 1 ||
@@ -304,7 +305,11 @@ export class Endpoint {
     try { this.onCallbackError(e); } catch { /* a diagnostics callback must not break delivery */ }
   }
   private rejected(e: EventRejected): void {
-    this.stats.eventsRejected++; this.eventRetryAt = this.now() + 100; this.callbackError(e.error);
+    this.stats.eventsRejected++; this.eventRetryAt = this.events.holding ? this.now() + 100 : 0; this.callbackError(e.error);
+  }
+  private eventDropped(seq: number, attempts: number, error: unknown): void {
+    this.stats.eventsDropped++;
+    this.callbackError(new Error(`Event ${seq} dropped after ${attempts} rejected attempt(s): ${error instanceof Error ? error.message : String(error)}`));
   }
   private receiveDatagramEvents(f: Frame): void {
     if (f.seq <= this.events.sentThrough && this.events.ack(f.seq)) this.onEventAck(f.seq);
