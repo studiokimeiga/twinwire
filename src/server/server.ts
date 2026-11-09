@@ -194,7 +194,8 @@ export class GameServer {
       if (validIceServers(v)) ice = v; else this.report(new Error('Invalid iceServers ignored'));
     } catch (e) { this.report(e); }
     if (!this.connections.has(c) || c.ws.readyState !== 1 || this.shuttingDown) {
-      if (!resumed && !this.shuttingDown) this.expire(record);   // nobody ever received this session's token
+      // Nobody ever received this session's token and the game never heard of it, so it just goes away: no expire event.
+      if (!resumed && !this.shuttingDown) { this.tokens.delete(record.token); this.sessions.delete(s.id); }
       return;
     }
     if (this.tokens.get(record.token) !== record) {   // kicked or expired during the await: attaching would leave a zombie

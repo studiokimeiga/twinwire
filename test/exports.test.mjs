@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 // what a project that installed the package sees: every entry point resolves through package.json "exports"
 test('every published entry point resolves by package name', async () => {
   const core = await import('twinwire'), client = await import('twinwire/client'), server = await import('twinwire/server'), netcode = await import('twinwire/netcode');
-  assert.equal(typeof core.Endpoint, 'function'); assert.equal(core.VERSION, 6);
+  assert.equal(typeof core.Endpoint, 'function'); assert.equal(core.VERSION, 5);
   for (const k of ['GameClient', 'LobbyClient', 'StateReceiver']) assert.equal(typeof client[k], 'function', k);
   for (const k of ['createGameServer', 'GameServer', 'Lobby', 'createNativeRtcFactory', 'turnCredentials', 'cloudflareTurn']) assert.equal(typeof server[k], 'function', k);
   for (const k of ['NetworkClock', 'Timeline', 'AdaptivePlayback', 'Predictor', 'InputInbox', 'FixedStepper', 'SnapshotHistory', 'diffEntities', 'applyEntityDelta', 'ReplicaSender', 'SpatialGrid', 'defineSchema', 'SubtickInputBuffer', 'replaySubtick', 'selectRewindTime']) assert.equal(typeof netcode[k], 'function', k);

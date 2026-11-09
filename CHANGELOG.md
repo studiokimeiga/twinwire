@@ -12,8 +12,9 @@
 - Extra copies of a rejected event, such as its datagram mirror, wait for the 100 ms retry delay and no longer count
   as attempts. Code using `ReliableEvents` directly must call `drain` to retry a rejected event.
 - The rejected-event change above needs no wire change and is local to the receiving end.
-- **Wire generation 6:** a resumed `welcome` now carries the server's event counters (`r` received, `a` acknowledged).
-  Deploy clients and servers together; a generation 5 client can't connect to a generation 6 server.
+- A resumed `welcome` now carries the server's event counters (`r` received, `a` acknowledged). These fields are
+  additive and wire generation 5 is unchanged: older clients ignore them, and a client talking to an older server
+  resumes as before, so either side can upgrade first.
 - Fix resuming from a checkpoint older than the last event. The old page's later events made the server's ack look
   invalid, and the session was lost with `protocol`. Now the client lines up with the server before it sends anything.
   Events queued since the restore move past what the server already has, so they are no longer dropped as duplicates.

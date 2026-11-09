@@ -362,7 +362,7 @@ test('a socket whose session ended during the iceServers await closes with 4001'
   } finally { raw?.close(); c.close(); await s.server.close(); }
 });
 test('a new session abandoned during the iceServers await frees its slot at once', async () => {
-  let release; const s = await setup({ iceServers: () => new Promise(r => release = r) });
+  let release, expired = 0; const s = await setup({ iceServers: () => new Promise(r => release = r), onExpire: () => expired++ });
   const raw = new WebSocket(s.url), { VERSION } = await import('../dist/core/protocol.js');
   try {
     raw.onopen = () => raw.send(JSON.stringify({ t: 'hello', v: VERSION, room: 'test', token: null, auth: null }));
@@ -370,6 +370,7 @@ test('a new session abandoned during the iceServers await frees its slot at once
     raw.close(); await until(() => s.server.metrics().connections === 0); release([]);
     await until(() => s.server.sessions.size === 0, 300).catch(() => {});
     assert.equal(s.server.sessions.size, 0, 'nobody holds this session\'s token');
+    assert.equal(expired, 0, 'the game was never told about this session, so it must not hear that it expired');
   } finally { raw.close(); await s.server.close(); }
 });
 test('a new session waiting on iceServers is not expired by the resume grace before it ever connected', async () => {

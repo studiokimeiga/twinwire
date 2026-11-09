@@ -1,7 +1,7 @@
 /** Versioned binary frames. Integers are little-endian.
  * [version << 4 | kind: 1] [connection epoch: 2] [stream: varint, 1 to 3] [seq: 4] [time: 4, signed, in 1/4 ms since the
  * connection's time base] [payload]. 12 bytes for streams under 128. */
-export const VERSION = 6;
+export const VERSION = 5;
 /** The longest header (a stream of 16384 or more). */
 export const HEADER_BYTES = 14;
 /** Legacy conservative RTC payload budget. QUIC uses its negotiated, potentially smaller complete-frame limit. */
