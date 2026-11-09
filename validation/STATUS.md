@@ -1,4 +1,26 @@
-# Validation status: 3.0.1 (2026-11-04)
+# Validation status: 3.1.0 (2026-11-09)
+
+Wire generation 5 is unchanged and 3.1.0 interoperates with 3.0.x peers. This release stops a repeatedly rejected
+event from stalling or ending a session and fixes three resume failures: stale-checkpoint session loss, a throwing
+`authenticate` ending the session, and a client stranded after a kick or abandoned connect during `iceServers`. Each
+bug was reproduced first and has a regression test.
+
+The release candidate was exported to a clean directory, with `npm ci`, on Windows 11 and Node 24.18. On that copy,
+`npm run check` passes **271 of 271 tests, 0 skipped**. `test:native` passes. `test:browser` passes in Chromium clean,
+with `IMPAIR=1` and with `RTC=0`. `test:example` passes plain and with `RTC=1` in Chromium. `npm audit` reports no
+findings, and `npm pack --dry-run` contains 144 files: `dist`, docs, README, CITATION.cff, SUPPORT.md, LICENSE and the
+changelog.
+
+This machine has no Playwright build of Firefox or WebKit, so those engines are covered by CI only. The
+[PR run at fb09635](https://github.com/studiokimeiga/twinwire/actions/runs/42638097598) passed core Node 22/24, the
+starters, Chromium/Firefox/WebKit browsers and WebTransport, and 10-minute Node 22/24 lifecycle soaks. The WebTransport
+soak job was skipped. The [run on main at 4f5bff3](https://github.com/studiokimeiga/twinwire/actions/runs/42670580124)
+also succeeded. Only the version number, changelog heading and this record changed after that commit.
+
+No 60-minute soak, performance comparison, real-phone or production acceptance run was made for this release. The
+`docs/RELEASE-CHECKLIST.md` list of what a game must establish for itself still applies.
+
+## Validation status: 3.0.1 (2026-11-04)
 
 Local build and **244 tests** pass, including an observed-red oversized-event throughput regression and a
 per-prefix byte bound, reliable-parity guards and candidate-version-aware benchmark summaries. Wire generation5
