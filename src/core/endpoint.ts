@@ -126,6 +126,7 @@ export class Endpoint {
     this.datagramEvents = o.datagramEvents ?? true; this.deliverLate = o.lateStates === 'deliver';
     this.stateAckInterval = o.stateAckIntervalMs ?? 50;
     this.events = new ReliableEvents(o.events);
+    this.events.onRejected = error => this.eventRejected(error);
     this.events.onDropped = (seq, attempts, error) => this.eventDropped(seq, attempts, error);
     if (!(this.highWater > 0) || !isUint(this.maxStreams, 65536) || this.maxStreams < 1 ||
         !(this.probeInterval >= 10) || !(this.probeTimeout >= this.probeInterval * 2) ||
@@ -246,7 +247,7 @@ export class Endpoint {
     if (m.t === 'event') {
       if (typeof m.s !== 'number' || !('d' in m)) throw new Error('Invalid event');
       try { this.events.receive(m.s, m.d as Json, this.onEvent); }
-      catch (e) { if (!(e instanceof EventRejected)) throw e; this.rejected(e); }
+      catch (e) { if (!(e instanceof EventRejected)) throw e; }
       this.ackDue = !this.sendControl({ t: 'ack', e: this.epoch, s: this.events.received }); return true;
     }
     if (m.t === 'ack') {
@@ -304,11 +305,11 @@ export class Endpoint {
     this.stats.callbackErrors++;
     try { this.onCallbackError(e); } catch { /* a diagnostics callback must not break delivery */ }
   }
-  private rejected(e: EventRejected): void {
-    this.stats.eventsRejected++; this.eventRetryAt = this.events.holding ? this.now() + 100 : 0; this.callbackError(e.error);
+  private eventRejected(error: unknown): void {
+    this.stats.eventsRejected++; this.eventRetryAt = this.now() + 100; this.callbackError(error);
   }
   private eventDropped(seq: number, attempts: number, error: unknown): void {
-    this.stats.eventsDropped++;
+    this.stats.eventsDropped++; this.eventRetryAt = 0;
     this.callbackError(new Error(`Event ${seq} dropped after ${attempts} rejected attempt(s): ${error instanceof Error ? error.message : String(error)}`));
   }
   private receiveDatagramEvents(f: Frame): void {
@@ -317,16 +318,19 @@ export class Endpoint {
     let list: unknown;
     try { list = JSON.parse(fromUtf8(f.payload)); } catch { this.stats.invalid++; return; }
     if (!Array.isArray(list) || list.length > 64) { this.stats.invalid++; return; }
-    const before = this.events.received;
+    const before = this.events.received, droppedBefore = this.stats.eventsDropped;
     try {
       for (const item of list) {
         if (!Array.isArray(item) || item.length !== 2 || !Number.isSafeInteger(item[0])) { this.stats.invalid++; return; }
         try { this.events.receive(item[0] as number, item[1] as Json, this.onEvent); }
-        catch (e) { if (e instanceof EventRejected) { this.rejected(e); return; } this.stats.invalid++; return; }
+        catch (e) {
+          if (!(e instanceof EventRejected)) { this.stats.invalid++; return; }
+          if (this.events.holding) return;               // otherwise it was dropped, and the rest of the frame can follow
+        }
       }
     } finally {
-      const delivered = this.events.received - before;
-      if (delivered > 0) { this.stats.eventsViaDatagram += delivered; this.ackDue = true; }
+      const advanced = this.events.received - before;
+      if (advanced > 0) { this.stats.eventsViaDatagram += advanced - (this.stats.eventsDropped - droppedBefore); this.ackDue = true; }
     }
   }
   private receiveStateAcks(f: Frame): void {
@@ -365,7 +369,7 @@ export class Endpoint {
     if (this.events.waiting && now >= this.eventRetryAt) {
       // an event the application rejected (or early copies that caught up): offer it again, in order
       const before = this.events.received;
-      try { this.events.drain(this.onEvent); } catch (e) { if (e instanceof EventRejected) this.rejected(e); else throw e; }
+      try { this.events.drain(this.onEvent); } catch (e) { if (!(e instanceof EventRejected)) throw e; }
       if (this.events.received > before) this.ackDue = true;
     }
     for (const [via, path] of this.paths) {

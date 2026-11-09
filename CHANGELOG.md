@@ -4,12 +4,13 @@
 
 - A handler that keeps throwing can no longer stall a player's events or end the session. A rejected event is now
   offered at most `events.maxRejections` times (default 10, about a second), then dropped and acknowledged, so the
-  events behind it continue in order. If the queue behind it fills first, it is dropped at once instead of the session
-  being closed with `Event sequence gap`. `stats.eventsDropped` counts these and `onError` reports each one. This
-  changes the previous "offered until accepted" behavior: a handler that throws to wait for something slower than a
-  second should set `maxRejections: Infinity`, which keeps the old behavior, including session loss on a full queue.
+  events behind it continue in order. If the queue behind it fills first, it gets one last offer and is then dropped,
+  instead of the session being closed with `Event sequence gap`. `stats.eventsDropped` counts these and `onError`
+  reports each one. An ack can now also mean the receiver gave up on the event. This changes the previous "offered
+  until accepted" behavior: a handler that throws to wait for something slower than a second should set
+  `maxRejections: Infinity`, which keeps the old behavior, including session loss on a full queue.
 - Extra copies of a rejected event, such as its datagram mirror, wait for the 100 ms retry delay and no longer count
-  as attempts.
+  as attempts. Code using `ReliableEvents` directly must call `drain` to retry a rejected event.
 - Wire generation 5 is unchanged. The change is local to the receiving end, so either side can upgrade first.
 
 ## 3.0.1 (2026-11-04)

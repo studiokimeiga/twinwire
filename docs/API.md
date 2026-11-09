@@ -181,8 +181,9 @@ const client = new GameClient({
 
 Callbacks should be short. Don't throw from `onEvent` after side effects: a throw means "not accepted", and the same
 event is offered again, in order, about 100 ms later (whichever wire brought it). After `events.maxRejections` attempts
-(10, about a second), or sooner if the queue behind it fills, the event is dropped and acknowledged so the events behind
-it can continue, `stats.eventsDropped` counts it and a final error says so. A throw from `onState` or `onStateAck` drops
+(10, about a second), or after one last offer if the queue behind it fills, the event is dropped so the events behind it
+can continue. The sender sees it acknowledged like any other, so an ack alone doesn't prove the handler accepted it;
+`stats.eventsDropped` counts each drop and a final error says so. A throw from `onState` or `onStateAck` drops
 that one message. Either way the connection carries on and the error goes to `onError`.
 
 ## LobbyClient
