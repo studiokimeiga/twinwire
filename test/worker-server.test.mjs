@@ -62,3 +62,25 @@ test('Worker adapter origin policy is exact and pure/browser bundle has no Node 
  assert.throws(()=>new SocketSessionServer({origins:['*']}));
  s.close();
 });
+test('Worker socket adapter: a checkpoint older than the last sent event resumes online and new events arrive once',async()=>{
+ const got=[];const s=await setup({resumeGraceMs:5000,onSession(session){session.onEvent=d=>got.push(d);}});
+ const a=s.client();let lost;a.connect();
+ try{
+  await a.whenOnline();const cp=a.checkpoint();a.sendEvent('x');await until(()=>got.length===1&&!a.endpoint.events.size);
+  a.pause();await until(()=>!s.host.sessions.get(a.id).connected);
+  const b=s.client({checkpoint:cp});b.onSessionLost=info=>lost=info;b.sendEvent('queued');b.connect();
+  await until(()=>b.status==='online'||b.status==='lost');await until(()=>got.length===2||b.status==='lost',1000).catch(()=>{});await sleep(50);
+  assert.equal(b.status,'online',`lost: ${lost?.reason}`);assert.deepEqual(got,['x','queued']);
+ }finally{await s.close();}
+});
+test('Worker socket adapter retries a thrown authenticate; a null one still ends the session',async()=>{
+ let calls=0,verdict=()=>{throw new Error('database timeout');};
+ const s=await setup({resumeGraceMs:5000,authenticate:()=>++calls===1?'subject':verdict()}),c=s.client();let lost;c.onSessionLost=info=>lost=info;c.connect();
+ try{
+  await c.whenOnline();const id=c.id;
+  c.simulateDrop();await until(()=>calls===2||c.status==='lost');verdict=()=>'subject';
+  await until(()=>calls>=3&&c.status==='online'||c.status==='lost');
+  assert.equal(c.status,'online',`lost: ${lost?.reason}`);assert.equal(c.id,id);assert.deepEqual(s.errors,['database timeout']);
+  verdict=()=>null;c.simulateDrop();await until(()=>c.status==='lost');assert.match(lost.reason,/join/);
+ }finally{await s.close();}
+});

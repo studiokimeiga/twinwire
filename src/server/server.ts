@@ -39,7 +39,8 @@ export interface GameServerOptions {
   allowImpairment?: boolean;
   /** Messages per second and bytes per second each connection may send (defaults 300 and 256 KiB). */
   rateLimit?: { messages?: number; bytes?: number };
-  /** A stable account subject, or null to reject. Omit for anonymous rooms. Revalidated on resume. */
+  /** A stable account subject, or null to reject. Omit for anonymous rooms. Revalidated on resume.
+   * A throw or rejected promise is a temporary failure: the client keeps its session and retries. */
   authenticate?: (request: { room: string; auth: Json; resuming: boolean; ip: string }) => string | null | Promise<string | null>;
   onSession?: (session: GameSession, resumed: boolean) => void;
   onDisconnect?: (session: GameSession) => void;
@@ -155,7 +156,12 @@ export class GameServer {
       throw new Error('Invalid hello');
     c.authenticating = true;
     const auth = (m.auth ?? null) as Json;
-    const subject = this.options.authenticate ? await this.options.authenticate({ room: m.room, auth, resuming: !!m.token, ip: c.ip }) : null;
+    let subject: string | null = null;
+    if (this.options.authenticate) {
+      // A throw is the hook failing (a database timeout), not a verdict on the player: the client retries. Null rejects.
+      try { subject = await this.options.authenticate({ room: m.room, auth, resuming: !!m.token, ip: c.ip }); }
+      catch (e) { this.report(e); c.ws.close(1013, 'authentication unavailable'); return; }
+    }
     if (!this.connections.has(c) || c.ws.readyState !== 1 || this.shuttingDown) return;
     if (this.options.authenticate && (typeof subject !== 'string' || !subject)) throw new Error('Authentication rejected');
     let record: SessionRecord | undefined;
@@ -177,6 +183,7 @@ export class GameServer {
       if (this.sessions.size >= (this.options.maxSessions ?? 256)) { c.ws.close(1013, 'room capacity'); return; }
       const session = new GameSession(randomUUID(), m.room, subject, this.options.endpoint);
       session.endpoint.onCallbackError = e => this.report(e);
+      session.disconnectedAt = performance.now();   // not connected yet: the resume grace counts from now, not from process start
       record = { session, token: randomBytes(32).toString('base64url') };
       this.sessions.set(session.id, session); this.tokens.set(record.token, record);
     }
@@ -186,7 +193,13 @@ export class GameServer {
       const v = typeof this.options.iceServers === 'function' ? await this.options.iceServers(s) : this.options.iceServers ?? [];
       if (validIceServers(v)) ice = v; else this.report(new Error('Invalid iceServers ignored'));
     } catch (e) { this.report(e); }
-    if (!this.connections.has(c) || c.ws.readyState !== 1 || this.shuttingDown) return;
+    if (!this.connections.has(c) || c.ws.readyState !== 1 || this.shuttingDown) {
+      if (!resumed && !this.shuttingDown) this.expire(record);   // nobody ever received this session's token
+      return;
+    }
+    if (this.tokens.get(record.token) !== record) {   // kicked or expired during the await: attaching would leave a zombie
+      c.ws.send(JSON.stringify({ t: 'reset', reason: 'session unavailable' })); c.ws.close(4001, 'session unavailable'); return;
+    }
     const old = record.connection;
     if (old && old !== c) { this.stopRtc(old, false); this.stopWt(old, false); old.record = undefined; old.ws.close(4002, 'session resumed elsewhere'); }
     record.connection = c; c.record = record; c.authenticating = false;
@@ -200,7 +213,7 @@ export class GameServer {
     }, base);
     s.endpoint.onFastDown = via => via === 'wt' ? this.stopWt(c, true) : this.stopRtc(c, true);
     const wt = this.offerWt(c);
-    s.endpoint.sendControl({ t: 'welcome', v: VERSION, e: c.epoch, b: base, id: s.id, token: record.token, resumed, rtc: !!this.options.rtc, ice: ice as unknown as Json,
+    s.endpoint.sendControl({ t: 'welcome', v: VERSION, e: c.epoch, b: base, id: s.id, token: record.token, resumed, r: s.endpoint.events.received, a: s.endpoint.events.acknowledged, rtc: !!this.options.rtc, ice: ice as unknown as Json,
       ...(wt ? { wt } : {}) });
     this.emit('session', s, resumed); s.endpoint.flush();
   }

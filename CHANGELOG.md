@@ -11,7 +11,23 @@
   `maxRejections: Infinity`, which keeps the old behavior, including session loss on a full queue.
 - Extra copies of a rejected event, such as its datagram mirror, wait for the 100 ms retry delay and no longer count
   as attempts. Code using `ReliableEvents` directly must call `drain` to retry a rejected event.
-- Wire generation 5 is unchanged. The change is local to the receiving end, so either side can upgrade first.
+- The rejected-event change above needs no wire change and is local to the receiving end.
+- **Wire generation 6:** a resumed `welcome` now carries the server's event counters (`r` received, `a` acknowledged).
+  Deploy clients and servers together; a generation 5 client can't connect to a generation 6 server.
+- Fix resuming from a checkpoint older than the last event. The old page's later events made the server's ack look
+  invalid, and the session was lost with `protocol`. Now the client lines up with the server before it sends anything.
+  Events queued since the restore move past what the server already has, so they are no longer dropped as duplicates.
+  Server events the checkpoint never saw and the server has since forgotten are skipped and reported through
+  `onError`, so the events behind them still arrive. `sendEvent`'s returned sequence number can change for such a
+  queued event.
+- A throw or rejected promise from `authenticate` is now a temporary failure: the socket closes with 1013, the client
+  retries, and the session and its seat are kept. Returning `null` still ends the session. Applies to the Worker
+  adapter too.
+- Fix a player kicked while a resume awaited `iceServers` staying `online` on a removed session. The client now gets a
+  session-unavailable close (4001).
+- Fix a new session being expired during an async `iceServers` once the server had been up longer than
+  `resumeGraceMs`, which left that player online but never pumped. A new session abandoned during that wait now frees
+  its slot at once.
 
 ## 3.0.1 (2026-11-04)
 

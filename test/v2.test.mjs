@@ -264,7 +264,7 @@ test('a client stamps states with the server clock only: none before it syncs, h
   try {
     c.connect(); ws.readyState = 1; ws.onopen();
     const base = performance.now() + 7 * 86400000;   // a server process up a week longer than this page
-    ws.onmessage({ data: JSON.stringify({ t: 'welcome', v: 5, e: 9, b: base, id: 'p1', token: 'x'.repeat(24), resumed: false, rtc: false, ice: [] }) });
+    ws.onmessage({ data: JSON.stringify({ t: 'welcome', v: 6, e: 9, b: base, id: 'p1', token: 'x'.repeat(24), resumed: false, rtc: false, ice: [] }) });
     assert.equal(c.status, 'online'); assert.equal(c.clock.synced, false);
     assert.equal(c.sendState(1, Uint8Array.of(7)), 0); c.flush();
     const ping = sent.map(d => typeof d === 'string' ? JSON.parse(d) : null).find(m => m?.t === 'ping');

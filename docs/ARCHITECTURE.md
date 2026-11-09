@@ -21,7 +21,8 @@ The application owns authority. The library can't decide whether a position, hit
 ## Connection lifecycle
 
 1. WebSocket: version, origin, room name, authentication; create or resume one session. The welcome carries the
-   epoch, a resume token and the ICE servers for this session.
+   epoch, a resume token, the ICE servers for this session and the server's event counters, which a client resuming
+   from an older checkpoint uses to line up its sequence numbers before it sends anything.
 2. Pings estimate the server clock. States aren't sent before the client has an estimate.
 3. The client offers an unordered, zero-retransmit data channel (signalled over the WebSocket). The server answers
    from one UDP port shared by every connection.
@@ -43,7 +44,7 @@ the receiver centralizes the lifecycle. Reliable events and outbound input do no
 
 ## Wire protocol (version 5)
 
-Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (5) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
+Binary frames, little-endian. The header is 12 bytes for streams under 128 (14 at most): one byte with the protocol version (6) in its high nibble and the kind in its low one, the connection's epoch (u16), the stream (a varint of 1 to 3 bytes), the sequence number (u32), and the time as a signed 32-bit count of quarter milliseconds from the connection's time base, which the welcome carries (about six days either way; the server reconnects a connection before that, and it resumes).
 
 | Kind | Path | Meaning |
 |---|---|---|

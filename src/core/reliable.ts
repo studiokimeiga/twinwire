@@ -157,4 +157,24 @@ export class ReliableEvents {
     this.next = s.next; this.received = s.received; this.acknowledged = s.acknowledged; this.highestSent = s.next - 1;
     this.pending = new Map(saved.map(e => [e.seq, e])); this.bytes = total;
   }
+  /** Line this channel up with the peer's counters when a session resumes, before anything is sent on the new
+   * connection. A checkpoint can be older than the session: the page that saved it went on to send and receive more.
+   * The peer accepted events this channel never knew about, so anything still unsent moves past them (otherwise those
+   * sequence numbers would be dropped as duplicates). Returns how many inbound events the peer has already forgotten
+   * and this channel will never see. Those numbers are skipped, or the events behind them would wait forever. */
+  realign(peerReceived: number, peerAcknowledged: number): number {
+    if (![peerReceived, peerAcknowledged].every(v => Number.isSafeInteger(v) && v >= 0)) throw new Error('Invalid resume counters');
+    if (peerReceived > this.highestSent) {
+      const unsent = [...this.pending.values()].filter(e => e.seq > this.highestSent);
+      let seq = peerReceived, total = 0;
+      for (const e of unsent) { e.seq = ++seq; total += e.bytes; }
+      this.pending = new Map(unsent.map(e => [e.seq, e])); this.bytes = total;
+      this.next = seq + 1; this.acknowledged = this.highestSent = peerReceived;
+    }
+    const missed = peerAcknowledged - this.received;
+    if (missed <= 0) return 0;
+    this.received = peerAcknowledged; this.rejections = 0; this.rejectedWith = undefined;
+    for (const [s, e] of this.early) if (s <= this.received) { this.early.delete(s); this.earlyBytes -= e.bytes; }
+    return missed;
+  }
 }

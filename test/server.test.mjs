@@ -236,3 +236,149 @@ test('a 128 Hz game: the default 60 Hz pump coalesces its states; pumpHz 128, or
   }
   await assert.rejects(async () => createGameServer({ origins: [], allowMissingOrigin: true, pumpHz: 1000 }), /pumpHz/);
 });
+
+// A checkpoint is taken, the page keeps playing, and a reload resumes from that older checkpoint.
+async function resumeFromOlderCheckpoint(s, prepare = () => {}) {
+  const a = client(s.url);
+  a.connect(); await until(() => a.status === 'online');
+  const id = a.id, resume = await prepare(a);
+  a.pause(); await until(() => !s.server.sessions.get(id).connected);
+  const b = client(s.url, { checkpoint: resume.checkpoint });
+  b.lostInfo = undefined; b.onSessionLost = info => b.lostInfo = info;
+  return { a, b, id };
+}
+test('a checkpoint older than the last sent event resumes online, and new events still reach the server', async () => {
+  const got = []; const s = await setup({ onSession: session => { session.onEvent = d => got.push(d); } });
+  let r;
+  try {
+    r = await resumeFromOlderCheckpoint(s, async a => {
+      const checkpoint = a.checkpoint();
+      a.sendEvent('x'); await until(() => got.length === 1 && !a.endpoint.events.size);
+      return { checkpoint };
+    });
+    r.b.connect(); await until(() => r.b.status === 'online' || r.b.status === 'lost'); await sleep(80);
+    assert.equal(r.b.status, 'online', `lost: ${r.b.lostInfo?.reason}`);
+    r.b.sendEvent('y'); await until(() => got.length === 2 || r.b.status === 'lost', 1000);
+    assert.deepEqual(got, ['x', 'y']);
+    await until(() => !r.b.endpoint.events.size);
+  } finally { r?.a.pause(); r?.b.close(); await s.server.close(); }
+});
+test('events queued before an older checkpoint resumes are renumbered past what the server has, and arrive once', async () => {
+  const got = []; const s = await setup({ onSession: session => { session.onEvent = d => got.push(d); } });
+  let r;
+  try {
+    r = await resumeFromOlderCheckpoint(s, async a => {
+      a.sendEvent('in-checkpoint'); const checkpoint = a.checkpoint();   // still unacknowledged when saved
+      a.sendEvent('after-checkpoint'); await until(() => got.length === 2 && !a.endpoint.events.size);
+      return { checkpoint };
+    });
+    r.b.sendEvent('queued-1'); r.b.sendEvent('queued-2');
+    r.b.connect(); await until(() => r.b.status === 'online' || r.b.status === 'lost');
+    assert.equal(r.b.status, 'online', `lost: ${r.b.lostInfo?.reason}`);
+    await until(() => got.length >= 4 || r.b.status === 'lost', 1000).catch(() => {}); await sleep(80);
+    assert.deepEqual(got, ['in-checkpoint', 'after-checkpoint', 'queued-1', 'queued-2']);
+    assert.equal(r.b.endpoint.events.size, 0);
+    assert.doesNotThrow(() => client(s.url, { checkpoint: r.b.checkpoint() }), 'the realigned counters still make a valid checkpoint');
+  } finally { r?.a.pause(); r?.b.close(); await s.server.close(); }
+});
+test('a checkpoint older than the last received event still receives what the server sends next, and says what it missed', async () => {
+  let session; const s = await setup({ onSession: x => { session = x; } });
+  let r; const seenByOld = [], got = [], errors = [];
+  try {
+    r = await resumeFromOlderCheckpoint(s, async a => {
+      a.onEvent = d => seenByOld.push(d);
+      const checkpoint = a.checkpoint();
+      session.sendEvent('missed'); await until(() => seenByOld.length === 1 && !session.endpoint.events.size);
+      return { checkpoint };
+    });
+    r.b.onEvent = d => got.push(d); r.b.onError = e => errors.push(e.message);
+    r.b.connect(); await until(() => r.b.status === 'online' || r.b.status === 'lost');
+    assert.equal(r.b.status, 'online', `lost: ${r.b.lostInfo?.reason}`);
+    session.sendEvent('later'); await until(() => got.length || r.b.status === 'lost', 1000);
+    assert.deepEqual(got, ['later']);
+    assert.equal(errors.filter(m => /checkpoint/i.test(m)).length, 1, errors.join('; '));
+  } finally { r?.a.pause(); r?.b.close(); await s.server.close(); }
+});
+test('authenticate throwing during a resume is a transient failure: the client retries into the same session', async () => {
+  let calls = 0;
+  const s = await setup({ authenticate: () => { if (++calls === 2) throw new Error('database timeout'); return 'user-1'; } });
+  const c = client(s.url); let lost; c.onSessionLost = info => lost = info;
+  try {
+    c.connect(); await until(() => c.status === 'online'); const id = c.id;
+    c.simulateDrop(); await until(() => calls >= 3 && c.status === 'online' || c.status === 'lost');
+    assert.equal(c.status, 'online', `lost: ${lost?.reason}`);
+    assert.equal(c.id, id); assert.equal(s.server.sessions.size, 1);
+    assert.deepEqual(s.errors, ['database timeout']);
+  } finally { c.close(); await s.server.close(); }
+});
+test('authenticate throwing on the first join is retried too', async () => {
+  let calls = 0;
+  const s = await setup({ authenticate: () => { if (++calls === 1) throw new Error('database timeout'); return 'user-1'; } });
+  const c = client(s.url); let lost; c.onSessionLost = info => lost = info;
+  try {
+    c.connect(); await until(() => c.status === 'online' || c.status === 'lost');
+    assert.equal(c.status, 'online', `lost: ${lost?.reason}`);
+  } finally { c.close(); await s.server.close(); }
+});
+test('authenticate returning null during a resume still ends the session', async () => {
+  let calls = 0; const s = await setup({ authenticate: () => ++calls === 1 ? 'user-1' : null });
+  const c = client(s.url); let lost; c.onSessionLost = info => lost = info;
+  try {
+    c.connect(); await until(() => c.status === 'online');
+    c.simulateDrop(); await until(() => c.status === 'lost');
+    assert.match(lost.reason, /join/); assert.equal(calls, 2);
+  } finally { c.close(); await s.server.close(); }
+});
+function pendingIceServers() {
+  let calls = 0, release;
+  return { iceServers: () => ++calls === 1 ? [] : new Promise(r => release = r), pending: () => !!release, release: () => release([]) };
+}
+test('a player kicked while their resume awaits iceServers is told the session is gone, not left online', async () => {
+  const ice = pendingIceServers(); const s = await setup({ iceServers: ice.iceServers });
+  const c = client(s.url); let lost; c.onSessionLost = info => lost = info;
+  try {
+    c.connect(); await until(() => c.status === 'online'); const session = s.server.sessions.get(c.id);
+    c.simulateDrop(); await until(ice.pending);
+    s.server.endSession(session); ice.release();
+    await until(() => c.status === 'lost', 500).catch(() => {});
+    assert.equal(c.status, 'lost', `client is ${c.status} with ${s.server.sessions.size} server sessions`);
+    assert.match(lost.reason, /session unavailable/); assert.equal(s.server.sessions.size, 0);
+  } finally { c.close(); await s.server.close(); }
+});
+test('a socket whose session ended during the iceServers await closes with 4001', async () => {
+  const { VERSION } = await import('../dist/core/protocol.js');
+  const ice = pendingIceServers(); const s = await setup({ iceServers: ice.iceServers });
+  const c = client(s.url); let raw, code;
+  try {
+    c.connect(); await until(() => c.status === 'online');
+    const session = s.server.sessions.get(c.id), { token } = c.checkpoint();
+    c.pause(); await until(() => !session.connected);
+    raw = new WebSocket(s.url); raw.onclose = e => code = e.code;
+    raw.onopen = () => raw.send(JSON.stringify({ t: 'hello', v: VERSION, room: 'test', token, auth: null }));
+    await until(ice.pending);
+    s.server.endSession(session); ice.release();
+    await until(() => code !== undefined, 500).catch(() => {});
+    assert.equal(code, 4001);
+  } finally { raw?.close(); c.close(); await s.server.close(); }
+});
+test('a new session abandoned during the iceServers await frees its slot at once', async () => {
+  let release; const s = await setup({ iceServers: () => new Promise(r => release = r) });
+  const raw = new WebSocket(s.url), { VERSION } = await import('../dist/core/protocol.js');
+  try {
+    raw.onopen = () => raw.send(JSON.stringify({ t: 'hello', v: VERSION, room: 'test', token: null, auth: null }));
+    await until(() => release); assert.equal(s.server.sessions.size, 1);
+    raw.close(); await until(() => s.server.metrics().connections === 0); release([]);
+    await until(() => s.server.sessions.size === 0, 300).catch(() => {});
+    assert.equal(s.server.sessions.size, 0, 'nobody holds this session\'s token');
+  } finally { raw.close(); await s.server.close(); }
+});
+test('a new session waiting on iceServers is not expired by the resume grace before it ever connected', async () => {
+  const s = await setup({ resumeGraceMs: 250, iceServers: async () => { await sleep(80); return []; } });
+  while (performance.now() < 400) await sleep(20);                   // a server that has been up longer than the grace
+  const c = client(s.url); let lost; c.onSessionLost = info => lost = info;
+  try {
+    c.connect(); await until(() => c.status === 'online' || c.status === 'lost');
+    assert.equal(c.status, 'online', `lost: ${lost?.reason}`);
+    assert.equal(s.server.sessions.size, 1);
+  } finally { c.close(); await s.server.close(); }
+});

@@ -102,7 +102,12 @@ export class SocketSessionServer {
       !(message.token === null || typeof message.token === 'string' && /^[\w-]{20,128}$/.test(message.token))) throw new Error('Invalid hello');
     c.authenticating = true;
     const auth = (message.auth ?? null) as Json, resumed = typeof message.token === 'string';
-    const subject = this.options.authenticate ? await this.options.authenticate({room:message.room,auth,resuming:resumed,ip:c.ip}) : null;
+    let subject: string | null = null;
+    if (this.options.authenticate) {
+      // A throw is the hook failing (a database timeout), not a verdict on the player: the client retries. Null rejects.
+      try { subject = await this.options.authenticate({room:message.room,auth,resuming:resumed,ip:c.ip}); }
+      catch (error) { this.report(error); c.socket.close(1013,'authentication unavailable'); return; }
+    }
     if (!this.connections.has(c) || c.socket.readyState !== 1 || this.stopped) return;
     if (this.options.authenticate && (typeof subject !== 'string' || !subject)) throw new Error('Authentication rejected');
     let record: RecordEntry | undefined;
@@ -134,7 +139,7 @@ export class SocketSessionServer {
       get open(){return socket.readyState === 1;},get bufferedAmount(){return socket.bufferedAmount ?? 0;},
       send(data){if(socket.readyState!==1)return false;socket.send(data);return true;},close(){socket.close();},
     },base);
-    s.endpoint.sendControl({t:'welcome',v:VERSION,e:c.epoch,b:base,id:s.id,token:record.token,resumed,rtc:false,ice:[]});
+    s.endpoint.sendControl({t:'welcome',v:VERSION,e:c.epoch,b:base,id:s.id,token:record.token,resumed,r:s.endpoint.events.received,a:s.endpoint.events.acknowledged,rtc:false,ice:[]});
     try { this.options.onSession?.(s,resumed); } catch(error) { this.report(error); }
     s.endpoint.flush();
   }
