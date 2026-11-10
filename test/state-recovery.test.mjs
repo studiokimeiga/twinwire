@@ -25,6 +25,23 @@ async function setup() {
   return { server, client, errors, connect, send, close: async () => { client.close(); await server.close(); } };
 }
 
+test('the client acknowledges only snapshots its receiver applied or its onState accepted', async () => {
+  const s = await setup(); const acked = [];
+  s.client.receiveState({ stream: 0, apply: state => state.data[0] === 1 });
+  s.client.onState = state => !(state.stream === 1 && state.data[0] === 2);
+  try {
+    await s.connect();
+    const session = s.server.sessions.get(s.client.id);
+    session.onStateAck = (stream, seq) => acked.push([stream, seq]);
+    const send = (stream, byte) => { const seq = session.endpoint.sendState(stream, Uint8Array.of(byte), performance.now(), { ack: true }); session.flush(); return seq; };
+    send(0, 0); send(1, 2); await sleep(200);
+    assert.deepEqual(acked, [], 'refused by the receiver, and refused by onState');
+    const a = send(0, 1), b = send(1, 3);
+    await until(() => acked.length === 2);
+    assert.deepEqual(acked.sort((x, y) => x[0] - y[0]), [[0, a], [1, b]]);
+  } finally { await s.close(); }
+});
+
 test('retained replay holds across pause and online until a usable fresh snapshot arrives', async () => {
   const s = await setup();
   const timeline = new Timeline();

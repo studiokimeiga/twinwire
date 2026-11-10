@@ -44,7 +44,9 @@ export class GameClient {
   onStatus: (status: ClientStatus) => void = () => {};
   onSession: (info: { id: string; resumed: boolean }) => void = () => {};
   onSessionLost: (info: { pendingEvents: number; reason: string }) => void = () => {};
-  onState: (state: StateMessage) => void = () => {};
+  /** Every incoming state. Return false (or throw) to refuse an `ack: true` state, so the sender never builds a delta
+   * on it. A receiveState() receiver for the stream must also have applied it. */
+  onState: (state: StateMessage) => boolean | void = () => {};
   onEvent: (data: Json, seq: number) => void = () => {};
   onStateAck: (stream: number, seq: number) => void = () => {};
   onTransport: (transport: Transport) => void = () => {};
@@ -101,11 +103,14 @@ export class GameClient {
     const e = new Endpoint({ ...this.options.endpoint, impair: this.options.impair ?? this.options.endpoint?.impair,
       traceClock: () => this.clock.synced ? { serverTimeMs: this.clock.serverTime(performance.now()), uncertaintyMs: this.clock.uncertaintyMs } : null });
     e.onState = s => {
+      // Acknowledged (for `ack: true` states) only if the stream's own receiver applied it and onState didn't refuse it.
+      // A grouped receiver rejects other streams' payloads by design, so it doesn't decide.
+      let usable = true;
       const receiver = this.stateReceivers.get(s.stream);
-      if (receiver) try { receiver.receive(s); } catch (error) { this.report(error); }
+      if (receiver) try { usable = receiver.receive(s); } catch (error) { usable = false; this.report(error); }
       const grouped = this.stateReceivers.get(undefined);
       if (grouped) try { grouped.receive(s); } catch (error) { this.report(error); }
-      this.onState(s);
+      return this.onState(s) !== false && usable;
     };
     e.onEvent = (d, s) => { for (const f of this.interceptors) if (f(d, s)) return; this.onEvent(d, s); };
     e.onStateAck = (stream, seq) => this.onStateAck(stream, seq);

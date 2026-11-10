@@ -34,7 +34,7 @@ await server.listen();   // resolves with the port
 | `pumpHz` | 60 | How often queued states and events go out; a game ticking faster sets its tick rate (10 to 250), or flushes each session after its snapshot |
 | `heartbeatTimeoutMs` | 15 000 | A connection silent this long is closed |
 | `handshakeTimeoutMs` | 5 000 | A connection that hasn't said hello by then is closed |
-| `maxSessions`, `maxConnections`, `maxPerIp` | 256, 512, 32 | Sessions (connected or waiting to resume), sockets, and sockets per address |
+| `maxSessions`, `maxConnections`, `maxPerIp` | 256, 512, 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. When the sessions are full, a new player replaces the one that has waited longest to resume (with an `expire`), so only connected sessions can fill a server |
 | `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table |
 | `rateLimit` | `{ messages: 300, bytes: 256 KiB }` | Per connection, per second, both transports together |
 | `allowImpairment` | false | Honour a client's `impair` request. Development only |

@@ -6,49 +6,63 @@ export interface SubtickTransition<T> { fraction: number; value: T }
  * Collect locally timestamped button/analog state changes into fixed-duration input commands.
  * Times must share one monotonic clock, e.g. DOM event.timeStamp and performance.now().
  * Call take() for consecutive tick windows; events exactly on an end boundary belong to the next tick.
- * An overflow or skipped interval is explicit, never silently clamped or dropped.
+ *
+ * Each value is the whole input state, so timing trouble never throws and never loses the newest state:
+ * - Events pushed out of order are sorted into place (equal times keep push order).
+ * - An event whose tick was already taken, or whose window was skipped, is applied at the start of the next window
+ *   (`late` counts these). Losing it instead could leave a released key held.
+ * - An event older than one already taken is out of date, since a newer state was applied, and is dropped.
+ * - Overflow, or more events in one tick than `maxPerTick`, drops the earliest transitions.
+ * `dropped` counts the last three.
  */
 export class SubtickInputBuffer<T> {
   private queued: { atMs: number; value: T }[] = [];
-  private lastEventMs = -Infinity;
+  private lastTakenMs = -Infinity;
   private consumedThroughMs = -Infinity;
   private cloning = false;
+  /** Events applied at the start of a later window than their timestamp. */
+  late = 0;
+  /** Events dropped because a newer state replaced them, or because of overflow. */
+  dropped = 0;
   constructor(readonly capacity = 128, readonly clone: (value: T) => T = cloneNetcodeValue) {
     if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 4096) throw new RangeError('Invalid subtick capacity');
   }
   get pending() { return this.queued.length; }
   push(atMs: number, value: T): void {
     if (this.cloning) throw new Error('Reentrant subtick clone');
-    if (!Number.isFinite(atMs) || atMs < this.lastEventMs || atMs < this.consumedThroughMs)
-      throw new RangeError('Nonmonotonic or already-consumed input time');
-    if (this.queued.length >= this.capacity) throw new Error('Subtick input buffer full: resync required');
+    if (!Number.isFinite(atMs)) throw new RangeError('Invalid input time');
+    if (atMs < this.lastTakenMs) { this.dropped++; return; }
     // Snapshot input values so later mutations cannot change an already recorded command.
     let copy: T;
     this.cloning = true;
     try { copy = this.clone(value); } finally { this.cloning = false; }
-    this.queued.push({ atMs, value: copy });
-    this.lastEventMs = atMs;
+    let at = this.queued.length;
+    while (at > 0 && this.queued[at - 1]!.atMs > atMs) at--;
+    this.queued.splice(at, 0, { atMs, value: copy });
+    if (this.queued.length > this.capacity) { this.queued.shift(); this.dropped++; }
   }
   take(startMs: number, endMs: number, maxPerTick = Math.min(32, this.capacity)): SubtickTransition<T>[] {
     if (this.cloning) throw new Error('Reentrant subtick clone');
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs ||
         !Number.isFinite(endMs - startMs) || startMs < this.consumedThroughMs || !Number.isSafeInteger(maxPerTick) || maxPerTick < 1 || maxPerTick > this.capacity)
       throw new RangeError('Invalid subtick window');
-    if (this.queued.length && this.queued[0]!.atMs < startMs)
-      throw new Error('Skipped subtick input: resync required');
     let n = 0;
     while (n < this.queued.length && this.queued[n]!.atMs < endMs) n++;
-    if (n > maxPerTick) throw new Error('Subtick events exceed per-tick limit: resync required');
+    const due = this.queued.splice(0, n);
+    if (due.length > maxPerTick) this.dropped += due.splice(0, due.length - maxPerTick).length;
     const span = endMs - startMs;
-    const out = this.queued.slice(0, n).map(e => ({ fraction: Math.min(1 - Number.EPSILON, (e.atMs - startMs) / span), value: e.value }));
-    this.queued.splice(0, n);
+    const out = due.map(e => {
+      if (e.atMs < startMs) this.late++;
+      return { fraction: Math.min(1 - Number.EPSILON, Math.max(0, (e.atMs - startMs) / span)), value: e.value };
+    });
+    if (due.length) this.lastTakenMs = due[due.length - 1]!.atMs;
     this.consumedThroughMs = endMs;
     return out;
   }
   reset(): void {
     if (this.cloning) throw new Error('Reentrant subtick clone');
     this.queued = [];
-    this.lastEventMs = this.consumedThroughMs = -Infinity;
+    this.lastTakenMs = this.consumedThroughMs = -Infinity;
   }
 }
 

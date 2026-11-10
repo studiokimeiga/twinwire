@@ -31,32 +31,48 @@ test('two events at the same time are ordered, and stored values are independent
   q.push(0, {pressed:false});
   assert.deepEqual(q.take(0,10),[{fraction:0,value:{pressed:true}},{fraction:0,value:{pressed:false}}]);
 });
-test('old input and skipped windows throw instead of being shifted to the next tick', () => {
+// Each value is the whole input state (held buttons, axes), so a late transition is applied as soon as possible rather
+// than lost: losing a key release would leave the key held. Only a transition that a newer one already replaced goes.
+test('an event dispatched after its tick was taken is applied at the start of the next tick', () => {
   const q=new SubtickInputBuffer();q.push(5,'fire');
-  assert.throws(()=>q.take(10,20),/Skipped/);
-  assert.equal(q.pending,1);
   assert.deepEqual(q.take(0,10),[{fraction:0.5,value:'fire'}]);
-  assert.throws(()=>q.push(9,'past'),/already-consumed/);
-  assert.throws(()=>q.take(0,10),/Invalid subtick window/);
+  q.push(9,'release');                                   // happened in the tick already taken, but after its last event
+  assert.deepEqual(q.take(10,20),[{fraction:0,value:'release'}]);
+  assert.equal(q.late,1); assert.equal(q.dropped,0); assert.equal(q.pending,0);
+  assert.throws(()=>q.take(0,10),/Invalid subtick window/, 'overlapping windows are still a caller error');
   q.reset();q.push(9,'fresh');assert.equal(q.take(0,10).length,1);
 });
-test('overflow or bad take is atomic and explicit', () => {
+test('a skipped window delivers its input at the start of the next one', () => {
+  const q=new SubtickInputBuffer();q.push(5,'fire');
+  assert.deepEqual(q.take(10,20),[{fraction:0,value:'fire'}]);
+  assert.equal(q.late,1);
+});
+test('an event older than one already applied is out of date and dropped', () => {
+  const q=new SubtickInputBuffer();q.push(8,'pressed');
+  assert.deepEqual(q.take(0,10),[{fraction:0.8,value:'pressed'}]);
+  q.push(3,'released');                                  // the press it preceded is already applied
+  assert.deepEqual(q.take(10,20),[]);
+  assert.equal(q.dropped,1); assert.equal(q.late,0);
+});
+test('overflow and per-tick bursts drop the earliest transitions and keep the newest state', () => {
   const q=new SubtickInputBuffer(3);q.push(2,1);q.push(3,2);q.push(4,3);
-  assert.throws(()=>q.push(5,4),/full/);
-  assert.throws(()=>q.take(0,10,2),/per-tick/);
-  assert.equal(q.pending,3);
-  assert.equal(q.take(0,10,3).length,3);
+  q.push(5,4);
+  assert.equal(q.pending,3); assert.equal(q.dropped,1);
+  q.push(1,0);                                           // older than everything queued in a full buffer
+  assert.equal(q.pending,3); assert.equal(q.dropped,2);
+  assert.deepEqual(q.take(0,10,2).map(e=>e.value),[3,4]);
+  assert.equal(q.dropped,3); assert.equal(q.pending,0);
   const small=new SubtickInputBuffer(1); small.push(0,'ok'); assert.equal(small.take(0,1)[0].value, 'ok');
   assert.throws(()=>new SubtickInputBuffer(0),RangeError);
   assert.throws(()=>q.push(NaN,1),RangeError);
   assert.throws(()=>q.take(10,10),RangeError);
 });
-test('out-of-order timestamps are rejected; future input waits for correct tick',()=>{
-  const q=new SubtickInputBuffer();q.push(32,'late');q.push(45,'future');
-  assert.throws(()=>q.push(33,'old'),RangeError);
-  assert.equal(q.take(0,40).length,1);
+test('out-of-order timestamps are sorted into place; future input waits for its tick',()=>{
+  const q=new SubtickInputBuffer();q.push(32,'a');q.push(45,'future');q.push(33,'b');q.push(32,'c');
+  assert.deepEqual(q.take(0,40).map(e=>e.value),['a','c','b'], 'equal times keep the order they were pushed');
   assert.equal(q.pending,1);
   assert.equal(q.take(40,50)[0].value,'future');
+  assert.equal(q.late,0); assert.equal(q.dropped,0);
 });
 test('subtick replay validates all events before callbacks, including nonfinite and malformed',()=>{
   for(const list of [[{fraction:.6,value:1},{fraction:.2,value:0}],[{fraction:NaN,value:1}],[{fraction:1,value:1}],[{fraction:-.01,value:1}],[null]]){

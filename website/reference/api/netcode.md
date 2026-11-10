@@ -61,7 +61,12 @@ one state payload; **`decodeInputs(bytes)`** unpacks them, or returns null.
 
 **`SnapshotHistory<T>(capacity = 64)`**, one per receiver. `record(seq, value)` after each `sendState(..., { ack:
 true })`; `acknowledge(seq)` from `onStateAck`; `baseline` is `{ seq, value }` of the newest acknowledged snapshot, or
-null; `reset()` on a new connection.
+null; `reset()` on a new connection. A base more than `capacity` seqs old is dropped, so the next snapshot is whole.
+
+**`SnapshotBaselines<T>(capacity = 64)`**, the receiving side: `set(seq, value)` for each snapshot you built,
+`get(seq)` (undefined if never stored or out of the window), `size`, `reset()`. It keeps seqs within `capacity` of
+the newest, the window `SnapshotHistory` builds on, so use the same capacity on both. When a delta's base is missing,
+return false from `onState` (or the receiver's `apply`) so that snapshot isn't acknowledged.
 
 **`diffEntities(base, next)`** returns `{ set?, del? }` between two `{ [id]: { field: value } }` maps; a removed field is
 `null`. **`applyEntityDelta(base, delta)`** rebuilds the full map without touching its inputs.

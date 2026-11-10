@@ -51,8 +51,8 @@ const client = new GameClient({
 | `sendEvent(json)` | Ordered, acknowledged; returns its seq. Throws when the outbox is full (512 events or 1 MiB) or the event is over 64 KiB |
 | `onEvent(data, seq)` | Each event exactly once, in order. Throwing means "not accepted": the event comes again |
 | `sendState(stream, bytes, { ttlMs, priority, ack }?)` | Latest wins per stream. Returns the seq, or 0 before the session is online and the clock synced |
-| `onState({ stream, seq, time, data, via, late })` | `time` is the sender's server-clock estimate: never trust it for authority. `late` only with `endpoint.lateStates: 'deliver'` |
-| `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer has seen |
+| `onState({ stream, seq, time, data, via, late })` | `time` is the sender's server-clock estimate: never trust it for authority. `late` only with `endpoint.lateStates: 'deliver'`. Return false when you can't use it (a delta whose base you don't have) so it isn't acknowledged |
+| `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer accepted (its `onState` didn't refuse it and, on a client, the stream's receiver applied it) |
 | `onError(error)` | Problems that don't end the session (a callback that threw, a WebRTC failure) |
 | `clock` | `synced`, `rttMs`, `uncertaintyMs`, `serverTime(performance.now())` |
 | `iceServers` | The STUN/TURN servers the server suggested in its welcome |

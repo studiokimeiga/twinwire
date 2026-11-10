@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGameServer } from '../dist/server/index.js';
 import { GameClient } from '../dist/client/index.js';
-import { SnapshotHistory, diffEntities, applyEntityDelta, Predictor, InputInbox, encodeInputs, decodeInputs } from '../dist/netcode/index.js';
+import { SnapshotHistory, SnapshotBaselines, diffEntities, applyEntityDelta, Predictor, InputInbox, encodeInputs, decodeInputs } from '../dist/netcode/index.js';
 import { EventRejected, ReliableEvents } from '../dist/core/reliable.js';
 import { encodeFrame, FrameKind, utf8 } from '../dist/core/protocol.js';
 import { pair, until, sleep } from './helpers.mjs';
@@ -32,6 +32,73 @@ test('SnapshotHistory acknowledges across the wrap and never regresses', () => {
   assert.equal(h.acknowledge(W), true); assert.equal(h.baseline.seq, W);
   assert.equal(h.acknowledge(2), true); assert.equal(h.baseline.value, 'c');
   assert.equal(h.acknowledge(1), false); assert.equal(h.acknowledge(W), false);
+});
+
+// A delta sender builds on whatever was acknowledged. Acking a snapshot the game couldn't use made the next delta
+// undecodable too, and that one was acked as well, so the receiver never recovered.
+test('a state the receiver refuses is not acknowledged, so the sender never builds on it', () => {
+  const p = pair(); const acked = [];
+  p.a.onStateAck = (stream, seq) => acked.push(seq);
+  let verdict = () => false;
+  p.b.onState = s => verdict(s);
+  p.a.sendState(0, Uint8Array.of(1), p.now, { ack: true }); p.advance(60); p.advance(60);
+  assert.deepEqual(acked, [], 'returning false withholds the ack');
+  verdict = () => { throw new Error('decode failed'); };
+  p.a.sendState(0, Uint8Array.of(2), p.now, { ack: true }); p.advance(60); p.advance(60);
+  assert.deepEqual(acked, [], 'a throw withholds it too');
+  assert.equal(p.b.stats.callbackErrors, 1);
+  verdict = () => undefined;
+  const seq = p.a.sendState(0, Uint8Array.of(3), p.now, { ack: true }); p.advance(60); p.advance(60);
+  assert.deepEqual(acked, [seq], 'returning nothing accepts, as before');
+});
+
+test('a delta stream recovers when the receiver misses a snapshot: nothing it could not use is built on', () => {
+  const p = pair(); const history = new SnapshotHistory(8), baselines = new SnapshotBaselines(8);
+  p.a.onStateAck = (stream, seq) => history.acknowledge(seq);
+  let refuseFirst = true, view = null, undecodable = 0;
+  p.b.onState = s => {
+    const msg = JSON.parse(new TextDecoder().decode(s.data));
+    if (refuseFirst) { refuseFirst = false; return false; }      // say it arrived before the game could take it
+    const base = msg.b ? baselines.get(msg.b) : null;
+    if (base === undefined) { undecodable++; return false; }
+    view = applyEntityDelta(base, msg.d); baselines.set(s.seq, view);
+  };
+  for (let tick = 1; tick <= 20; tick++) {
+    const world = { p1: { x: tick }, door: { open: false } }, base = history.baseline;
+    const msg = { b: base?.seq ?? 0, d: diffEntities(base?.value ?? null, world) };
+    history.record(p.a.sendState(0, new TextEncoder().encode(JSON.stringify(msg)), p.now, { ack: true }), world);
+    p.advance(20);
+  }
+  assert.deepEqual(view, { p1: { x: 20 }, door: { open: false } });
+  assert.equal(undecodable, 0);
+});
+
+test('SnapshotHistory falls back to a whole snapshot once its baseline is older than the receiver keeps', () => {
+  const h = new SnapshotHistory(4);
+  h.record(1, 'a'); assert.equal(h.acknowledge(1), true);
+  for (let seq = 2; seq <= 4; seq++) h.record(seq, String(seq));
+  assert.equal(h.baseline.seq, 1, 'three behind: a receiver keeping four still holds it');
+  h.record(5, '5');
+  assert.equal(h.baseline, null, 'four behind: it may be gone, so send everything');
+  assert.equal(h.acknowledge(5), true); assert.equal(h.baseline.seq, 5);
+  const w = new SnapshotHistory(4);
+  w.record(W, 'a'); w.acknowledge(W); w.record(1, 'b'); w.record(2, 'c');
+  assert.equal(w.baseline.seq, W, 'distance is counted across the wrap');
+});
+
+test('SnapshotBaselines keeps the window SnapshotHistory assumes, across the wrap', () => {
+  const b = new SnapshotBaselines(4);
+  b.set(W - 1, 'a'); b.set(W, 'b'); b.set(1, 'c');
+  assert.equal(b.get(W - 1), 'a');
+  b.set(2, 'd');                                   // W-1 is now four behind
+  assert.equal(b.get(W - 1), undefined); assert.equal(b.get(W), 'b'); assert.equal(b.size, 3);
+  b.set(W - 2, 'too old');                         // already outside the window: not kept
+  assert.equal(b.get(W - 2), undefined); assert.equal(b.size, 3);
+  b.set(W, 'b2');                                  // an older seq never moves the window back
+  assert.equal(b.get(2), 'd'); assert.equal(b.get(W), 'b2');
+  assert.equal(b.get(0), undefined);
+  b.reset(); assert.equal(b.size, 0);
+  assert.throws(() => new SnapshotBaselines(0), RangeError);
 });
 
 test('mirrored events arrive in order from reordered datagrams, once, and are acked without the WebSocket', () => {

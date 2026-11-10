@@ -19,7 +19,11 @@ export interface GameServerOptions {
   port?: number; host?: string; path?: string;
   /** Exact page origins, or a predicate (for example, any origin for a game without cookies or accounts). */
   origins: string[] | ((origin: string) => boolean);
-  allowMissingOrigin?: boolean; maxSessions?: number; maxConnections?: number; maxPerIp?: number;
+  allowMissingOrigin?: boolean;
+  /** Sessions in all, connected or waiting to resume (default 256). When full, a new player replaces the session that
+   * has waited longest to resume (an `expire` follows), so held seats never lock out someone connecting now. */
+  maxSessions?: number;
+  maxConnections?: number; maxPerIp?: number;
   /** Sessions one address may hold, connected or waiting to resume (default maxPerIp). At the limit, a new session
    * from that address replaces its longest-disconnected one, so a player who reloads a lot recycles their own. */
   maxSessionsPerIp?: number;
@@ -49,7 +53,14 @@ export interface GameServerOptions {
   http?: (req: IncomingMessage, res: ServerResponse) => void;
 }
 export { GameSession } from '../core/session.js';
-interface SessionRecord { session: GameSession; token: string; connection?: Connection }
+/** `pending`: created by a hello that is still being set up (awaiting iceServers), so not yet waiting to resume. */
+interface SessionRecord { session: GameSession; token: string; connection?: Connection; pending?: boolean }
+/** The disconnected session that has waited longest to resume, if any. A session still being set up doesn't count. */
+function longestWaiting(records: Iterable<SessionRecord>): SessionRecord | undefined {
+  let best: SessionRecord | undefined;
+  for (const r of records) if (!r.session.connected && !r.pending && (!best || r.session.disconnectedAt < best.session.disconnectedAt)) best = r;
+  return best;
+}
 interface Connection {
   ws: Ws; ip: string; started: number; lastSeen: number; authenticating: boolean;
   record?: SessionRecord; epoch: number; rtc?: RtcPeer; attempt: number; rtcStarted: number;
@@ -176,15 +187,21 @@ export class GameServer {
     } else {
       const mine = [...this.tokens.values()].filter(r => r.session.ip === c.ip);
       if (mine.length >= (this.options.maxSessionsPerIp ?? this.options.maxPerIp ?? 32)) {
-        const idle = mine.filter(r => !r.session.connected).sort((a, b) => a.session.disconnectedAt - b.session.disconnectedAt)[0];
+        const idle = longestWaiting(mine);
         if (!idle) { c.ws.close(1013, 'too many sessions from this address'); return; }
         this.expire(idle);
       }
-      if (this.sessions.size >= (this.options.maxSessions ?? 256)) { c.ws.close(1013, 'room capacity'); return; }
+      if (this.sessions.size >= (this.options.maxSessions ?? 256)) {
+        // A seat held for someone who may come back must not turn away someone connecting now. Without this, a few
+        // addresses could fill the table with sessions they open and abandon, each held for the whole resume grace.
+        const idle = longestWaiting(this.tokens.values());
+        if (!idle) { c.ws.close(1013, 'room capacity'); return; }
+        this.expire(idle);
+      }
       const session = new GameSession(randomUUID(), m.room, subject, this.options.endpoint);
       session.endpoint.onCallbackError = e => this.report(e);
       session.disconnectedAt = performance.now();   // not connected yet: the resume grace counts from now, not from process start
-      record = { session, token: randomBytes(32).toString('base64url') };
+      record = { session, token: randomBytes(32).toString('base64url'), pending: true };
       this.sessions.set(session.id, session); this.tokens.set(record.token, record);
     }
     const s = record.session;
@@ -203,7 +220,7 @@ export class GameServer {
     }
     const old = record.connection;
     if (old && old !== c) { this.stopRtc(old, false); this.stopWt(old, false); old.record = undefined; old.ws.close(4002, 'session resumed elsewhere'); }
-    record.connection = c; c.record = record; c.authenticating = false;
+    record.connection = c; c.record = record; c.authenticating = false; record.pending = false;
     c.epoch = this.epoch = (this.epoch + 1) & 0xffff || 1; s.epoch = c.epoch; s.connected = true; s.ip = c.ip; s.hello = auth; s.resetRtt();
     try { s.endpoint.setImpairment(this.options.allowImpairment && isRecord(m.impair) ? m.impair as Impairment : null); }
     catch (e) { this.report(e); s.endpoint.setImpairment(null); }

@@ -150,9 +150,9 @@ const client = new GameClient({
 | `sendEvent(json)` | Ordered, acknowledged, deduplicated; replayed after reconnects. Returns its seq; throws when the outbox is full (512 events / 1 MiB) or the event is over 64 KiB. |
 | `onEvent(data, seq)` | Each event exactly once, in order, whichever path brought it first. |
 | `sendState(stream, bytes, {ttlMs, priority, ack}?)` | Latest wins per stream (0 to 65535). Returns the seq, or 0 before the session is online and the clock synced. Up to `maxStateBytes` (64 KiB). |
-| `onState({stream,seq,time,data,via,late})` | Newer than anything seen on that stream this connection (or, with `endpoint.lateStates: 'deliver'`, an overtaken one not seen before, `late: true`). `time` is the sender's server-clock estimate: never trust it for authority. |
+| `onState({stream,seq,time,data,via,late})` | Newer than anything seen on that stream this connection (or, with `endpoint.lateStates: 'deliver'`, an overtaken one not seen before, `late: true`). `time` is the sender's server-clock estimate: never trust it for authority. Return false when you can't use it (a delta whose base you don't have) so it isn't acknowledged. |
 | `receiveState({stream, apply, reset?, playback?, resume?, maxExtrapolationMs?})` | Register a session-aware snapshot receiver. Its `ready` and `advance(dtMs)` wait for usable fresh state after every connect/resume. See below. |
-| `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer has seen. |
+| `onStateAck(stream, seq)` | For states sent with `ack: true`: the newest the peer accepted. A peer acknowledges a state only if its `onState` didn't return false or throw, and, on a client, the stream's `receiveState` receiver applied it. |
 | `iceServers` | What the server suggested in its welcome. |
 | `clock` | `synced`, `rttMs`, `uncertaintyMs`, `serverTime(performance.now())`. |
 | `pause()` / `resume()` | Close and reopen the connection, keeping the session. |
@@ -227,7 +227,7 @@ await server.listen();
 | `trustProxy` | false | Read the client address from the last `X-Forwarded-For` hop when the peer is a local proxy. |
 | `resumeGraceMs` | 90 000 | How long a dropped session (and its lobby seat) waits. |
 | `pumpHz` | 60 | How often queued states and events go out. A game ticking faster sets its tick rate (10 to 250), or calls `session.flush()` after each snapshot. |
-| `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. |
+| `maxSessions` / `maxConnections` / `maxPerIp` | 256 / 512 / 32 | Sessions (connected or waiting to resume), sockets, and sockets per address. When the sessions are full, a new player replaces the one that has waited longest to resume (with an `expire`), so held seats never lock out someone connecting now. Only connected sessions can fill a server. |
 | `maxSessionsPerIp` | `maxPerIp` | Sessions per address. At the limit a new one replaces that address's longest-disconnected session, so one address can't fill the table. |
 | `rateLimit` | 300 msg/s, 256 KiB/s | Per logical connection, all physical paths together. |
 | `allowImpairment` | false | Honour a client's `impair`. Development only. |
@@ -401,8 +401,12 @@ both. `StateReceiver.advance` uses that separation during recovery, with one ada
 
 **Sub-tick input (optional).** `SubtickInputBuffer<T>` records input-state transitions with local monotonic
 timestamps and `take(startMs, endMs, maxPerTick?)` emits ordered fractions inside each fixed-step input command.
-Events exactly at `endMs` belong to the next command. It snapshots input values, bounds pending transitions,
-rejects nonmonotonic timestamps and refuses to silently shift old events after a skipped tick or CPU stall.
+Events exactly at `endMs` belong to the next command. It snapshots input values and bounds pending transitions.
+Each value is the whole input state, so timing trouble never throws and the newest state is never lost. Events
+pushed out of order are sorted. An event whose tick was already taken, or whose window was skipped (a CPU stall), is
+applied at the start of the next window and counted in `late`; dropping it could leave a released key held. An event
+older than one already taken is out of date and dropped, as are the earliest transitions on overflow or beyond
+`maxPerTick`; `dropped` counts these. Overlapping windows and non-finite times are still errors.
 Call `reset()` on a deliberate simulation discontinuity. DOM `event.timeStamp` and tick boundaries must use the
 same local clock. This is client-side input timing, not a trusted timestamp.
 
@@ -453,10 +457,20 @@ session.onStateAck = (stream, seq) => history.acknowledge(seq);
 const base = history.baseline;                       // null: send everything
 const seq = session.sendState(0, encode({ b: base?.seq ?? 0, d: diffEntities(base?.value ?? null, world) }), { ack: true });
 history.record(seq, world);
-// client: view = applyEntityDelta(states.get(msg.b) ?? null, msg.d); states.set(s.seq, view)
+
+// client
+const baselines = new SnapshotBaselines<Entities>();
+net.onState = s => {
+  const msg = decode(s.data), base = msg.b ? baselines.get(msg.b) : null;
+  if (base === undefined) return false;              // its base is gone: refuse it, so it isn't acknowledged
+  const view = applyEntityDelta(base, msg.d); baselines.set(s.seq, view); show(view);
+};
 ```
 
-Reset both sides when the connection epoch changes (`onSession`). A null field and a missing field are the same.
+An acknowledgement means the receiver kept that snapshot, so the server only builds on bases the client has.
+`SnapshotBaselines` keeps the same window as `SnapshotHistory` (64 seqs by default; give both the same capacity), and
+the history sends a whole snapshot once its acknowledged base is older than that. Reset both sides when the
+connection epoch changes (`onSession`). A null field and a missing field are the same.
 
 **Acknowledged records.** `ReplicaSender`/`ReplicaReceiver` resend whole small entity records until acknowledged,
 with generations for reused ids.

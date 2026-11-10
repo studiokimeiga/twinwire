@@ -29,7 +29,7 @@ onMounted(async () => {
   pair.client.onState = st => {
     const msg = JSON.parse(dec.decode(st.data)) as { b: number; d: Parameters<typeof applyEntityDelta>[1] };
     const base = msg.b ? views.get(msg.b) ?? null : null;
-    if (msg.b && !base) return;                                   // never happens: the server only uses acknowledged bases
+    if (msg.b && !base) return false;                             // refuse it: it won't be acknowledged or built on
     const view = applyEntityDelta(base, msg.d);
     views.set(st.seq, view); clientView = view;
     for (const k of [...views.keys()]) if (views.size > 80 && k < st.seq - 70) views.delete(k);

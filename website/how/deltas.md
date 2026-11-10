@@ -9,9 +9,13 @@ A delta is "what changed since snapshot N". If the player never got snapshot N (
 get lost) the delta is useless, and applying it would build a wrong world.
 
 So the delta is taken against a snapshot the player has **acknowledged**. Send states with `ack: true`, and the
-receiver reports the newest one it saw, at most every 50 ms, on the datagram path when it is up. The server keeps
+receiver reports the newest one it kept, at most every 50 ms, on the datagram path when it is up. The server keeps
 what it sent by sequence number (`SnapshotHistory`), and each new snapshot is a delta against the newest acknowledged
 one. A lost snapshot costs nothing except a slightly larger next delta, because nothing ever depends on it.
+
+An acknowledgement means the player **kept** the snapshot, not just that it arrived. If the browser can't use one (it
+arrived before the game was ready, or its base is gone), returning false from `onState` withholds the ack, so the
+server never builds on it. Acknowledging it anyway would make the next delta unusable too, and the one after that.
 
 ## Try it
 
@@ -45,15 +49,18 @@ function sendSnapshot(world) {                             // world: { [id]: { f
 }
 ```
 
-In the browser, keep the worlds you've built by sequence number, so a delta can find its base:
+In the browser, keep the worlds you've built by sequence number, so a delta can find its base. `SnapshotBaselines`
+keeps the same 64 the server's history builds on, and the history falls back to a whole snapshot past that:
 
 ```js
-import { applyEntityDelta } from 'twinwire/netcode';
+import { SnapshotBaselines, applyEntityDelta } from 'twinwire/netcode';
 
-const built = new Map();                                   // seq -> world
+const built = new SnapshotBaselines();                     // seq -> world, the last 64
 net.onState = s => {
   const msg = decode(s.data);
-  const view = applyEntityDelta(msg.b ? built.get(msg.b) ?? null : null, msg.d);
+  const base = msg.b ? built.get(msg.b) : null;
+  if (base === undefined) return false;                    // base gone: refuse it, so it isn't acknowledged
+  const view = applyEntityDelta(base, msg.d);
   built.set(s.seq, view);
   show(view);
 };

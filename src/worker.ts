@@ -24,6 +24,12 @@ export interface SocketSessionOptions {
   onError?: (error: Error) => void;
 }
 interface RecordEntry { session: GameSession; token: string; connection?: Connection }
+/** The disconnected session that has waited longest to resume, if any. A new session attaches synchronously here. */
+function longestWaiting(records: Iterable<RecordEntry>): RecordEntry | undefined {
+  let best: RecordEntry | undefined;
+  for (const r of records) if (!r.session.connected && (!best || r.session.disconnectedAt < best.session.disconnectedAt)) best = r;
+  return best;
+}
 interface Connection {
   socket: SessionSocket; ip: string; epoch: number; started: number; lastSeen: number;
   authenticating: boolean; record?: RecordEntry; messages: TokenBucket; bytes: TokenBucket;
@@ -121,10 +127,14 @@ export class SocketSessionServer {
     } else {
       const mine = [...this.records.values()].filter(r => r.session.ip === c.ip);
       if (mine.length >= (this.options.maxSessionsPerIp ?? this.options.maxPerIp ?? 32)) {
-        const idle = mine.filter(r => !r.session.connected).sort((a,b)=>a.session.disconnectedAt-b.session.disconnectedAt)[0];
+        const idle = longestWaiting(mine);
         if (!idle) { c.socket.close(1013,'capacity'); return; } this.expire(idle);
       }
-      if (this.sessions.size >= (this.options.maxSessions ?? 256)) { c.socket.close(1013,'capacity'); return; }
+      if (this.sessions.size >= (this.options.maxSessions ?? 256)) {
+        // A seat held for someone who may come back must not turn away someone connecting now (see GameServer).
+        const idle = longestWaiting(this.records.values());
+        if (!idle) { c.socket.close(1013,'capacity'); return; } this.expire(idle);
+      }
       const session = new GameSession(crypto.randomUUID(),message.room,subject,this.options.endpoint);
       session.endpoint.onCallbackError = error => this.report(error);
       record = {session,token:token()}; this.sessions.set(session.id,session); this.records.set(record.token,record);

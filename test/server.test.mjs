@@ -168,6 +168,41 @@ test('one address cannot fill the session table: its oldest dropped session make
   } finally { for (const c of clients) c.close(); await s.server.close(); }
 });
 
+test('a full server makes way for a new player by expiring the session that has waited longest to resume', async () => {
+  const expired = [];
+  const s = await setup({ maxSessions: 2, onExpire: session => expired.push(session.id) }); const clients = [];
+  try {
+    const held = [];
+    for (let i = 0; i < 2; i++) {
+      const c = client(s.url); clients.push(c); c.connect(); await until(() => c.status === 'online');
+      held.push(c.id); c.pause(); await until(() => !s.server.sessions.get(c.id)?.connected);
+    }
+    const fresh = client(s.url); clients.push(fresh); fresh.connect();
+    await until(() => fresh.status === 'online');
+    assert.deepEqual(expired, [held[0]], 'only the oldest waiting session is given up, and the game is told');
+    assert.ok(s.server.sessions.has(held[1]) && s.server.sessions.has(fresh.id));
+    // Sessions that are actually connected are never pushed out: with both seats live, a newcomer is refused.
+    const again = client(s.url); clients.push(again); again.connect();
+    await until(() => !s.server.sessions.get(held[1])); await until(() => again.status === 'online');
+    const blocked = client(s.url); clients.push(blocked); blocked.connect(); await sleep(150);
+    assert.notEqual(blocked.status, 'online');
+    assert.equal(s.server.sessions.size, 2);
+  } finally { for (const c of clients) c.close(); await s.server.close(); }
+});
+
+test('a session still being set up is never expired to make room for another', async () => {
+  let release, calls = 0; const gate = new Promise(r => release = r); const expired = [];
+  const s = await setup({ maxSessions: 1, onExpire: x => expired.push(x.id), iceServers: async () => { if (++calls === 1) await gate; return []; } });
+  const a = client(s.url), b = client(s.url);
+  try {
+    a.connect(); await until(() => calls === 1);       // a's new session exists, but its hello is waiting on iceServers
+    b.connect(); await sleep(150);
+    assert.notEqual(b.status, 'online'); assert.deepEqual(expired, []);
+    release(); await until(() => a.status === 'online');
+    assert.equal(s.server.sessions.size, 1); assert.ok(s.server.sessions.has(a.id));
+  } finally { release(); a.close(); b.close(); await s.server.close(); }
+});
+
 test('after connecting the client sends a burst of pings, so the clock settles in about two seconds', async () => {
   const s = await setup(); const c = client(s.url);
   try {

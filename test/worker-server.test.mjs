@@ -84,3 +84,15 @@ test('Worker socket adapter retries a thrown authenticate; a null one still ends
   verdict=()=>null;c.simulateDrop();await until(()=>c.status==='lost');assert.match(lost.reason,/join/);
  }finally{await s.close();}
 });
+test('Worker socket adapter: a full host expires the longest-waiting session for a new player, never a live one',async()=>{
+ const expired=[];const s=await setup({resumeGraceMs:60000,maxSessions:2,onExpire:x=>expired.push(x.id)});
+ try{
+  const held=[];
+  for(let i=0;i<2;i++){const c=s.client();c.connect();await c.whenOnline();held.push(c.id);c.pause();await until(()=>!s.host.sessions.get(c.id)?.connected);}
+  const fresh=s.client();fresh.connect();await until(()=>fresh.status==='online');
+  assert.deepEqual(expired,[held[0]]);assert.ok(s.host.sessions.has(held[1])&&s.host.sessions.has(fresh.id));
+  const again=s.client();again.connect();await until(()=>again.status==='online');
+  const blocked=s.client();blocked.connect();await sleep(150);
+  assert.notEqual(blocked.status,'online');assert.equal(s.host.sessions.size,2);assert.deepEqual(expired,held);
+ }finally{await s.close();}
+});
