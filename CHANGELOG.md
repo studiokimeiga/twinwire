@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- Fix a delta snapshot stream that never recovered after the receiver missed one snapshot. A state sent with
+  `ack: true` was acknowledged as soon as it arrived, so a snapshot the game couldn't use (it arrived before the game
+  was ready, or its base was gone) became the server's next base. Every delta after it was unusable and acknowledged in
+  turn. Now a state is acknowledged only if `onState` accepts it: return false or throw to refuse. On a client, the
+  stream's `receiveState` receiver must also have applied it. Returning nothing still accepts.
+- Add `SnapshotBaselines`, the receiving side of `SnapshotHistory`: built snapshots by seq, kept within the same
+  window. `SnapshotHistory` now drops an acknowledged base more than `capacity` seqs old, so the next snapshot is
+  whole instead of a delta the receiver may no longer be able to use.
+- `SubtickInputBuffer` no longer throws on input timing. Each value is the whole input state, so events pushed out of
+  order are sorted, and an event whose tick was already taken (or skipped by a stall) is applied at the start of the
+  next window, counted in `late`. Before, these threw and a game had to resync. An event older than one already taken
+  is out of date and dropped. Overflow, or more than `maxPerTick` in one tick, drops the earliest transitions and keeps
+  the newest state, where before it threw. `dropped` counts all three. Overlapping windows and non-finite times still
+  throw.
+- A full server no longer turns new players away while sessions are only waiting to resume. At `maxSessions`, a new
+  player replaces the session that has waited longest (it expires, with an `expire` event), so abandoned sessions can't
+  fill the server. A few addresses could do that before, each session held for the whole resume grace. Connected
+  sessions, and sessions still being set up, are never replaced. Applies to the Worker adapter too.
+- No wire change: generation 5 is unchanged, and acknowledgements use the same frames.
+
 ## 3.1.0 (2026-11-09)
 
 - A handler that keeps throwing can no longer stall a player's events or end the session. A rejected event is now

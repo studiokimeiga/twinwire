@@ -32,7 +32,8 @@ export class GameSession {
   sendState(stream: number, data: Uint8Array, options?: StateOptions) {
     return this.endpoint.sendState(stream, data, performance.now(), options);
   }
-  set onState(cb: (state: StateMessage) => void) { this.endpoint.onState = cb; }
+  /** Return false (or throw) to refuse an `ack: true` state, so it isn't acknowledged. */
+  set onState(cb: (state: StateMessage) => boolean | void) { this.endpoint.onState = cb; }
   set onEvent(cb: (data: Json, seq: number) => void) { this.endpoint.onEvent = cb; }
   set onStateAck(cb: (stream: number, seq: number) => void) { this.endpoint.onStateAck = cb; }
   get transport(): 'wt' | 'rtc' | 'ws' | 'none' { return !this.connected ? 'none' : this.endpoint.fastTransport ?? 'ws'; }

@@ -62,7 +62,9 @@ export class Endpoint {
     stale: 0, expired: 0, coalesced: 0, congested: 0, invalid: 0, fastTransitions: 0, datagramRttMs: 0,
     eventsViaDatagram: 0, datagramEventFrames: 0, stateAcksSent: 0, stateAcksReceived: 0, impairedDrops: 0,
     impairedStalls: 0, eventsRejected: 0, eventsDropped: 0, callbackErrors: 0, traceErrors: 0 };
-  onState: (state: StateMessage) => void = () => {};
+  /** Return false (or throw) when the state can't be used, for example a delta whose base you don't have: a state sent
+   * with `ack: true` is acknowledged only when this accepts it. Returning nothing accepts. */
+  onState: (state: StateMessage) => boolean | void = () => {};
   /** A throw means "not accepted": the event is offered again (in order) shortly after, up to `events.maxRejections` attempts. */
   onEvent: (data: Json, seq: number) => void = () => {};
   /** An application callback threw (onEvent, onState, onStateAck). The connection carries on. */
@@ -71,7 +73,7 @@ export class Endpoint {
   onFastDown: (via: FastTransport) => void = () => {};
   onFastChange: (fast: boolean) => void = () => {};
   onEventAck: (seq: number) => void = () => {};
-  /** The peer has seen state `seq` on `stream` (only for states sent with `ack: true`). */
+  /** The peer has accepted state `seq` on `stream` (only for states sent with `ack: true`): its newest usable one. */
   onStateAck: (stream: number, seq: number) => void = () => {};
   private reliable?: ReliableLink;
   private paths = new Map<FastTransport, FastPath>();
@@ -300,12 +302,15 @@ export class Endpoint {
         this.seen.set(f.stream, !d || d > 32 ? 0 : ((d < 32 ? (mask << d) >>> 0 : 0) | (1 << (d - 1))) >>> 0);
       }
       this.received.set(f.stream, f.seq);
-      if (f.kind === FrameKind.stateAcked) this.acksOut.set(f.stream, f.seq);
     }
     this.stats.statesReceived++;
     if (this.trace) this.traceState('received', { stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via });
-    try { this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via, late }); }
-    catch (e) { this.callbackError(e); }
+    let accepted: boolean;
+    try { accepted = this.onState({ stream: f.stream, seq: f.seq, time: f.time, data: f.payload, via, late }) !== false; }
+    catch (e) { accepted = false; this.callbackError(e); }
+    // Acknowledge only what the application kept: a sender diffing against an ack must never build on a snapshot the
+    // receiver couldn't use. Late copies are never acknowledged; acks follow the newest.
+    if (accepted && !late && f.kind === FrameKind.stateAcked) this.acksOut.set(f.stream, f.seq);
   }
   private callbackError(e: unknown): void {
     this.stats.callbackErrors++;

@@ -100,7 +100,8 @@ export class Lobby {
   onClose: (room: Room, reason: string) => void = () => {};
   /** Application events (anything that is not a lobby request). room/member are null outside a room. */
   onEvent: (room: Room | null, member: Member | null, data: Json, session: GameSession) => void = () => {};
-  onState: (room: Room | null, member: Member | null, state: StateMessage, session: GameSession) => void = () => {};
+  /** Return false (or throw) to refuse an `ack: true` state, so it isn't acknowledged. */
+  onState: (room: Room | null, member: Member | null, state: StateMessage, session: GameSession) => boolean | void = () => {};
   onError: (error: Error) => void = () => {};
   constructor(readonly server: GameServer, o: LobbyOptions = {}) {
     this.options = {
@@ -128,7 +129,10 @@ export class Lobby {
   dispose(): void { clearInterval(this.timer); for (const f of this.off) f(); for (const r of [...this.rooms.values()]) this.closeRoom(r, 'shutdown'); }
   private attach(s: GameSession, resumed: boolean) {
     s.onEvent = data => this.event(s, data);
-    s.onState = state => { const m = this.bySession.get(s.id); try { this.onState(m?.room ?? null, m ?? null, state, s); } catch (e) { this.report(e); } };
+    s.onState = state => {
+      const m = this.bySession.get(s.id);
+      try { return this.onState(m?.room ?? null, m ?? null, state, s); } catch (e) { this.report(e); return false; }
+    };
     // back on a new connection: after a drop, or taking over from a socket the server hasn't seen close yet (a reloaded
     // page resuming its checkpoint). Either way the client is a fresh instance, so the game re-sends what it needs.
     const m = this.bySession.get(s.id);

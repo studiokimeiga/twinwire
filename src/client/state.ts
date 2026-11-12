@@ -97,16 +97,19 @@ export class StateReceiver {
       this.resetOK = true; // a failed reset remains blocked and is reported by the client
     }
   }
-  /** @internal Only the client's epoch-checked incoming path calls this, synchronously. */
-  receive(state: StateMessage): void {
+  /** @internal Only the client's epoch-checked incoming path calls this, synchronously. True when `apply` took the
+   * state, which is what lets the client acknowledge it. */
+  receive(state: StateMessage): boolean {
     if (this.disposed || !this.resetOK || !this.context.connected() ||
-        (this.options.stream !== undefined && state.stream !== this.options.stream)) return;
+        (this.options.stream !== undefined && state.stream !== this.options.stream)) return false;
     const arrival = this.context.now();
-    if (!Number.isFinite(state.time) || (arrival !== null && state.time > arrival + this.context.tolerance())) return;
+    if (!Number.isFinite(state.time) || (arrival !== null && state.time > arrival + this.context.tolerance())) return false;
     const generation = this.context.generation();
-    if (this.options.apply(state) !== true || generation !== this.context.generation() || !this.context.connected()) return;
+    if (this.options.apply(state) !== true) return false;
+    if (generation !== this.context.generation()) return false;   // a new session reset the histories during apply
+    if (!this.context.connected()) return true;
     const now = this.context.now(), tolerance = this.context.tolerance();
-    if (!Number.isFinite(state.time) || (now !== null && state.time > now + tolerance)) return;
+    if (!Number.isFinite(state.time) || (now !== null && state.time > now + tolerance)) return true;
     // A sample received before clock sync must not poison subsequent freshness if its time proves implausible.
     if (now !== null && this.newest > now + tolerance) this.newest = -Infinity;
     this.newest = Math.max(this.newest, state.time);
@@ -116,5 +119,6 @@ export class StateReceiver {
     const playback = this.options.playback;
     if (this.waiting && playback && now !== null && now - state.time <= playback.maxMs + this.maxExtrapolation)
       playback.observe(now, state.time); // valid current headers teach recovery, including unchanged idle entities
+    return true;
   }
 }
