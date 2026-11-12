@@ -1,6 +1,6 @@
 {
   "name": "twinwire",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Browser multiplayer with resumable sessions, WebSocket/WebRTC and optional WebTransport, ordered events, latest state, latency tracing, independent resources, lobbies and netcode helpers.",
   "keywords": [
     "multiplayer",

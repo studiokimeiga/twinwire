@@ -1,4 +1,30 @@
-# Validation status: 3.1.0 (2026-11-09)
+# Validation status: 3.2.0 (2026-11-12)
+
+Wire generation 5 is unchanged and 3.2.0 interoperates with 3.0.x and 3.1.x peers. This release fixes a delta snapshot
+stream that never recovered after the receiver missed one snapshot (states were acknowledged before the game had
+used them), adds `SnapshotBaselines`, stops `SubtickInputBuffer` throwing on late or out-of-order input, and lets a
+full server replace the session that has waited longest to resume instead of refusing a new player. Each change has a
+test that failed first. The ack timing and the guard that protects sessions still being set up were also checked by
+removing them and watching their tests fail.
+
+The release candidate was exported to a clean directory, with `npm ci`, on Windows 11 and Node 24.18. On that copy,
+`npm run check` passes **281 of 281 tests, 0 skipped**. `test:native` passes. `test:browser` passes in Chromium clean,
+with `IMPAIR=1` and with `RTC=0`. `test:example` passes plain and with `RTC=1` in Chromium. `npm audit` reports no
+findings, and `npm pack --dry-run` contains 144 files: `dist`, docs, README, CITATION.cff, SUPPORT.md, LICENSE and the
+changelog. The docs site build and site check don't run on Windows (the build hands `tar` a `C:` path and the check
+spawns `npx` without a shell), so the site is covered by CI only.
+
+This machine has no Playwright build of Firefox or WebKit, so those engines are covered by CI only. The
+[PR run at 007960f](https://github.com/studiokimeiga/twinwire/actions/runs/42861924167) passed core Node 22/24, the
+starters, Chromium/Firefox/WebKit browsers and WebTransport, and 10-minute Node 22/24 lifecycle soaks. The WebTransport
+soak job was skipped. The [pages run on main at 2fe7aad](https://github.com/studiokimeiga/twinwire/actions/runs/43164341399)
+built, checked and deployed the docs site. Only the version number, changelog heading and this record changed after
+that commit.
+
+No 60-minute soak, performance comparison, real-phone or production acceptance run was made for this release. The
+`docs/RELEASE-CHECKLIST.md` list of what a game must establish for itself still applies.
+
+## Validation status: 3.1.0 (2026-11-09)
 
 Wire generation 5 is unchanged and 3.1.0 interoperates with 3.0.x peers. This release stops a repeatedly rejected
 event from stalling or ending a session and fixes three resume failures: stale-checkpoint session loss, a throwing

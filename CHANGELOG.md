@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.2.0 (2026-11-12)
 
 - Fix a delta snapshot stream that never recovered after the receiver missed one snapshot. A state sent with
   `ack: true` was acknowledged as soon as it arrived, so a snapshot the game couldn't use (it arrived before the game
